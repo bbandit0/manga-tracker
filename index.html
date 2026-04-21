@@ -120,6 +120,85 @@
   .add-m .badd{flex-shrink:0}
 }
 
+/* ── PARCHE 2.2: AMIGOS ── */
+.friends-panel{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rm);padding:20px;margin-bottom:20px;animation:slideDown .2s}
+.friends-title{font-size:15px;font-weight:700;color:var(--t1);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.friends-section{margin-bottom:18px}
+.friends-section:last-child{margin-bottom:0}
+.friends-section-lbl{font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+/* Setup username */
+.fn-setup{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rm);padding:16px;text-align:center}
+.fn-setup-desc{font-size:12px;color:var(--t2);margin-bottom:12px;line-height:1.5}
+.fn-input{width:100%;padding:10px 14px;background:var(--bgi);border:1px solid var(--bd);border-radius:var(--r);color:var(--t1);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;outline:none;transition:.15s}
+.fn-input:focus{border-color:var(--am);box-shadow:0 0 0 3px var(--amd)}
+.fn-btn{padding:9px 20px;border:none;border-radius:var(--r);background:var(--am);color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;margin-top:8px}
+.fn-btn:hover{opacity:.88}
+.fn-btn.sec{background:var(--bg4);color:var(--t2);border:1px solid var(--bd)}
+.fn-btn.sec:hover{color:var(--t1)}
+/* My username badge */
+.fn-my-user{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rm);padding:12px 14px}
+.fn-my-user .fn-avatar{width:36px;height:36px;border-radius:50%;border:2px solid var(--am);object-fit:cover;flex-shrink:0}
+.fn-my-user .fn-avatar-ph{width:36px;height:36px;border-radius:50%;background:var(--amd);border:2px solid var(--am);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.fn-my-user .fn-user-info{flex:1}
+.fn-my-user .fn-display-name{font-size:14px;font-weight:600;color:var(--t1)}
+.fn-my-user .fn-username{font-size:11px;color:var(--t2);font-family:'Space Mono',monospace}
+.fn-tag{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:var(--amd);color:var(--am);margin-top:2px}
+/* Search */
+.fn-search-row{display:flex;gap:8px}
+.fn-search-row .fn-input{flex:1}
+/* Friend card */
+.fn-friend-card{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rm);padding:14px;margin-bottom:10px;cursor:pointer;transition:.2s}
+.fn-friend-card:hover{border-color:var(--bdl);transform:translateY(-1px)}
+.fn-friend-card:last-child{margin-bottom:0}
+.fn-fc-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.fn-fc-avatar{width:34px;height:34px;border-radius:50%;border:2px solid var(--bd);object-fit:cover;flex-shrink:0}
+.fn-fc-avatar-ph{width:34px;height:34px;border-radius:50%;background:var(--bg4);border:2px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.fn-fc-info{flex:1}
+.fn-fc-name{font-size:13px;font-weight:600;color:var(--t1)}
+.fn-fc-user{font-size:10px;color:var(--t3);font-family:'Space Mono',monospace}
+.fn-fc-last{font-size:10px;color:var(--t3)}
+.fn-fc-stats{display:flex;gap:8px;flex-wrap:wrap}
+.fn-fc-stat{background:var(--bg3);border-radius:var(--r);padding:6px 10px;text-align:center;flex:1;min-width:60px}
+.fn-fc-stat-v{font-family:'Space Mono',monospace;font-size:15px;font-weight:700}
+.fn-fc-stat-l{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+/* Friend profile view */
+.fn-profile{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rm);padding:20px;margin-bottom:20px;animation:slideDown .2s}
+.fn-profile-header{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--bd)}
+.fn-profile-avatar{width:52px;height:52px;border-radius:50%;border:2px solid var(--am);object-fit:cover}
+.fn-profile-avatar-ph{width:52px;height:52px;border-radius:50%;background:var(--amd);border:2px solid var(--am);display:flex;align-items:center;justify-content:center;font-size:24px}
+.fn-profile-info{flex:1}
+.fn-profile-name{font-size:17px;font-weight:700;color:var(--t1)}
+.fn-profile-uname{font-size:11px;color:var(--t2);font-family:'Space Mono',monospace;margin-top:2px}
+.fn-profile-stats{display:flex;gap:10px;margin-bottom:18px}
+.fn-ps{flex:1;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rm);padding:12px;text-align:center}
+.fn-ps-v{font-family:'Space Mono',monospace;font-size:20px;font-weight:700}
+.fn-ps-l{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.fn-profile-list-title{font-size:12px;font-weight:600;color:var(--t2);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.fn-series-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg2);border-radius:var(--r);border:1px solid var(--bd);margin-bottom:6px}
+.fn-series-item:last-child{margin-bottom:0}
+.fn-series-cover{width:30px;height:43px;object-fit:cover;border-radius:4px;border:1px solid var(--bd);flex-shrink:0}
+.fn-series-cover-ph{width:30px;height:43px;background:var(--bg4);border-radius:4px;border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.fn-series-info{flex:1;min-width:0}
+.fn-series-title{font-size:13px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fn-series-prog{font-family:'Space Mono',monospace;font-size:10px;color:var(--t2);margin-top:2px}
+.fn-series-pbar{height:3px;background:var(--bg1);border-radius:2px;margin-top:5px;overflow:hidden}
+.fn-series-pfill{height:100%;border-radius:2px}
+/* Requests */
+.fn-req-card{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rm);padding:12px;margin-bottom:8px}
+.fn-req-card:last-child{margin-bottom:0}
+.fn-req-name{flex:1;font-size:13px;font-weight:500;color:var(--t1)}
+.fn-req-user{font-size:10px;color:var(--t3);font-family:'Space Mono',monospace}
+.fn-req-btns{display:flex;gap:6px}
+.fn-req-btn{padding:6px 12px;border-radius:var(--r);font-size:11px;font-weight:600;cursor:pointer;border:none;transition:.15s}
+.fn-req-btn.accept{background:var(--suc);color:#fff}
+.fn-req-btn.reject{background:var(--bg4);color:var(--t2);border:1px solid var(--bd)}
+/* Status */
+.fn-status{font-size:12px;color:var(--t2);text-align:center;padding:16px;background:var(--bg2);border-radius:var(--r)}
+.fn-status.error{color:var(--dng)}
+.fn-status.success{color:var(--suc)}
+.fn-remove-btn{padding:5px 10px;border:1px solid rgba(231,76,76,.3);background:transparent;color:var(--t3);font-size:10px;border-radius:var(--r);cursor:pointer;transition:.15s}
+.fn-remove-btn:hover{color:var(--dng);border-color:var(--dng)}
+
 </style>
 </head>
 <body>
@@ -141,6 +220,15 @@
 //         match /users/{userId}/{document=**} {
 //           allow read, write: if request.auth != null
 //                              && request.auth.uid == userId;
+//         }
+//         match /public_profiles/{userId} {
+//           allow read: if request.auth != null;
+//           allow write: if request.auth != null && request.auth.uid == userId;
+//         }
+//         match /usernames/{username} {
+//           allow read: if request.auth != null;
+//           allow create: if request.auth != null
+//                         && request.resource.data.uid == request.auth.uid;
 //         }
 //       }
 //     }
@@ -170,6 +258,371 @@ async function signIn(){if(!FIREBASE_ENABLED)return showToast("Configura Firebas
 async function signOut(){if(fbUnsub)fbUnsub();fbUnsub=null;try{await fbAuth.signOut();fbUser=null;render();}catch(e){}}
 async function saveToCloud(){if(!fbUser||!fbDb)return;try{await fbDb.collection("users").doc(fbUser.uid).set({data:JSON.parse(JSON.stringify(data)),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});}catch(e){console.warn("Cloud save:",e);}}
 async function loadFromCloud(){if(!fbUser||!fbDb)return;try{const doc=await fbDb.collection("users").doc(fbUser.uid).get();if(doc.exists&&doc.data().data){const c=doc.data().data;["manga","anime"].forEach(t=>{if(c[t])c[t]=c[t].map(migrate);});data=c;saveLocal();render();showToast("✓ Sincronizado");}else{await saveToCloud();showToast("Datos subidos a la nube");}if(fbUnsub)fbUnsub();fbUnsub=fbDb.collection("users").doc(fbUser.uid).onSnapshot(snap=>{if(!snap.exists)return;const d=snap.data().data;if(!d)return;["manga","anime"].forEach(t=>{if(d[t])d[t]=d[t].map(migrate);});data=d;saveLocal();render();});}catch(e){console.warn("Cloud load:",e);}}
+
+// ═══════════════════════════════════════════════════════════════════
+// PARCHE 2.2 — SISTEMA DE AMIGOS
+// ═══════════════════════════════════════════════════════════════════
+
+let friendsState={
+  view:"list",
+  viewingUid:null,
+  viewingData:null,
+  searchUsername:"",
+  searchResult:null,
+  searchLoading:false,
+  statusMsg:"",
+  statusType:""
+};
+
+async function fnSaveMyPublicProfile(){
+  if(!fbUser||!fbDb) return;
+  const uid=fbUser.uid;
+  const mangaCount=data.manga.length;
+  const animeCount=data.anime.length;
+  const topManga=data.manga.filter(s=>s.status==="reading")
+    .sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0)).slice(0,5)
+    .map(s=>({title:s.title,completed:s.completed.length,total:s.total,cover:s.coverIsUrl?s.cover:"",status:s.status,lastUpdated:s.lastUpdated||0}));
+  const topAnime=data.anime.filter(s=>s.status==="reading")
+    .sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0)).slice(0,5)
+    .map(s=>({title:s.title,completed:s.completed.length,total:s.total,cover:s.coverIsUrl?s.cover:"",status:s.status,lastUpdated:s.lastUpdated||0}));
+  const allManga=data.manga.map(s=>({title:s.title,completed:s.completed.length,total:s.total,cover:s.coverIsUrl?s.cover:"",status:s.status,lastUpdated:s.lastUpdated||0}));
+  const allAnime=data.anime.map(s=>({title:s.title,completed:s.completed.length,total:s.total,cover:s.coverIsUrl?s.cover:"",status:s.status,lastUpdated:s.lastUpdated||0}));
+  try{
+    const existing=await fbDb.collection("public_profiles").doc(uid).get();
+    const username=existing.exists?(existing.data().username||""):"";
+    await fbDb.collection("public_profiles").doc(uid).set({
+      uid,username,
+      displayName:fbUser.displayName||"",
+      avatarUrl:fbUser.photoURL||"",
+      mangaCount,animeCount,topManga,topAnime,allManga,allAnime,
+      lastActive:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+  }catch(e){console.warn("fnSaveMyPublicProfile:",e);}
+}
+
+async function fnRegisterUsername(username){
+  if(!fbUser||!fbDb) return {ok:false,msg:"Debes iniciar sesion"};
+  const clean=username.trim().toLowerCase().replace(/[^a-z0-9_]/g,"");
+  if(clean.length<3) return {ok:false,msg:"Minimo 3 caracteres (letras, numeros, _)"};
+  if(clean.length>20) return {ok:false,msg:"Maximo 20 caracteres"};
+  try{
+    const check=await fbDb.collection("usernames").doc(clean).get();
+    if(check.exists) return {ok:false,msg:"Ese username ya esta tomado"};
+    await fbDb.collection("usernames").doc(clean).set({uid:fbUser.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    await fbDb.collection("public_profiles").doc(fbUser.uid).set({
+      uid:fbUser.uid,username:clean,displayName:fbUser.displayName||"",
+      avatarUrl:fbUser.photoURL||"",mangaCount:data.manga.length,animeCount:data.anime.length,
+      topManga:[],topAnime:[],allManga:[],allAnime:[],
+      lastActive:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+    return {ok:true};
+  }catch(e){return {ok:false,msg:"Error: "+e.message};}
+}
+
+async function fnGetMyUsername(){
+  if(!fbUser||!fbDb) return null;
+  try{
+    const doc=await fbDb.collection("public_profiles").doc(fbUser.uid).get();
+    return doc.exists?doc.data().username||null:null;
+  }catch(e){return null;}
+}
+
+async function fnSearchUser(username){
+  if(!fbDb||!fbUser) return null;
+  const clean=username.trim().toLowerCase().replace(/[^a-z0-9_]/g,"");
+  if(!clean) return null;
+  try{
+    const doc=await fbDb.collection("usernames").doc(clean).get();
+    if(!doc.exists) return "not-found";
+    const uid=doc.data().uid;
+    if(uid===fbUser.uid) return "self";
+    const profile=await fbDb.collection("public_profiles").doc(uid).get();
+    if(!profile.exists) return "not-found";
+    return {uid,profile:profile.data()};
+  }catch(e){return null;}
+}
+
+async function fnSendRequest(toUid){
+  if(!fbUser||!fbDb) return {ok:false,msg:"Sin sesion"};
+  try{
+    const existing=await fbDb.collection("users").doc(fbUser.uid).collection("friends_accepted").doc(toUid).get();
+    if(existing.exists) return {ok:false,msg:"Ya son amigos"};
+    const sentCheck=await fbDb.collection("users").doc(fbUser.uid).collection("friends_sent").doc(toUid).get();
+    if(sentCheck.exists) return {ok:false,msg:"Solicitud ya enviada"};
+    const ts=firebase.firestore.FieldValue.serverTimestamp();
+    const myProfile=await fbDb.collection("public_profiles").doc(fbUser.uid).get();
+    const myUsername=myProfile.exists?myProfile.data().username:"";
+    await fbDb.collection("users").doc(fbUser.uid).collection("friends_sent").doc(toUid).set({toUid,ts,status:"pending"});
+    await fbDb.collection("users").doc(toUid).collection("friends_received").doc(fbUser.uid).set({
+      fromUid:fbUser.uid,ts,status:"pending",
+      displayName:fbUser.displayName||fbUser.email||"",
+      username:myUsername,
+      avatarUrl:fbUser.photoURL||""
+    });
+    return {ok:true};
+  }catch(e){return {ok:false,msg:e.message};}
+}
+
+async function fnAcceptRequest(fromUid,fromData){
+  if(!fbUser||!fbDb) return;
+  try{
+    const ts=firebase.firestore.FieldValue.serverTimestamp();
+    const myProfile=await fbDb.collection("public_profiles").doc(fbUser.uid).get();
+    const myUsername=myProfile.exists?myProfile.data().username:"";
+    await fbDb.collection("users").doc(fbUser.uid).collection("friends_accepted").doc(fromUid).set({
+      since:ts,uid:fromUid,
+      displayName:fromData.displayName||"",username:fromData.username||"",avatarUrl:fromData.avatarUrl||""
+    });
+    await fbDb.collection("users").doc(fromUid).collection("friends_accepted").doc(fbUser.uid).set({
+      since:ts,uid:fbUser.uid,
+      displayName:fbUser.displayName||"",username:myUsername,avatarUrl:fbUser.photoURL||""
+    });
+    await fbDb.collection("users").doc(fbUser.uid).collection("friends_received").doc(fromUid).delete();
+    await fbDb.collection("users").doc(fromUid).collection("friends_sent").doc(fbUser.uid).delete();
+    showToast("Amigo agregado!");
+    renderFriendsPanel();
+  }catch(e){showToast("Error: "+e.message);}
+}
+
+async function fnRejectRequest(fromUid){
+  if(!fbUser||!fbDb) return;
+  try{
+    await fbDb.collection("users").doc(fbUser.uid).collection("friends_received").doc(fromUid).delete();
+    await fbDb.collection("users").doc(fromUid).collection("friends_sent").doc(fbUser.uid).delete();
+    renderFriendsPanel();
+  }catch(e){showToast("Error: "+e.message);}
+}
+
+async function fnRemoveFriend(friendUid){
+  if(!fbUser||!fbDb) return;
+  try{
+    await fbDb.collection("users").doc(fbUser.uid).collection("friends_accepted").doc(friendUid).delete();
+    await fbDb.collection("users").doc(friendUid).collection("friends_accepted").doc(fbUser.uid).delete();
+    friendsState.view="list";friendsState.viewingUid=null;friendsState.viewingData=null;
+    showToast("Amigo eliminado");
+    renderFriendsPanel();
+  }catch(e){showToast("Error: "+e.message);}
+}
+
+async function renderFriendsPanel(){
+  const container=document.getElementById("friends-panel-container");
+  if(!container) return;
+  container.innerHTML=`<div style="text-align:center;padding:30px;color:var(--t3);font-size:12px">Cargando...</div>`;
+  if(!fbUser){
+    container.innerHTML=`<div class="fn-status">Inicia sesion con Google para usar el sistema de amigos</div>`;
+    return;
+  }
+  fnSaveMyPublicProfile().catch(()=>{});
+  const myUsername=await fnGetMyUsername();
+  const ac=theme.accentManga||"#e74c6f";
+
+  // Vista perfil de amigo
+  if(friendsState.view==="profile" && friendsState.viewingUid){
+    let pData=friendsState.viewingData;
+    if(!pData){
+      try{const doc=await fbDb.collection("public_profiles").doc(friendsState.viewingUid).get();pData=doc.exists?doc.data():null;}catch(e){}
+    }
+    if(!pData){container.innerHTML=`<div class="fn-status error">No se pudo cargar el perfil</div>`;return;}
+    const av=pData.avatarUrl?`<img class="fn-profile-avatar" src="${pData.avatarUrl}">`:
+      `<div class="fn-profile-avatar-ph">&#128100;</div>`;
+    const allSeries=[...(pData.allManga||pData.topManga||[]).map(s=>({...s,type:"M"})),
+                     ...(pData.allAnime||pData.topAnime||[]).map(s=>({...s,type:"A"}))];
+    const reading=allSeries.filter(s=>s.status==="reading").sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0));
+    const completed=allSeries.filter(s=>s.status==="completed").sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0)).slice(0,5);
+    const buildList=(arr,emptyMsg)=>{
+      if(!arr.length) return `<div class="fn-status">${emptyMsg}</div>`;
+      return arr.map(s=>{
+        const cvr=s.cover?`<img class="fn-series-cover" src="${s.cover}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="fn-series-cover-ph" style="display:none">${s.type==="M"?"&#128218;":"&#127916;"}</div>`:
+          `<div class="fn-series-cover-ph">${s.type==="M"?"&#128218;":"&#127916;"}</div>`;
+        const pct=s.total>0?Math.round(s.completed/s.total*100):0;
+        return `<div class="fn-series-item">${cvr}<div class="fn-series-info"><div class="fn-series-title">${s.title}</div><div class="fn-series-prog">${s.completed}/${s.total} &middot; ${pct}%</div><div class="fn-series-pbar"><div class="fn-series-pfill" style="width:${pct}%;background:${ac}"></div></div></div><span style="font-size:10px;color:var(--t3)">${s.type}</span></div>`;
+      }).join("");
+    };
+    const vuid=friendsState.viewingUid;
+    container.innerHTML=`
+      <div class="fn-profile">
+        <button class="fn-btn sec" onclick="friendsState.view='list';friendsState.viewingUid=null;friendsState.viewingData=null;renderFriendsPanel()" style="margin-bottom:16px;font-size:12px">&larr; Volver</button>
+        <div class="fn-profile-header">
+          ${av}
+          <div class="fn-profile-info">
+            <div class="fn-profile-name">${pData.displayName||"Usuario"}</div>
+            <div class="fn-profile-uname">@${pData.username||"&mdash;"}</div>
+          </div>
+          <button class="fn-remove-btn" onclick="if(confirm('Eliminar de amigos?'))fnRemoveFriend('${vuid}')">Eliminar</button>
+        </div>
+        <div class="fn-profile-stats">
+          <div class="fn-ps"><div class="fn-ps-v" style="color:${ac}">${pData.mangaCount||0}</div><div class="fn-ps-l">Manga</div></div>
+          <div class="fn-ps"><div class="fn-ps-v" style="color:var(--aa)">${pData.animeCount||0}</div><div class="fn-ps-l">Anime</div></div>
+          <div class="fn-ps"><div class="fn-ps-v" style="color:var(--suc)">${reading.length}</div><div class="fn-ps-l">Activos</div></div>
+        </div>
+        <div class="friends-section">
+          <div class="fn-profile-list-title">&#128214; Leyendo/Viendo ahora</div>
+          ${buildList(reading,"Nada en progreso")}
+        </div>
+        <div class="friends-section" style="margin-top:16px">
+          <div class="fn-profile-list-title">&#9989; Ultimos completados</div>
+          ${buildList(completed,"Sin completados")}
+        </div>
+      </div>`;
+    return;
+  }
+
+  // Vista lista
+  let received=[], friends=[];
+  try{const rSnap=await fbDb.collection("users").doc(fbUser.uid).collection("friends_received").get();received=rSnap.docs.map(d=>({id:d.id,...d.data()}));}catch(e){}
+  try{const fSnap=await fbDb.collection("users").doc(fbUser.uid).collection("friends_accepted").get();friends=fSnap.docs.map(d=>({id:d.id,...d.data()}));}catch(e){}
+
+  let html=`<div class="friends-panel"><div class="friends-title">&#128101; Amigos</div>`;
+
+  // Mi usuario
+  if(!myUsername){
+    html+=`<div class="friends-section"><div class="friends-section-lbl">Mi usuario</div>
+      <div class="fn-setup">
+        <div class="fn-setup-desc">Elige un nombre de usuario unico para que tus amigos puedan encontrarte</div>
+        <input class="fn-input" id="fn-username-input" placeholder="ej: bbandit0" maxlength="20">
+        <br><button class="fn-btn" id="fn-register-btn">Registrar username</button>
+        ${friendsState.statusMsg?`<div class="fn-status ${friendsState.statusType}" style="margin-top:10px">${friendsState.statusMsg}</div>`:""}
+      </div></div>`;
+  }else{
+    const avImg=fbUser.photoURL?`<img class="fn-avatar" src="${fbUser.photoURL}">`:
+      `<div class="fn-avatar-ph">&#128100;</div>`;
+    html+=`<div class="friends-section"><div class="fn-my-user">
+      ${avImg}
+      <div class="fn-user-info">
+        <div class="fn-display-name">${fbUser.displayName||"Usuario"}</div>
+        <div class="fn-username">@${myUsername}</div>
+        <div class="fn-tag">Comparte tu @username con amigos</div>
+      </div></div></div>`;
+  }
+
+  // Buscar amigo
+  if(myUsername){
+    html+=`<div class="friends-section"><div class="friends-section-lbl">Agregar amigo</div>
+      <div class="fn-search-row">
+        <input class="fn-input" id="fn-search-input" placeholder="@username del amigo" value="${friendsState.searchUsername}">
+        <button class="fn-btn" id="fn-search-btn">Buscar</button>
+      </div>`;
+    if(friendsState.searchResult==="not-found"){
+      html+=`<div class="fn-status error" style="margin-top:10px">Usuario no encontrado</div>`;
+    }else if(friendsState.searchResult==="self"){
+      html+=`<div class="fn-status" style="margin-top:10px">Ese eres tu</div>`;
+    }else if(friendsState.searchResult && typeof friendsState.searchResult==="object"){
+      const sr=friendsState.searchResult;
+      const isFriend=friends.some(f=>f.uid===sr.uid);
+      let hasSent=false;
+      try{hasSent=(await fbDb.collection("users").doc(fbUser.uid).collection("friends_sent").doc(sr.uid).get()).exists;}catch(e){}
+      const avS=sr.profile.avatarUrl?`<img class="fn-fc-avatar" src="${sr.profile.avatarUrl}">`:
+        `<div class="fn-fc-avatar-ph">&#128100;</div>`;
+      html+=`<div class="fn-friend-card" style="margin-top:10px;cursor:default">
+        <div class="fn-fc-header">${avS}
+          <div class="fn-fc-info">
+            <div class="fn-fc-name">${sr.profile.displayName||"Usuario"}</div>
+            <div class="fn-fc-user">@${sr.profile.username||""}</div>
+          </div>
+          ${isFriend?`<span style="font-size:11px;color:var(--suc)">&#10003; Amigos</span>`:
+            hasSent?`<span style="font-size:11px;color:var(--t3)">Solicitud enviada</span>`:
+            `<button class="fn-btn" id="fn-add-btn" data-uid="${sr.uid}">Agregar</button>`}
+        </div>
+        <div class="fn-fc-stats">
+          <div class="fn-fc-stat"><div class="fn-fc-stat-v" style="color:${ac}">${sr.profile.mangaCount||0}</div><div class="fn-fc-stat-l">Manga</div></div>
+          <div class="fn-fc-stat"><div class="fn-fc-stat-v" style="color:var(--aa)">${sr.profile.animeCount||0}</div><div class="fn-fc-stat-l">Anime</div></div>
+        </div></div>`;
+    }
+    if(friendsState.statusMsg) html+=`<div class="fn-status ${friendsState.statusType}" style="margin-top:10px">${friendsState.statusMsg}</div>`;
+    html+=`</div>`;
+  }
+
+  // Solicitudes recibidas
+  if(received.length>0){
+    html+=`<div class="friends-section"><div class="friends-section-lbl">Solicitudes recibidas (${received.length})</div>`;
+    received.forEach(req=>{
+      const avR=req.avatarUrl?`<img class="fn-fc-avatar" src="${req.avatarUrl}">`:
+        `<div class="fn-fc-avatar-ph">&#128100;</div>`;
+      html+=`<div class="fn-req-card">${avR}
+        <div><div class="fn-req-name">${req.displayName||"Usuario"}</div><div class="fn-req-user">@${req.username||""}</div></div>
+        <div class="fn-req-btns" style="margin-left:auto">
+          <button class="fn-req-btn accept" data-accept="${req.id}" data-dname="${(req.displayName||"").replace(/"/g,"&quot;")}" data-uname="${req.username||""}" data-avatar="${req.avatarUrl||""}">&#10003;</button>
+          <button class="fn-req-btn reject" data-reject="${req.id}">&#10005;</button>
+        </div></div>`;
+    });
+    html+=`</div>`;
+  }
+
+  // Lista de amigos
+  html+=`<div class="friends-section"><div class="friends-section-lbl">Mis amigos (${friends.length})</div>`;
+  if(friends.length===0){
+    html+=`<div class="fn-status">Aun no tienes amigos. Busca por @username para agregar.</div>`;
+  }else{
+    for(const f of friends){
+      let fProfile=null;
+      try{const fDoc=await fbDb.collection("public_profiles").doc(f.uid).get();fProfile=fDoc.exists?fDoc.data():null;}catch(e){}
+      const nm=fProfile?.displayName||f.displayName||"Usuario";
+      const un=fProfile?.username||f.username||"";
+      const avF=f.avatarUrl?`<img class="fn-fc-avatar" src="${f.avatarUrl}">`:
+        `<div class="fn-fc-avatar-ph">&#128100;</div>`;
+      const mC=fProfile?.mangaCount||0;
+      const aC=fProfile?.animeCount||0;
+      const reading=((fProfile?.allManga||fProfile?.topManga||[]).filter(s=>s.status==="reading").length)+
+                    ((fProfile?.allAnime||fProfile?.topAnime||[]).filter(s=>s.status==="reading").length);
+      html+=`<div class="fn-friend-card" data-view-uid="${f.uid}">
+        <div class="fn-fc-header">${avF}
+          <div class="fn-fc-info"><div class="fn-fc-name">${nm}</div><div class="fn-fc-user">@${un}</div></div>
+          <span style="font-size:10px;color:var(--t3)">${reading} activos</span>
+        </div>
+        <div class="fn-fc-stats">
+          <div class="fn-fc-stat"><div class="fn-fc-stat-v" style="color:${ac}">${mC}</div><div class="fn-fc-stat-l">Manga</div></div>
+          <div class="fn-fc-stat"><div class="fn-fc-stat-v" style="color:var(--aa)">${aC}</div><div class="fn-fc-stat-l">Anime</div></div>
+          <div class="fn-fc-stat"><div class="fn-fc-stat-v" style="color:var(--suc)">${reading}</div><div class="fn-fc-stat-l">Activos</div></div>
+        </div></div>`;
+    }
+  }
+  html+=`</div></div>`;
+  container.innerHTML=html;
+
+  // Event listeners
+  const regBtn=document.getElementById("fn-register-btn");
+  if(regBtn) regBtn.onclick=async()=>{
+    const val=document.getElementById("fn-username-input")?.value||"";
+    friendsState.statusMsg="Registrando...";friendsState.statusType="";renderFriendsPanel();
+    const res=await fnRegisterUsername(val);
+    friendsState.statusMsg=res.ok?"Username registrado!":res.msg;
+    friendsState.statusType=res.ok?"success":"error";renderFriendsPanel();
+  };
+  const searchBtn=document.getElementById("fn-search-btn");
+  if(searchBtn) searchBtn.onclick=async()=>{
+    const val=document.getElementById("fn-search-input")?.value||"";
+    friendsState.searchUsername=val;friendsState.searchResult=null;friendsState.statusMsg="";renderFriendsPanel();
+    const res=await fnSearchUser(val);
+    friendsState.searchResult=res;renderFriendsPanel();
+  };
+  const addBtn=document.getElementById("fn-add-btn");
+  if(addBtn) addBtn.onclick=async()=>{
+    const toUid=addBtn.dataset.uid;
+    friendsState.statusMsg="Enviando solicitud...";friendsState.statusType="";renderFriendsPanel();
+    const res=await fnSendRequest(toUid);
+    friendsState.statusMsg=res.ok?"Solicitud enviada!":res.msg;
+    friendsState.statusType=res.ok?"success":"error";renderFriendsPanel();
+  };
+  container.querySelectorAll("[data-accept]").forEach(btn=>{
+    btn.onclick=async(e)=>{
+      e.stopPropagation();
+      await fnAcceptRequest(btn.dataset.accept,{displayName:btn.dataset.dname,username:btn.dataset.uname,avatarUrl:btn.dataset.avatar});
+    };
+  });
+  container.querySelectorAll("[data-reject]").forEach(btn=>{
+    btn.onclick=async(e)=>{e.stopPropagation();await fnRejectRequest(btn.dataset.reject);};
+  });
+  container.querySelectorAll("[data-view-uid]").forEach(card=>{
+    card.onclick=async()=>{
+      friendsState.view="profile";friendsState.viewingUid=card.dataset.viewUid;friendsState.viewingData=null;renderFriendsPanel();
+    };
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FIN PARCHE 2.2
+// ═══════════════════════════════════════════════════════════════════
+
 
 // ═══ CONSTANTS ═══
 const SKEY="mat-v4",TKEY="mat-theme",OLD_KEYS=["mat-v3","mat-data-v2","mat-data"];
@@ -324,7 +777,7 @@ const hdr=h("div","hdr");hdr.innerHTML=`<div class="hdr-banner"><img src="data:i
 const homeBtn=h("button","home-btn","🏠 Inicio");homeBtn.onclick=()=>{tab="manga";search="";expanded={};viewMode="catalog";sortKey="recent";showSettings=false;showPatch=false;filterStatus="all";filterTag="all";showFavsOnly=false;pinnedId=null;render();window.scrollTo({top:0,behavior:"smooth"});};hr.appendChild(homeBtn);
 const patchBtn=h("button",`ib${showPatch?" on":""}`,`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`);patchBtn.title="Notas del parche";patchBtn.onclick=()=>{showPatch=!showPatch;render();};hr.appendChild(patchBtn);
 hr.appendChild(h("button",`ib${showSettings?" on":""}`,svg.pal,{onclick:()=>{showSettings=!showSettings;render();}}));
-hr.appendChild(h("button",`ib${tab==="dashboard"?" on":""}`,svg.chart,{onclick:()=>{tab=tab==="dashboard"?"manga":"dashboard";render();}}));hdr.appendChild(hr);root.appendChild(hdr);
+hr.appendChild(h("button",`ib${tab==="dashboard"?" on":""}`,svg.chart,{onclick:()=>{tab=tab==="dashboard"?"manga":"dashboard";render();}}));hr.appendChild(h("button",`ib${tab==="friends"?" on":""}`,'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',{onclick:()=>{tab=tab==="friends"?"manga":"friends";if(tab==="friends"){render();setTimeout(()=>renderFriendsPanel(),100);}else render();}}));hdr.appendChild(hr);root.appendChild(hdr);
 // Sync bar
 const syncBar=h("div","sync-bar");
 if(FIREBASE_ENABLED){if(fbUser){syncBar.innerHTML=`<div class="dot on"></div><div class="sync-user">${fbUser.photoURL?`<img class="sync-avatar" src="${fbUser.photoURL}">`:""}<span>${fbUser.displayName||fbUser.email}</span></div><div class="fill"></div>`;const ob=h("button","sync-btn out","Salir");ob.onclick=signOut;syncBar.appendChild(ob);const sb=h("button","sync-btn","↻ Sync");sb.onclick=loadFromCloud;syncBar.appendChild(sb);}else{syncBar.innerHTML=`<div class="dot off"></div><span>Sin sincronizar</span><div class="fill"></div>`;const lb=h("button","sync-btn ggl","Iniciar con Google");lb.onclick=signIn;syncBar.appendChild(lb);}}else{syncBar.innerHTML=`<div class="dot no"></div><span>Firebase no configurado — ver comentarios en el código</span>`;}
@@ -334,8 +787,14 @@ if(showSettings){const sett=h("div","sett open");sett.innerHTML=`<div class="set
 const s5=h("div","sett-sec");s5.innerHTML=`<div class="sett-lbl">Botón +1</div>`;const qnRow=h("div","bgr");[{k:"default",l:"Pequeño"},{k:"colored",l:"Color"},{k:"large",l:"Grande"},{k:"colored-large",l:"Color + Grande"}].forEach(opt=>{const btn=h("button",`bgb${(theme.qnextStyle||"default")===opt.k?" on":""}`,opt.l);btn.onclick=()=>{theme.qnextStyle=opt.k;save();render();};qnRow.appendChild(btn);});s5.appendChild(qnRow);sett.appendChild(s5);const s6=h("div","sett-sec");s6.innerHTML=`<div class="sett-lbl">Tamaño de letra</div>`;const fsRow=h("div","bgr");[{k:12,l:"Pequeño"},{k:14,l:"Normal"},{k:16,l:"Grande"},{k:18,l:"Muy grande"}].forEach(opt=>{const btn=h("button",`bgb${(theme.fontSize||14)===opt.k?" on":""}`,opt.l);btn.onclick=()=>{theme.fontSize=opt.k;applyTheme();save();render();};fsRow.appendChild(btn);});s6.appendChild(fsRow);sett.appendChild(s6);root.appendChild(sett);}
 
 // Patch notes
-if(showPatch){const pp=h("div","patch-panel");pp.innerHTML=`<h3>📋 NOTAS DEL PARCHE</h3><div class="patch-version"><div class="patch-ver-tag">Parche v2.1 — 2026-04</div><ul class="patch-ver-items"><li>Botón Inicio — aparece en el encabezado, resetea la vista principal y hace scroll al tope</li><li>Scroll-to-top — botón circular fijo en esquina inferior derecha (↑), aparece al bajar 250px</li><li>Onboarding 3 pasos — se activa solo la primera vez al abrir la app (bienvenida, Jikan/MAL, progreso/stats)</li><li>Botón Limpiar — en el formulario de agregar, limpia título, portada, total, tags y selección de Jikan</li><li>Correcciones mobile — flecha ↑ ahora visible sin hacer zoom; campo Cap. y botón + correctamente ajustados en pantallas estrechas</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.0 — 2026-04</div><ul class="patch-ver-items"><li>Banner responsive — altura dinámica que se adapta a móvil y PC (clamp por viewport); la imagen ahora llena el recuadro completo sin dejar espacios vacíos (object-fit: cover)</li><li>Géneros auto-seleccionados desde Jikan — al agregar una serie vía MyAnimeList, los géneros/temas/demografía de la API se marcan automáticamente (Shounen, Action, Horror, etc.); los no existentes se agregan como tags personalizados</li><li>Capítulos auto-rellenados para series en publicación — si la API no entrega el total de capítulos (obra en publicación), el campo se inicializa en 1 en vez de quedar vacío, para poder agregar de inmediato y luego ajustar</li><li>Tamaño de letra escala todo el sitio — al cambiar entre Pequeño / Normal / Grande / Muy grande, ahora se reescalan proporcionalmente títulos, textos, inputs, botones y tarjetas (antes solo afectaba al input de título)</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Mega parche v1.9 — 2026-04</div><ul class="patch-ver-items"><li>Tema por defecto cambiado a Midnight — tonos azul medianoche al abrir la app por primera vez (los demás temas siguen disponibles en Ajustes)</li><li>Banner de encabezado corregido — se muestra la imagen completa sin recorte, centrada en el área del header</li><li>Integración Jikan API — al escribir en el campo de título, aparece un autocompletado con resultados de MyAnimeList: portada miniatura, nombre, capítulos/episodios actuales y estado (En publicación / Finalizado)</li><li>Portadas desde Jikan guardadas como URL externa — elimina el problema de localStorage por tamaño (URL ~60 bytes vs ~50KB en Base64); las portadas manuales siguen guardándose en Base64</li><li>Polling automático cada 6h — para series con publicación activa, compara capítulos guardados vs API y muestra notificación si hay nuevos capítulos disponibles</li><li>Personalización avanzada — control de tamaño de letra (Pequeño 12px / Normal 14px / Grande 16px) y paleta de colores ampliada en el panel de Ajustes</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.8 — 2026-04</div><ul class="patch-ver-items"><li>Pantalla principal adaptativa — si solo tienes anime (sin manga), arranca en la pestaña Anime; si tienes ambos, se muestra primero la que tenga más elementos</li><li>Corregida superposición de indicadores en vista catálogo — el ícono de estado (📖/🎬) sube a la esquina superior derecha de la portada, el % de avance se ancla al borde inferior derecho</li><li>Banner de bienvenida visual integrado en el encabezado — el banner de Mangu aparece entre el logo y los botones de control</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.7 — 2026-04</div><ul class="patch-ver-items"><li>Corregida superposición del ícono de estado con el título — los badges (%, estado) ahora están contenidos dentro del área de la portada y no invaden el texto</li><li>Nombre y capítulos se preservan al subir portada — el formulario de agregar ya no se resetea al seleccionar imagen</li><li>Colores del gráfico de distribución ahora son independientes — pickers M/A directamente en la tarjeta del dashboard, separados del color accent</li><li>Al abrir un manga desde catálogo, aparece primero en la lista — sin importar su posición original, sube al tope y hace scroll automático</li><li>Géneros, Notas y Personajes agrupados en "📂 Detalles" — un solo bloque colapsable con sub-secciones, reduciendo el espacio entre Estado y los Capítulos</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.6 — 2026-04</div><ul class="patch-ver-items"><li>Notas desplegables — la sección de notas ahora es colapsable con preview del texto; muestra los primeros 28 caracteres en el encabezado</li><li>Portada integrada en bloque Estado — el botón 🖼️ Portada se unió a la fila de Estado/Favorito/Re-lectura, eliminando la sección separada y reduciendo el espacio hasta llegar a los capítulos</li><li>Personalización del botón +1 — en Ajustes aparece nueva sección "Botón +1" con 4 opciones: Pequeño (default), Color (accent), Grande, y Color + Grande</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.5 — 2026-04</div><ul class="patch-ver-items"><li>Contador de progreso en catálogo — badge de % y emoji de estado flotante sobre cada portada</li><li>Desmarcado en cascada — al desmarcar un capítulo con posteriores leídos, aparece modal de 3 opciones: Cancelar / Solo este / Desmarcar todos los posteriores</li><li>Tags personalizados — botón "+ Tag" en la sección de géneros (al agregar serie y en el panel de detalle) para crear etiquetas propias; se pueden eliminar con ✕ al hacer hover</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.4 — 2026-04</div><ul class="patch-ver-items"><li>Vista por defecto cambiada a portadas grandes (catálogo) — la vista de lista sigue disponible con el botón del toolbar</li><li>Corregido error "firebase is not defined" al iniciar sesión con Google — scripts ahora se cargan desde CDN oficial</li><li>Eliminada inicialización duplicada de Firebase con credenciales placeholder</li><li>Corregida selección de capítulos anteriores — al marcar un capítulo, todas las celdas intermedias del panel se actualizan visualmente de inmediato sin necesidad de recargar</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.3 — 2026-04</div><ul class="patch-ver-items"><li>Al marcar un capítulo, todos los anteriores se seleccionan automáticamente</li><li>El número de capítulos/episodios ahora es obligatorio al agregar — el campo se resalta en rojo si se deja vacío</li><li>Login con Google restaurado a popup (ventana emergente) — más compatible con distintos navegadores</li><li>Eliminado getRedirectResult obsoleto del flujo de autenticación</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.2 — 2025-04</div><ul class="patch-ver-items"><li>Eliminados botones de exportar e importar JSON del encabezado</li><li>El ícono de estadísticas ahora actúa como toggle — presionarlo de nuevo cierra el dashboard y regresa al menú principal</li><li>Eliminado el botón "Volver" del dashboard</li><li>Corregido inicio de sesión con Google — ahora usa redirect en vez de popup (más compatible con navegadores móviles y bloqueadores)</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.1 — 2025-04</div><ul class="patch-ver-items"><li>Eliminada la sección de fechas (inicio / fin) del panel de cada serie</li><li>Eliminado el botón de exportar backup JSON del encabezado</li><li>Corregido error de inicio de sesión con Google Firebase — usa redirect automático si el popup es bloqueado</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.0 — 2025-04</div><ul class="patch-ver-items"><li>Mensaje de bienvenida "¡Bienvenido a mangu!" en el encabezado</li><li>Lista de personajes ahora es desplegable (no se apilan)</li><li>Sección de portada se colapsa automáticamente cuando ya hay una imagen seleccionada</li><li>Nueva etiqueta Re-watch/Re-lectura para segunda o más lecturas/vistas</li><li>En la pestaña Anime, el estado "Leyendo" ahora dice "Viendo"</li><li>Sección de notas del parche (esta pantalla)</li></ul></div>`;root.appendChild(pp);}
+if(showPatch){const pp=h("div","patch-panel");pp.innerHTML=`<h3>📋 NOTAS DEL PARCHE</h3><div class="patch-version"><div class="patch-ver-tag">Parche v2.2 — 2026-04</div><ul class="patch-ver-items"><li>Sistema de amigos — nuevo panel accesible desde el icono de personas en el encabezado</li><li>Username propio — elige un @username unico para que tus amigos te encuentren</li><li>Busqueda por @username — busca y agrega amigos que usen la misma app</li><li>Solicitudes de amistad — envia, recibe, acepta o rechaza solicitudes</li><li>Ver perfil de amigo — muestra que manga/anime estan leyendo actualmente, progreso por capitulos y series completadas</li><li>Perfil publico sincronizado — cada vez que guardas cambios, tu perfil publico se actualiza automaticamente en Firestore</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.1 — 2026-04</div><ul class="patch-ver-items"><li>Botón Inicio — aparece en el encabezado, resetea la vista principal y hace scroll al tope</li><li>Scroll-to-top — botón circular fijo en esquina inferior derecha (↑), aparece al bajar 250px</li><li>Onboarding 3 pasos — se activa solo la primera vez al abrir la app (bienvenida, Jikan/MAL, progreso/stats)</li><li>Botón Limpiar — en el formulario de agregar, limpia título, portada, total, tags y selección de Jikan</li><li>Correcciones mobile — flecha ↑ ahora visible sin hacer zoom; campo Cap. y botón + correctamente ajustados en pantallas estrechas</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.0 — 2026-04</div><ul class="patch-ver-items"><li>Banner responsive — altura dinámica que se adapta a móvil y PC (clamp por viewport); la imagen ahora llena el recuadro completo sin dejar espacios vacíos (object-fit: cover)</li><li>Géneros auto-seleccionados desde Jikan — al agregar una serie vía MyAnimeList, los géneros/temas/demografía de la API se marcan automáticamente (Shounen, Action, Horror, etc.); los no existentes se agregan como tags personalizados</li><li>Capítulos auto-rellenados para series en publicación — si la API no entrega el total de capítulos (obra en publicación), el campo se inicializa en 1 en vez de quedar vacío, para poder agregar de inmediato y luego ajustar</li><li>Tamaño de letra escala todo el sitio — al cambiar entre Pequeño / Normal / Grande / Muy grande, ahora se reescalan proporcionalmente títulos, textos, inputs, botones y tarjetas (antes solo afectaba al input de título)</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Mega parche v1.9 — 2026-04</div><ul class="patch-ver-items"><li>Tema por defecto cambiado a Midnight — tonos azul medianoche al abrir la app por primera vez (los demás temas siguen disponibles en Ajustes)</li><li>Banner de encabezado corregido — se muestra la imagen completa sin recorte, centrada en el área del header</li><li>Integración Jikan API — al escribir en el campo de título, aparece un autocompletado con resultados de MyAnimeList: portada miniatura, nombre, capítulos/episodios actuales y estado (En publicación / Finalizado)</li><li>Portadas desde Jikan guardadas como URL externa — elimina el problema de localStorage por tamaño (URL ~60 bytes vs ~50KB en Base64); las portadas manuales siguen guardándose en Base64</li><li>Polling automático cada 6h — para series con publicación activa, compara capítulos guardados vs API y muestra notificación si hay nuevos capítulos disponibles</li><li>Personalización avanzada — control de tamaño de letra (Pequeño 12px / Normal 14px / Grande 16px) y paleta de colores ampliada en el panel de Ajustes</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.8 — 2026-04</div><ul class="patch-ver-items"><li>Pantalla principal adaptativa — si solo tienes anime (sin manga), arranca en la pestaña Anime; si tienes ambos, se muestra primero la que tenga más elementos</li><li>Corregida superposición de indicadores en vista catálogo — el ícono de estado (📖/🎬) sube a la esquina superior derecha de la portada, el % de avance se ancla al borde inferior derecho</li><li>Banner de bienvenida visual integrado en el encabezado — el banner de Mangu aparece entre el logo y los botones de control</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.7 — 2026-04</div><ul class="patch-ver-items"><li>Corregida superposición del ícono de estado con el título — los badges (%, estado) ahora están contenidos dentro del área de la portada y no invaden el texto</li><li>Nombre y capítulos se preservan al subir portada — el formulario de agregar ya no se resetea al seleccionar imagen</li><li>Colores del gráfico de distribución ahora son independientes — pickers M/A directamente en la tarjeta del dashboard, separados del color accent</li><li>Al abrir un manga desde catálogo, aparece primero en la lista — sin importar su posición original, sube al tope y hace scroll automático</li><li>Géneros, Notas y Personajes agrupados en "📂 Detalles" — un solo bloque colapsable con sub-secciones, reduciendo el espacio entre Estado y los Capítulos</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.6 — 2026-04</div><ul class="patch-ver-items"><li>Notas desplegables — la sección de notas ahora es colapsable con preview del texto; muestra los primeros 28 caracteres en el encabezado</li><li>Portada integrada en bloque Estado — el botón 🖼️ Portada se unió a la fila de Estado/Favorito/Re-lectura, eliminando la sección separada y reduciendo el espacio hasta llegar a los capítulos</li><li>Personalización del botón +1 — en Ajustes aparece nueva sección "Botón +1" con 4 opciones: Pequeño (default), Color (accent), Grande, y Color + Grande</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.5 — 2026-04</div><ul class="patch-ver-items"><li>Contador de progreso en catálogo — badge de % y emoji de estado flotante sobre cada portada</li><li>Desmarcado en cascada — al desmarcar un capítulo con posteriores leídos, aparece modal de 3 opciones: Cancelar / Solo este / Desmarcar todos los posteriores</li><li>Tags personalizados — botón "+ Tag" en la sección de géneros (al agregar serie y en el panel de detalle) para crear etiquetas propias; se pueden eliminar con ✕ al hacer hover</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.4 — 2026-04</div><ul class="patch-ver-items"><li>Vista por defecto cambiada a portadas grandes (catálogo) — la vista de lista sigue disponible con el botón del toolbar</li><li>Corregido error "firebase is not defined" al iniciar sesión con Google — scripts ahora se cargan desde CDN oficial</li><li>Eliminada inicialización duplicada de Firebase con credenciales placeholder</li><li>Corregida selección de capítulos anteriores — al marcar un capítulo, todas las celdas intermedias del panel se actualizan visualmente de inmediato sin necesidad de recargar</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.3 — 2026-04</div><ul class="patch-ver-items"><li>Al marcar un capítulo, todos los anteriores se seleccionan automáticamente</li><li>El número de capítulos/episodios ahora es obligatorio al agregar — el campo se resalta en rojo si se deja vacío</li><li>Login con Google restaurado a popup (ventana emergente) — más compatible con distintos navegadores</li><li>Eliminado getRedirectResult obsoleto del flujo de autenticación</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.2 — 2025-04</div><ul class="patch-ver-items"><li>Eliminados botones de exportar e importar JSON del encabezado</li><li>El ícono de estadísticas ahora actúa como toggle — presionarlo de nuevo cierra el dashboard y regresa al menú principal</li><li>Eliminado el botón "Volver" del dashboard</li><li>Corregido inicio de sesión con Google — ahora usa redirect en vez de popup (más compatible con navegadores móviles y bloqueadores)</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.1 — 2025-04</div><ul class="patch-ver-items"><li>Eliminada la sección de fechas (inicio / fin) del panel de cada serie</li><li>Eliminado el botón de exportar backup JSON del encabezado</li><li>Corregido error de inicio de sesión con Google Firebase — usa redirect automático si el popup es bloqueado</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.0 — 2025-04</div><ul class="patch-ver-items"><li>Mensaje de bienvenida "¡Bienvenido a mangu!" en el encabezado</li><li>Lista de personajes ahora es desplegable (no se apilan)</li><li>Sección de portada se colapsa automáticamente cuando ya hay una imagen seleccionada</li><li>Nueva etiqueta Re-watch/Re-lectura para segunda o más lecturas/vistas</li><li>En la pestaña Anime, el estado "Leyendo" ahora dice "Viendo"</li><li>Sección de notas del parche (esta pantalla)</li></ul></div>`;root.appendChild(pp);}
 
+if(tab==="friends"){
+  const fDiv=h("div","");fDiv.id="friends-panel-container";
+  fDiv.innerHTML='<div style="text-align:center;padding:30px;color:var(--t3);font-size:12px">Cargando amigos...</div>';
+  root.appendChild(fDiv);
+  return;
+}
 if(tab==="dashboard"){
   const all=[...data.manga,...data.anime];
   const ti=timeInvested();
