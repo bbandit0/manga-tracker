@@ -256,7 +256,7 @@ let fb=null,fbAuth=null,fbDb=null,fbUser=null,fbUnsub=null;
 if(FIREBASE_ENABLED){try{fb=firebase.initializeApp(FIREBASE_CONFIG);fbAuth=firebase.auth();fbDb=firebase.firestore();fbAuth.onAuthStateChanged(u=>{fbUser=u;if(u)loadFromCloud();render();});}catch(e){console.warn("Firebase init error:",e);}}
 async function signIn(){if(!FIREBASE_ENABLED)return showToast("Configura Firebase primero");try{const provider=new firebase.auth.GoogleAuthProvider();const result=await fbAuth.signInWithPopup(provider);if(result&&result.user){fbUser=result.user;loadFromCloud();}}catch(e){showToast("Error al iniciar sesión: "+(e.code||e.message));}}
 async function signOut(){if(fbUnsub)fbUnsub();fbUnsub=null;try{await fbAuth.signOut();fbUser=null;render();}catch(e){}}
-async function saveToCloud(){if(!fbUser||!fbDb)return;try{await fbDb.collection("users").doc(fbUser.uid).set({data:JSON.parse(JSON.stringify(data)),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});}catch(e){console.warn("Cloud save:",e);}}
+async function saveToCloud(){if(!fbUser||!fbDb)return;try{await fbDb.collection("users").doc(fbUser.uid).set({data:JSON.parse(JSON.stringify(data)),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});fnSaveMyPublicProfile().catch(()=>{});}catch(e){console.warn("Cloud save:",e);}}
 async function loadFromCloud(){if(!fbUser||!fbDb)return;try{const doc=await fbDb.collection("users").doc(fbUser.uid).get();if(doc.exists&&doc.data().data){const c=doc.data().data;["manga","anime"].forEach(t=>{if(c[t])c[t]=c[t].map(migrate);});data=c;saveLocal();render();showToast("✓ Sincronizado");}else{await saveToCloud();showToast("Datos subidos a la nube");}if(fbUnsub)fbUnsub();fbUnsub=fbDb.collection("users").doc(fbUser.uid).onSnapshot(snap=>{if(!snap.exists)return;const d=snap.data().data;if(!d)return;["manga","anime"].forEach(t=>{if(d[t])d[t]=d[t].map(migrate);});data=d;saveLocal();render();});}catch(e){console.warn("Cloud load:",e);}}
 
 // ═══════════════════════════════════════════════════════════════════
@@ -271,7 +271,9 @@ let friendsState={
   searchResult:null,
   searchLoading:false,
   statusMsg:"",
-  statusType:""
+  statusType:"",
+  cachedUsername:null,
+  usernameCacheUid:null
 };
 
 async function fnSaveMyPublicProfile(){
@@ -335,6 +337,9 @@ async function fnRegisterUsername(username){
       topManga:[],topAnime:[],allManga:[],allAnime:[],
       lastActive:firebase.firestore.FieldValue.serverTimestamp()
     });
+    // Actualizar cache inmediatamente para que el siguiente render no lea Firestore
+    friendsState.cachedUsername=clean;
+    friendsState.usernameCacheUid=fbUser.uid;
     return {ok:true};
   }catch(e){
     console.error("fnRegisterUsername error:",e.code,e.message);
@@ -345,11 +350,18 @@ async function fnRegisterUsername(username){
   }
 }
 
-async function fnGetMyUsername(){
+async function fnGetMyUsername(forceRefresh=false){
   if(!fbUser||!fbDb) return null;
+  // Usar cache si pertenece al mismo usuario y no se fuerza refresco
+  if(!forceRefresh && friendsState.cachedUsername!==null && friendsState.usernameCacheUid===fbUser.uid){
+    return friendsState.cachedUsername;
+  }
   try{
     const doc=await fbDb.collection("public_profiles").doc(fbUser.uid).get();
-    return doc.exists?doc.data().username||null:null;
+    const username=doc.exists?doc.data().username||null:null;
+    friendsState.cachedUsername=username;
+    friendsState.usernameCacheUid=fbUser.uid;
+    return username;
   }catch(e){return null;}
 }
 
@@ -467,7 +479,8 @@ async function renderFriendsPanel(){
 }
 
 async function _renderFriendsPanelInner(container){
-  fnSaveMyPublicProfile().catch(()=>{});
+  // fnSaveMyPublicProfile NO va aqui — se llama desde saveLocal() al modificar datos,
+  // no al renderizar la UI (causaba ciclo infinito con onSnapshot)
   const myUsername=await withTimeout(fnGetMyUsername());
   const ac=theme.accentManga||"#e74c6f";
 
