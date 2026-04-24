@@ -535,7 +535,6 @@ async function fnRejectRequest(fromUid){
     renderFriendsPanel();
   }catch(e){showToast("Error al rechazar: "+e.message);}
 }
-}
 
 async function fnCancelRequest(toUid){
   if(!fbUser||!fbDb) return;
