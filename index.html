@@ -8,9 +8,9 @@
 <title>mangu — Manga &amp; Anime</title>
 <link rel="manifest" href="https://bbandit0.github.io/mangu/manifest.json">
 <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=&#39;http://www.w3.org/2000/svg&#39; viewBox=&#39;0 0 100 100&#39;&gt;&lt;rect width=&#39;100&#39; height=&#39;100&#39; rx=&#39;22&#39; fill=&#39;%230d0d0f&#39;/&gt;&lt;rect x=&#39;8&#39; y=&#39;8&#39; width=&#39;84&#39; height=&#39;84&#39; rx=&#39;16&#39; fill=&#39;none&#39; stroke=&#39;url(%23g)&#39; stroke-width=&#39;4&#39;/&gt;&lt;defs&gt;&lt;linearGradient id=&#39;g&#39; x1=&#39;0&#39; y1=&#39;0&#39; x2=&#39;1&#39; y2=&#39;1&#39;&gt;&lt;stop offset=&#39;0%25&#39; stop-color=&#39;%23e74c6f&#39;/&gt;&lt;stop offset=&#39;100%25&#39; stop-color=&#39;%234ca6e7&#39;/&gt;&lt;/linearGradient&gt;&lt;/defs&gt;&lt;text y=&#39;.88em&#39; font-size=&#39;68&#39; x=&#39;16&#39; fill=&#39;url(%23g)&#39;&gt;%E2%96%A3&lt;/text&gt;&lt;/svg&gt;">
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="./index_files/firebase-app-compat.js.descarga"></script><style type="text/css" id="operaUserStyle"></style>
+<script src="./index_files/firebase-auth-compat.js.descarga"></script>
+<script src="./index_files/firebase-firestore-compat.js.descarga"></script>
 <style type="text/css" id="operaUserStyle"></style>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Space+Mono:wght@400;700&display=swap');
@@ -224,7 +224,7 @@
         <div class="fn-fc-stats">
           <div class="fn-fc-stat"><div class="fn-fc-stat-v" style="color:#22c55e">6</div><div class="fn-fc-stat-l">Manga</div></div>
           <div class="fn-fc-stat"><div class="fn-fc-stat-v" style="color:var(--aa)">3</div><div class="fn-fc-stat-l">Anime</div></div>
-        </div></div><div class="fn-status error" style="margin-top:10px">Missing or insufficient permissions.</div></div><div class="friends-section"><div class="friends-section-lbl">Mis amigos (0)</div><div class="fn-status">Aun no tienes amigos. Busca por @username para agregar.</div></div></div></div></div>
+        </div></div></div><div class="friends-section"><div class="friends-section-lbl">Mis amigos (0)</div><div class="fn-status">Aun no tienes amigos. Busca por @username para agregar.</div></div></div></div></div>
 <script>
 // ═══════════════════════════════════════════════════════════════════
 // FIREBASE — CONFIGURACIÓN PARA SINCRONIZACIÓN CROSS-DEVICE
@@ -310,8 +310,8 @@ async function fnSaveMyPublicProfile(){
   const topAnime=data.anime.filter(s=>s.status==="reading")
     .sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0)).slice(0,5)
     .map(s=>({title:s.title,completed:s.completed.length,total:s.total,cover:s.coverIsUrl?s.cover:"",status:s.status,lastUpdated:s.lastUpdated||0}));
-  const allManga=data.manga.map(s=>({title:s.title,completed:s.completed.length,total:s.total,cover:s.coverIsUrl?s.cover:"",status:s.status,lastUpdated:s.lastUpdated||0}));
-  const allAnime=data.anime.map(s=>({title:s.title,completed:s.completed.length,total:s.total,cover:s.coverIsUrl?s.cover:"",status:s.status,lastUpdated:s.lastUpdated||0}));
+  const allManga=data.manga.map(s=>({title:s.title,completed:s.completed.length,total:s.total,lastChapter:s.completed.length>0?Math.max(...s.completed):0,cover:s.coverIsUrl?s.cover:"",status:s.status,lastUpdated:s.lastUpdated||0}));
+  const allAnime=data.anime.map(s=>({title:s.title,completed:s.completed.length,total:s.total,lastChapter:s.completed.length>0?Math.max(...s.completed):0,cover:s.coverIsUrl?s.cover:"",status:s.status,lastUpdated:s.lastUpdated||0}));
   // Nota: usamos merge:true para no sobreescribir el username si ya existe
   try{
     await fbDb.collection("public_profiles").doc(uid).set({
@@ -408,36 +408,33 @@ async function fnSearchUser(username){
 
 async function fnSendRequest(toUid){
   if(!fbUser||!fbDb) return {ok:false,msg:"Sin sesion"};
-  // NOTA: para que esta función funcione, las reglas de Firestore deben permitir
-  // que un usuario autenticado escriba en users/{otroUid}/friends_received/{suUid}.
-  // Agrega esta regla en Firebase Console → Firestore → Reglas:
-  //
-  // match /users/{userId}/friends_received/{fromUid} {
-  //   allow create: if request.auth != null && request.auth.uid == fromUid;
-  //   allow delete: if request.auth != null && request.auth.uid == userId;
-  // }
-  //
-  // match /users/{userId}/friends_sent/{toUid} {
-  //   allow create, delete: if request.auth != null && request.auth.uid == userId;
-  // }
-  //
-  // match /users/{userId}/friends_accepted/{friendUid} {
-  //   allow read, write: if request.auth != null && request.auth.uid == userId;
-  // }
   try{
-    let isFriend=false,hasSent=false;
+    // Verificar que yo tengo username registrado (requerido para que el receptor pueda identificarme)
+    const myProfile=await fbDb.collection("public_profiles").doc(fbUser.uid).get();
+    const myUsername=myProfile.exists?myProfile.data().username||"":"";
+    if(!myUsername) return {ok:false,msg:"Debes registrar tu @username antes de agregar amigos"};
+
+    let isFriend=false,hasSent=false,hasReceived=false;
     try{
       const existing=await fbDb.collection("users").doc(fbUser.uid).collection("friends_accepted").doc(toUid).get();
       isFriend=existing.exists;
       const sentCheck=await fbDb.collection("users").doc(fbUser.uid).collection("friends_sent").doc(toUid).get();
       hasSent=sentCheck.exists;
+      // También verificar si ese usuario ya me envió solicitud (aceptar directamente)
+      const recvCheck=await fbDb.collection("users").doc(fbUser.uid).collection("friends_received").doc(toUid).get();
+      hasReceived=recvCheck.exists;
     }catch(readErr){console.warn("send request pre-check:",readErr.code);}
     if(isFriend) return {ok:false,msg:"Ya son amigos"};
     if(hasSent) return {ok:false,msg:"Solicitud ya enviada"};
+    if(hasReceived) return {ok:false,msg:"Ese usuario ya te envió solicitud — acéptala desde tu panel de solicitudes"};
+
     const ts=firebase.firestore.FieldValue.serverTimestamp();
-    const myProfile=await fbDb.collection("public_profiles").doc(fbUser.uid).get();
-    const myUsername=myProfile.exists?myProfile.data().username:"";
-    await fbDb.collection("users").doc(fbUser.uid).collection("friends_sent").doc(toUid).set({toUid,ts,status:"pending"});
+    // Escribir en mi colección friends_sent
+    await fbDb.collection("users").doc(fbUser.uid).collection("friends_sent").doc(toUid).set({
+      toUid,ts,status:"pending"
+    });
+    // Escribir en la colección friends_received del destinatario
+    // (requiere regla Firestore: allow create si request.auth.uid == fromUid)
     await fbDb.collection("users").doc(toUid).collection("friends_received").doc(fbUser.uid).set({
       fromUid:fbUser.uid,ts,status:"pending",
       displayName:fbUser.displayName||fbUser.email||"",
@@ -447,9 +444,9 @@ async function fnSendRequest(toUid){
     return {ok:true};
   }catch(e){
     if(e.code==="permission-denied"){
-      return {ok:false,msg:"Error de permisos — actualiza las reglas de Firestore (ver instrucciones en el parche v2.3)"};
+      return {ok:false,msg:"Error de permisos — asegúrate de haber publicado las reglas de Firestore correctamente"};
     }
-    return {ok:false,msg:e.message};
+    return {ok:false,msg:"Error: "+e.message};
   }
 }
 
@@ -541,16 +538,35 @@ async function _renderFriendsPanelInner(container){
     const allSeries=[...(pData.allManga||pData.topManga||[]).map(s=>({...s,type:"M"})),
                      ...(pData.allAnime||pData.topAnime||[]).map(s=>({...s,type:"A"}))];
     const reading=allSeries.filter(s=>s.status==="reading").sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0));
-    const completed=allSeries.filter(s=>s.status==="completed").sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0)).slice(0,5);
+    const completed=allSeries.filter(s=>s.status==="completed").sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0)).slice(0,8);
+    const paused=allSeries.filter(s=>s.status==="paused"||s.status==="plan").sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0)).slice(0,5);
     const buildList=(arr,emptyMsg)=>{
       if(!arr.length) return `<div class="fn-status">${emptyMsg}</div>`;
       return arr.map(s=>{
-        const cvr=s.cover?`<img class="fn-series-cover" src="${s.cover}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="fn-series-cover-ph" style="display:none">${s.type==="M"?"&#128218;":"&#127916;"}</div>`:
-          `<div class="fn-series-cover-ph">${s.type==="M"?"&#128218;":"&#127916;"}</div>`;
-        const pct=s.total>0?Math.round(s.completed/s.total*100):0;
-        return `<div class="fn-series-item">${cvr}<div class="fn-series-info"><div class="fn-series-title">${s.title}</div><div class="fn-series-prog">${s.completed}/${s.total} &middot; ${pct}%</div><div class="fn-series-pbar"><div class="fn-series-pfill" style="width:${pct}%;background:${ac}"></div></div></div><span style="font-size:10px;color:var(--t3)">${s.type}</span></div>`;
+        const cvr=s.cover?`<img class="fn-series-cover" src="${s.cover}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="fn-series-cover-ph" style="display:none">${s.type==="M"?"📚":"🎬"}</div>`:
+          `<div class="fn-series-cover-ph">${s.type==="M"?"📚":"🎬"}</div>`;
+        const pct=s.total>0?Math.round((s.completed||0)/s.total*100):0;
+        const lastCh=s.lastChapter||(s.completed)||0;
+        const chLabel=s.type==="M"?"Cap.":"Ep.";
+        const progText=s.total>0
+          ?`${chLabel} <b style="color:var(--t1);font-size:11px">${lastCh}</b> / ${s.total} &nbsp;·&nbsp; ${pct}%`
+          :`${chLabel} <b style="color:var(--t1);font-size:11px">${lastCh}</b>`;
+        const typeBadge=s.type==="M"
+          ?`<span style="flex-shrink:0;font-size:9px;font-weight:700;color:${ac};background:var(--amd);padding:2px 7px;border-radius:10px">MANGA</span>`
+          :`<span style="flex-shrink:0;font-size:9px;font-weight:700;color:var(--aa);background:var(--aad);padding:2px 7px;border-radius:10px">ANIME</span>`;
+        return `<div class="fn-series-item">
+          ${cvr}
+          <div class="fn-series-info">
+            <div class="fn-series-title">${s.title}</div>
+            <div class="fn-series-prog">${progText}</div>
+            <div class="fn-series-pbar"><div class="fn-series-pfill" style="width:${pct}%;background:${s.type==="M"?ac:"var(--aa)"}"></div></div>
+          </div>
+          ${typeBadge}
+        </div>`;
       }).join("");
     };
+    const readingManga=reading.filter(s=>s.type==="M");
+    const readingAnime=reading.filter(s=>s.type==="A");
     const vuid=friendsState.viewingUid;
     container.innerHTML=`
       <div class="fn-profile">
@@ -566,16 +582,29 @@ async function _renderFriendsPanelInner(container){
         <div class="fn-profile-stats">
           <div class="fn-ps"><div class="fn-ps-v" style="color:${ac}">${pData.mangaCount||0}</div><div class="fn-ps-l">Manga</div></div>
           <div class="fn-ps"><div class="fn-ps-v" style="color:var(--aa)">${pData.animeCount||0}</div><div class="fn-ps-l">Anime</div></div>
-          <div class="fn-ps"><div class="fn-ps-v" style="color:var(--suc)">${reading.length}</div><div class="fn-ps-l">Activos</div></div>
+          <div class="fn-ps"><div class="fn-ps-v" style="color:var(--suc)">${reading.length}</div><div class="fn-ps-l">En curso</div></div>
         </div>
+        ${readingManga.length>0?`
+        <div class="friends-section" style="margin-bottom:14px">
+          <div class="fn-profile-list-title">📚 Manga en progreso (${readingManga.length})</div>
+          ${buildList(readingManga,"—")}
+        </div>`:""}
+        ${readingAnime.length>0?`
+        <div class="friends-section" style="margin-bottom:14px">
+          <div class="fn-profile-list-title">🎬 Anime en progreso (${readingAnime.length})</div>
+          ${buildList(readingAnime,"—")}
+        </div>`:""}
+        ${reading.length===0?`<div class="fn-status" style="margin-bottom:14px">Nada en progreso actualmente</div>`:""}
+        ${completed.length>0?`
+        <div class="friends-section" style="margin-bottom:14px">
+          <div class="fn-profile-list-title">✅ Últimos completados</div>
+          ${buildList(completed,"—")}
+        </div>`:""}
+        ${paused.length>0?`
         <div class="friends-section">
-          <div class="fn-profile-list-title">&#128214; Leyendo/Viendo ahora</div>
-          ${buildList(reading,"Nada en progreso")}
-        </div>
-        <div class="friends-section" style="margin-top:16px">
-          <div class="fn-profile-list-title">&#9989; Ultimos completados</div>
-          ${buildList(completed,"Sin completados")}
-        </div>
+          <div class="fn-profile-list-title">⏸ En pausa / Pendientes</div>
+          ${buildList(paused,"—")}
+        </div>`:""}
       </div>`;
     return;
   }
@@ -913,7 +942,7 @@ if(showSettings){const sett=h("div","sett open");sett.innerHTML=`<div class="set
 const s5=h("div","sett-sec");s5.innerHTML=`<div class="sett-lbl">Botón +1</div>`;const qnRow=h("div","bgr");[{k:"default",l:"Pequeño"},{k:"colored",l:"Color"},{k:"large",l:"Grande"},{k:"colored-large",l:"Color + Grande"}].forEach(opt=>{const btn=h("button",`bgb${(theme.qnextStyle||"default")===opt.k?" on":""}`,opt.l);btn.onclick=()=>{theme.qnextStyle=opt.k;save();render();};qnRow.appendChild(btn);});s5.appendChild(qnRow);sett.appendChild(s5);const s6=h("div","sett-sec");s6.innerHTML=`<div class="sett-lbl">Tamaño de letra</div>`;const fsRow=h("div","bgr");[{k:12,l:"Pequeño"},{k:14,l:"Normal"},{k:16,l:"Grande"},{k:18,l:"Muy grande"}].forEach(opt=>{const btn=h("button",`bgb${(theme.fontSize||14)===opt.k?" on":""}`,opt.l);btn.onclick=()=>{theme.fontSize=opt.k;applyTheme();save();render();};fsRow.appendChild(btn);});s6.appendChild(fsRow);sett.appendChild(s6);root.appendChild(sett);}
 
 // Patch notes
-if(showPatch){const pp=h("div","patch-panel");pp.innerHTML=`<h3>📋 NOTAS DEL PARCHE</h3><div class="patch-version"><div class="patch-ver-tag">Parche v2.3 — 2026-04</div><ul class="patch-ver-items"><li>Paneles exclusivos — al abrir Estadísticas o Amigos, todos los otros paneles se cierran automáticamente</li><li>Bug invitación de amistad — corregido error de permisos al enviar solicitud; requiere actualizar reglas de Firestore (ver instrucciones en consola)</li><li>Bug caché multi-cuenta — el localStorage ahora se segmenta por UID; al cambiar de cuenta en el mismo dispositivo se cargan los datos correctos del usuario autenticado</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Mega parche v2.2 — 2026-04</div><ul class="patch-ver-items"><li>Sistema de amigos — nuevo panel accesible desde el icono de personas en el encabezado</li><li>Username propio — elige un @username unico para que tus amigos te encuentren</li><li>Busqueda por @username — busca y agrega amigos que usen la misma app</li><li>Solicitudes de amistad — envia, recibe, acepta o rechaza solicitudes</li><li>Ver perfil de amigo — muestra que manga/anime estan leyendo actualmente, progreso por capitulos y series completadas</li><li>Perfil publico sincronizado — cada vez que guardas cambios, tu perfil publico se actualiza automaticamente en Firestore</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.1 — 2026-04</div><ul class="patch-ver-items"><li>Botón Inicio — aparece en el encabezado, resetea la vista principal y hace scroll al tope</li><li>Scroll-to-top — botón circular fijo en esquina inferior derecha (↑), aparece al bajar 250px</li><li>Onboarding 3 pasos — se activa solo la primera vez al abrir la app (bienvenida, Jikan/MAL, progreso/stats)</li><li>Botón Limpiar — en el formulario de agregar, limpia título, portada, total, tags y selección de Jikan</li><li>Correcciones mobile — flecha ↑ ahora visible sin hacer zoom; campo Cap. y botón + correctamente ajustados en pantallas estrechas</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.0 — 2026-04</div><ul class="patch-ver-items"><li>Banner responsive — altura dinámica que se adapta a móvil y PC (clamp por viewport); la imagen ahora llena el recuadro completo sin dejar espacios vacíos (object-fit: cover)</li><li>Géneros auto-seleccionados desde Jikan — al agregar una serie vía MyAnimeList, los géneros/temas/demografía de la API se marcan automáticamente (Shounen, Action, Horror, etc.); los no existentes se agregan como tags personalizados</li><li>Capítulos auto-rellenados para series en publicación — si la API no entrega el total de capítulos (obra en publicación), el campo se inicializa en 1 en vez de quedar vacío, para poder agregar de inmediato y luego ajustar</li><li>Tamaño de letra escala todo el sitio — al cambiar entre Pequeño / Normal / Grande / Muy grande, ahora se reescalan proporcionalmente títulos, textos, inputs, botones y tarjetas (antes solo afectaba al input de título)</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Mega parche v1.9 — 2026-04</div><ul class="patch-ver-items"><li>Tema por defecto cambiado a Midnight — tonos azul medianoche al abrir la app por primera vez (los demás temas siguen disponibles en Ajustes)</li><li>Banner de encabezado corregido — se muestra la imagen completa sin recorte, centrada en el área del header</li><li>Integración Jikan API — al escribir en el campo de título, aparece un autocompletado con resultados de MyAnimeList: portada miniatura, nombre, capítulos/episodios actuales y estado (En publicación / Finalizado)</li><li>Portadas desde Jikan guardadas como URL externa — elimina el problema de localStorage por tamaño (URL ~60 bytes vs ~50KB en Base64); las portadas manuales siguen guardándose en Base64</li><li>Polling automático cada 6h — para series con publicación activa, compara capítulos guardados vs API y muestra notificación si hay nuevos capítulos disponibles</li><li>Personalización avanzada — control de tamaño de letra (Pequeño 12px / Normal 14px / Grande 16px) y paleta de colores ampliada en el panel de Ajustes</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.8 — 2026-04</div><ul class="patch-ver-items"><li>Pantalla principal adaptativa — si solo tienes anime (sin manga), arranca en la pestaña Anime; si tienes ambos, se muestra primero la que tenga más elementos</li><li>Corregida superposición de indicadores en vista catálogo — el ícono de estado (📖/🎬) sube a la esquina superior derecha de la portada, el % de avance se ancla al borde inferior derecho</li><li>Banner de bienvenida visual integrado en el encabezado — el banner de Mangu aparece entre el logo y los botones de control</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.7 — 2026-04</div><ul class="patch-ver-items"><li>Corregida superposición del ícono de estado con el título — los badges (%, estado) ahora están contenidos dentro del área de la portada y no invaden el texto</li><li>Nombre y capítulos se preservan al subir portada — el formulario de agregar ya no se resetea al seleccionar imagen</li><li>Colores del gráfico de distribución ahora son independientes — pickers M/A directamente en la tarjeta del dashboard, separados del color accent</li><li>Al abrir un manga desde catálogo, aparece primero en la lista — sin importar su posición original, sube al tope y hace scroll automático</li><li>Géneros, Notas y Personajes agrupados en "📂 Detalles" — un solo bloque colapsable con sub-secciones, reduciendo el espacio entre Estado y los Capítulos</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.6 — 2026-04</div><ul class="patch-ver-items"><li>Notas desplegables — la sección de notas ahora es colapsable con preview del texto; muestra los primeros 28 caracteres en el encabezado</li><li>Portada integrada en bloque Estado — el botón 🖼️ Portada se unió a la fila de Estado/Favorito/Re-lectura, eliminando la sección separada y reduciendo el espacio hasta llegar a los capítulos</li><li>Personalización del botón +1 — en Ajustes aparece nueva sección "Botón +1" con 4 opciones: Pequeño (default), Color (accent), Grande, y Color + Grande</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.5 — 2026-04</div><ul class="patch-ver-items"><li>Contador de progreso en catálogo — badge de % y emoji de estado flotante sobre cada portada</li><li>Desmarcado en cascada — al desmarcar un capítulo con posteriores leídos, aparece modal de 3 opciones: Cancelar / Solo este / Desmarcar todos los posteriores</li><li>Tags personalizados — botón "+ Tag" en la sección de géneros (al agregar serie y en el panel de detalle) para crear etiquetas propias; se pueden eliminar con ✕ al hacer hover</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.4 — 2026-04</div><ul class="patch-ver-items"><li>Vista por defecto cambiada a portadas grandes (catálogo) — la vista de lista sigue disponible con el botón del toolbar</li><li>Corregido error "firebase is not defined" al iniciar sesión con Google — scripts ahora se cargan desde CDN oficial</li><li>Eliminada inicialización duplicada de Firebase con credenciales placeholder</li><li>Corregida selección de capítulos anteriores — al marcar un capítulo, todas las celdas intermedias del panel se actualizan visualmente de inmediato sin necesidad de recargar</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.3 — 2026-04</div><ul class="patch-ver-items"><li>Al marcar un capítulo, todos los anteriores se seleccionan automáticamente</li><li>El número de capítulos/episodios ahora es obligatorio al agregar — el campo se resalta en rojo si se deja vacío</li><li>Login con Google restaurado a popup (ventana emergente) — más compatible con distintos navegadores</li><li>Eliminado getRedirectResult obsoleto del flujo de autenticación</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.2 — 2025-04</div><ul class="patch-ver-items"><li>Eliminados botones de exportar e importar JSON del encabezado</li><li>El ícono de estadísticas ahora actúa como toggle — presionarlo de nuevo cierra el dashboard y regresa al menú principal</li><li>Eliminado el botón "Volver" del dashboard</li><li>Corregido inicio de sesión con Google — ahora usa redirect en vez de popup (más compatible con navegadores móviles y bloqueadores)</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.1 — 2025-04</div><ul class="patch-ver-items"><li>Eliminada la sección de fechas (inicio / fin) del panel de cada serie</li><li>Eliminado el botón de exportar backup JSON del encabezado</li><li>Corregido error de inicio de sesión con Google Firebase — usa redirect automático si el popup es bloqueado</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.0 — 2025-04</div><ul class="patch-ver-items"><li>Mensaje de bienvenida "¡Bienvenido a mangu!" en el encabezado</li><li>Lista de personajes ahora es desplegable (no se apilan)</li><li>Sección de portada se colapsa automáticamente cuando ya hay una imagen seleccionada</li><li>Nueva etiqueta Re-watch/Re-lectura para segunda o más lecturas/vistas</li><li>En la pestaña Anime, el estado "Leyendo" ahora dice "Viendo"</li><li>Sección de notas del parche (esta pantalla)</li></ul></div>`;root.appendChild(pp);}
+if(showPatch){const pp=h("div","patch-panel");pp.innerHTML=`<h3>📋 NOTAS DEL PARCHE</h3><div class="patch-version"><div class="patch-ver-tag">Parche v2.4 — 2026-04</div><ul class="patch-ver-items"><li>Perfil de amigo mejorado — manga y anime en secciones separadas, muestra el capítulo/episodio exacto en que va cada serie (Cap. X / N · %)</li><li>Sección "En pausa / Pendientes" agregada al perfil del amigo</li><li>Últimos completados ampliado a 8 series</li><li>Invitaciones de amistad — validación previa: el remitente debe tener @username registrado; detección de solicitudes cruzadas</li><li>Bug fix: el campo lastChapter (último cap/ep leído) se sincroniza al perfil público al hacer Sync</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.3 — 2026-04</div><ul class="patch-ver-items"><li>Paneles exclusivos — al abrir Estadísticas o Amigos, todos los otros paneles se cierran automáticamente</li><li>Bug invitación de amistad — corregido error de permisos al enviar solicitud; requiere actualizar reglas de Firestore (ver instrucciones en consola)</li><li>Bug caché multi-cuenta — el localStorage ahora se segmenta por UID; al cambiar de cuenta en el mismo dispositivo se cargan los datos correctos del usuario autenticado</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Mega parche v2.2 — 2026-04</div><ul class="patch-ver-items"><li>Sistema de amigos — nuevo panel accesible desde el icono de personas en el encabezado</li><li>Username propio — elige un @username unico para que tus amigos te encuentren</li><li>Busqueda por @username — busca y agrega amigos que usen la misma app</li><li>Solicitudes de amistad — envia, recibe, acepta o rechaza solicitudes</li><li>Ver perfil de amigo — muestra que manga/anime estan leyendo actualmente, progreso por capitulos y series completadas</li><li>Perfil publico sincronizado — cada vez que guardas cambios, tu perfil publico se actualiza automaticamente en Firestore</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.1 — 2026-04</div><ul class="patch-ver-items"><li>Botón Inicio — aparece en el encabezado, resetea la vista principal y hace scroll al tope</li><li>Scroll-to-top — botón circular fijo en esquina inferior derecha (↑), aparece al bajar 250px</li><li>Onboarding 3 pasos — se activa solo la primera vez al abrir la app (bienvenida, Jikan/MAL, progreso/stats)</li><li>Botón Limpiar — en el formulario de agregar, limpia título, portada, total, tags y selección de Jikan</li><li>Correcciones mobile — flecha ↑ ahora visible sin hacer zoom; campo Cap. y botón + correctamente ajustados en pantallas estrechas</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.0 — 2026-04</div><ul class="patch-ver-items"><li>Banner responsive — altura dinámica que se adapta a móvil y PC (clamp por viewport); la imagen ahora llena el recuadro completo sin dejar espacios vacíos (object-fit: cover)</li><li>Géneros auto-seleccionados desde Jikan — al agregar una serie vía MyAnimeList, los géneros/temas/demografía de la API se marcan automáticamente (Shounen, Action, Horror, etc.); los no existentes se agregan como tags personalizados</li><li>Capítulos auto-rellenados para series en publicación — si la API no entrega el total de capítulos (obra en publicación), el campo se inicializa en 1 en vez de quedar vacío, para poder agregar de inmediato y luego ajustar</li><li>Tamaño de letra escala todo el sitio — al cambiar entre Pequeño / Normal / Grande / Muy grande, ahora se reescalan proporcionalmente títulos, textos, inputs, botones y tarjetas (antes solo afectaba al input de título)</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Mega parche v1.9 — 2026-04</div><ul class="patch-ver-items"><li>Tema por defecto cambiado a Midnight — tonos azul medianoche al abrir la app por primera vez (los demás temas siguen disponibles en Ajustes)</li><li>Banner de encabezado corregido — se muestra la imagen completa sin recorte, centrada en el área del header</li><li>Integración Jikan API — al escribir en el campo de título, aparece un autocompletado con resultados de MyAnimeList: portada miniatura, nombre, capítulos/episodios actuales y estado (En publicación / Finalizado)</li><li>Portadas desde Jikan guardadas como URL externa — elimina el problema de localStorage por tamaño (URL ~60 bytes vs ~50KB en Base64); las portadas manuales siguen guardándose en Base64</li><li>Polling automático cada 6h — para series con publicación activa, compara capítulos guardados vs API y muestra notificación si hay nuevos capítulos disponibles</li><li>Personalización avanzada — control de tamaño de letra (Pequeño 12px / Normal 14px / Grande 16px) y paleta de colores ampliada en el panel de Ajustes</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.8 — 2026-04</div><ul class="patch-ver-items"><li>Pantalla principal adaptativa — si solo tienes anime (sin manga), arranca en la pestaña Anime; si tienes ambos, se muestra primero la que tenga más elementos</li><li>Corregida superposición de indicadores en vista catálogo — el ícono de estado (📖/🎬) sube a la esquina superior derecha de la portada, el % de avance se ancla al borde inferior derecho</li><li>Banner de bienvenida visual integrado en el encabezado — el banner de Mangu aparece entre el logo y los botones de control</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.7 — 2026-04</div><ul class="patch-ver-items"><li>Corregida superposición del ícono de estado con el título — los badges (%, estado) ahora están contenidos dentro del área de la portada y no invaden el texto</li><li>Nombre y capítulos se preservan al subir portada — el formulario de agregar ya no se resetea al seleccionar imagen</li><li>Colores del gráfico de distribución ahora son independientes — pickers M/A directamente en la tarjeta del dashboard, separados del color accent</li><li>Al abrir un manga desde catálogo, aparece primero en la lista — sin importar su posición original, sube al tope y hace scroll automático</li><li>Géneros, Notas y Personajes agrupados en "📂 Detalles" — un solo bloque colapsable con sub-secciones, reduciendo el espacio entre Estado y los Capítulos</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.6 — 2026-04</div><ul class="patch-ver-items"><li>Notas desplegables — la sección de notas ahora es colapsable con preview del texto; muestra los primeros 28 caracteres en el encabezado</li><li>Portada integrada en bloque Estado — el botón 🖼️ Portada se unió a la fila de Estado/Favorito/Re-lectura, eliminando la sección separada y reduciendo el espacio hasta llegar a los capítulos</li><li>Personalización del botón +1 — en Ajustes aparece nueva sección "Botón +1" con 4 opciones: Pequeño (default), Color (accent), Grande, y Color + Grande</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.5 — 2026-04</div><ul class="patch-ver-items"><li>Contador de progreso en catálogo — badge de % y emoji de estado flotante sobre cada portada</li><li>Desmarcado en cascada — al desmarcar un capítulo con posteriores leídos, aparece modal de 3 opciones: Cancelar / Solo este / Desmarcar todos los posteriores</li><li>Tags personalizados — botón "+ Tag" en la sección de géneros (al agregar serie y en el panel de detalle) para crear etiquetas propias; se pueden eliminar con ✕ al hacer hover</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.4 — 2026-04</div><ul class="patch-ver-items"><li>Vista por defecto cambiada a portadas grandes (catálogo) — la vista de lista sigue disponible con el botón del toolbar</li><li>Corregido error "firebase is not defined" al iniciar sesión con Google — scripts ahora se cargan desde CDN oficial</li><li>Eliminada inicialización duplicada de Firebase con credenciales placeholder</li><li>Corregida selección de capítulos anteriores — al marcar un capítulo, todas las celdas intermedias del panel se actualizan visualmente de inmediato sin necesidad de recargar</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.3 — 2026-04</div><ul class="patch-ver-items"><li>Al marcar un capítulo, todos los anteriores se seleccionan automáticamente</li><li>El número de capítulos/episodios ahora es obligatorio al agregar — el campo se resalta en rojo si se deja vacío</li><li>Login con Google restaurado a popup (ventana emergente) — más compatible con distintos navegadores</li><li>Eliminado getRedirectResult obsoleto del flujo de autenticación</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.2 — 2025-04</div><ul class="patch-ver-items"><li>Eliminados botones de exportar e importar JSON del encabezado</li><li>El ícono de estadísticas ahora actúa como toggle — presionarlo de nuevo cierra el dashboard y regresa al menú principal</li><li>Eliminado el botón "Volver" del dashboard</li><li>Corregido inicio de sesión con Google — ahora usa redirect en vez de popup (más compatible con navegadores móviles y bloqueadores)</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.1 — 2025-04</div><ul class="patch-ver-items"><li>Eliminada la sección de fechas (inicio / fin) del panel de cada serie</li><li>Eliminado el botón de exportar backup JSON del encabezado</li><li>Corregido error de inicio de sesión con Google Firebase — usa redirect automático si el popup es bloqueado</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.0 — 2025-04</div><ul class="patch-ver-items"><li>Mensaje de bienvenida "¡Bienvenido a mangu!" en el encabezado</li><li>Lista de personajes ahora es desplegable (no se apilan)</li><li>Sección de portada se colapsa automáticamente cuando ya hay una imagen seleccionada</li><li>Nueva etiqueta Re-watch/Re-lectura para segunda o más lecturas/vistas</li><li>En la pestaña Anime, el estado "Leyendo" ahora dice "Viendo"</li><li>Sección de notas del parche (esta pantalla)</li></ul></div>`;root.appendChild(pp);}
 
 if(tab==="friends"){
   const fDiv=h("div","");fDiv.id="friends-panel-container";
@@ -1138,7 +1167,7 @@ applyTheme();render();
   showStep();
 })();
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
-</script><button id="scroll-top-btn" class="btn-top" aria-label="Volver arriba">↑</button>
+</script><button id="scroll-top-btn" class="btn-top" aria-label="Volver arriba">↑</button><button id="scroll-top-btn" class="btn-top" aria-label="Volver arriba">↑</button>
 
 
 
