@@ -611,15 +611,15 @@ async function _renderFriendsPanelInner(container){
   }
 
   // Vista lista — todas las queries con timeout
-  let received=[], friends=[];
+  let received=[], friends=[], receivedError=null, friendsError=null;
   try{
     const rSnap=await withTimeout(fbDb.collection("users").doc(fbUser.uid).collection("friends_received").get());
     received=rSnap.docs.map(d=>({id:d.id,...d.data()}));
-  }catch(e){console.warn("friends_received:",e.message);}
+  }catch(e){receivedError=e.code||e.message;console.warn("friends_received:",e.code,e.message);}
   try{
     const fSnap=await withTimeout(fbDb.collection("users").doc(fbUser.uid).collection("friends_accepted").get());
     friends=fSnap.docs.map(d=>({id:d.id,...d.data()}));
-  }catch(e){console.warn("friends_accepted:",e.message);}
+  }catch(e){friendsError=e.code||e.message;console.warn("friends_accepted:",e.code,e.message);}
 
   let html=`<div class="friends-panel">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -689,7 +689,9 @@ async function _renderFriendsPanelInner(container){
 
   // Solicitudes recibidas — siempre visible
   html+=`<div class="friends-section"><div class="friends-section-lbl">📨 Solicitudes recibidas (${received.length})</div>`;
-  if(received.length===0){
+  if(receivedError){
+    html+=`<div class="fn-status error">Error al leer solicitudes: ${receivedError}<br><small>Revisa las reglas de Firestore</small></div>`;
+  }else if(received.length===0){
     html+=`<div class="fn-status">Sin solicitudes pendientes</div>`;
   }else{
     received.forEach(req=>{
