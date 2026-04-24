@@ -621,7 +621,11 @@ async function _renderFriendsPanelInner(container){
     friends=fSnap.docs.map(d=>({id:d.id,...d.data()}));
   }catch(e){console.warn("friends_accepted:",e.message);}
 
-  let html=`<div class="friends-panel"><div class="friends-title">&#128101; Amigos</div>`;
+  let html=`<div class="friends-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="friends-title" style="margin-bottom:0">&#128101; Amigos</div>
+      <button class="fn-btn sec" onclick="renderFriendsPanel()" style="font-size:11px;padding:5px 12px">↻ Actualizar</button>
+    </div>`;
 
   // Mi usuario
   if(!myUsername){
@@ -683,21 +687,23 @@ async function _renderFriendsPanelInner(container){
     html+=`</div>`;
   }
 
-  // Solicitudes recibidas
-  if(received.length>0){
-    html+=`<div class="friends-section"><div class="friends-section-lbl">Solicitudes recibidas (${received.length})</div>`;
+  // Solicitudes recibidas — siempre visible
+  html+=`<div class="friends-section"><div class="friends-section-lbl">📨 Solicitudes recibidas (${received.length})</div>`;
+  if(received.length===0){
+    html+=`<div class="fn-status">Sin solicitudes pendientes</div>`;
+  }else{
     received.forEach(req=>{
       const avR=req.avatarUrl?`<img class="fn-fc-avatar" src="${req.avatarUrl}">`:
         `<div class="fn-fc-avatar-ph">&#128100;</div>`;
       html+=`<div class="fn-req-card">${avR}
         <div><div class="fn-req-name">${req.displayName||"Usuario"}</div><div class="fn-req-user">@${req.username||""}</div></div>
         <div class="fn-req-btns" style="margin-left:auto">
-          <button class="fn-req-btn accept" data-accept="${req.id}" data-dname="${(req.displayName||"").replace(/"/g,"&quot;")}" data-uname="${req.username||""}" data-avatar="${req.avatarUrl||""}">&#10003;</button>
-          <button class="fn-req-btn reject" data-reject="${req.id}">&#10005;</button>
+          <button class="fn-req-btn accept" data-accept="${req.id}" data-dname="${(req.displayName||"").replace(/"/g,"&quot;")}" data-uname="${req.username||""}" data-avatar="${req.avatarUrl||""}">✓ Aceptar</button>
+          <button class="fn-req-btn reject" data-reject="${req.id}">✕</button>
         </div></div>`;
     });
-    html+=`</div>`;
   }
+  html+=`</div>`;
 
   // Lista de amigos
   html+=`<div class="friends-section"><div class="friends-section-lbl">Mis amigos (${friends.length})</div>`;
@@ -949,6 +955,7 @@ if(tab==="friends"){
   const fDiv=h("div","");fDiv.id="friends-panel-container";
   fDiv.innerHTML='<div style="text-align:center;padding:30px;color:var(--t3);font-size:12px">Cargando amigos...</div>';
   root.appendChild(fDiv);
+  setTimeout(()=>renderFriendsPanel(),80);
   return;
 }
 if(tab==="dashboard"){
