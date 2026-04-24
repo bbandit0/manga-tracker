@@ -451,34 +451,77 @@ async function fnSendRequest(toUid){
   }
 }
 
+async function fnSyncAcceptedRequests(){
+  // Para cada solicitud enviada, verifica si el receptor ya la aceptó
+  // (es decir, si yo aparezco en su friends_accepted)
+  // Si es así, me agrego a mí mismo como amigo y limpio la solicitud enviada
+  if(!fbUser||!fbDb) return;
+  try{
+    const sentSnap=await withTimeout(fbDb.collection("users").doc(fbUser.uid).collection("friends_sent").get());
+    for(const doc of sentSnap.docs){
+      const toUid=doc.id;
+      try{
+        // Intenta leer si el receptor me tiene en su friends_accepted
+        const acceptedDoc=await fbDb.collection("users").doc(toUid).collection("friends_accepted").doc(fbUser.uid).get();
+        if(acceptedDoc.exists){
+          // ¡Fue aceptado! Agregar a mis amigos y limpiar la solicitud enviada
+          const theirProfile=await fbDb.collection("public_profiles").doc(toUid).get();
+          const ts=firebase.firestore.FieldValue.serverTimestamp();
+          await fbDb.collection("users").doc(fbUser.uid).collection("friends_accepted").doc(toUid).set({
+            since:ts,uid:toUid,
+            displayName:theirProfile.exists?theirProfile.data().displayName||"":"",
+            username:theirProfile.exists?theirProfile.data().username||"":"",
+            avatarUrl:theirProfile.exists?theirProfile.data().avatarUrl||"":""
+          });
+          await fbDb.collection("users").doc(fbUser.uid).collection("friends_sent").doc(toUid).delete();
+          showToast("✓ ¡"+( theirProfile.exists?theirProfile.data().displayName||"Usuario":"Usuario")+" aceptó tu solicitud!");
+        }
+      }catch(e){/* puede fallar por permisos si la otra persona no aceptó aún */}
+    }
+  }catch(e){console.warn("fnSyncAcceptedRequests:",e.message);}
+}
+
 async function fnAcceptRequest(fromUid,fromData){
   if(!fbUser||!fbDb) return;
   try{
     const ts=firebase.firestore.FieldValue.serverTimestamp();
     const myProfile=await fbDb.collection("public_profiles").doc(fbUser.uid).get();
     const myUsername=myProfile.exists?myProfile.data().username:"";
-    // Batch para hacer todo atómico
-    const batch=fbDb.batch();
-    // Mi friends_accepted
-    batch.set(fbDb.collection("users").doc(fbUser.uid).collection("friends_accepted").doc(fromUid),{
+
+    // Solo escribimos en NUESTRAS propias colecciones (sin escritura cruzada)
+    // 1. Agregar el remitente a MI lista de amigos aceptados
+    await fbDb.collection("users").doc(fbUser.uid).collection("friends_accepted").doc(fromUid).set({
       since:ts,uid:fromUid,
       displayName:fromData.displayName||"",username:fromData.username||"",avatarUrl:fromData.avatarUrl||""
     });
-    // Su friends_accepted (requiere regla: allow create si request.auth.uid == docId)
-    batch.set(fbDb.collection("users").doc(fromUid).collection("friends_accepted").doc(fbUser.uid),{
-      since:ts,uid:fbUser.uid,
-      displayName:fbUser.displayName||"",username:myUsername,avatarUrl:fbUser.photoURL||""
-    });
-    // Limpiar la solicitud de mi friends_received
-    batch.delete(fbDb.collection("users").doc(fbUser.uid).collection("friends_received").doc(fromUid));
-    // Limpiar su friends_sent (requiere regla: allow delete si request.auth.uid == docId)
-    batch.delete(fbDb.collection("users").doc(fromUid).collection("friends_sent").doc(fbUser.uid));
-    await batch.commit();
-    showToast("✓ Amigo agregado!");
+    // 2. Eliminar la solicitud de MI friends_received
+    await fbDb.collection("users").doc(fbUser.uid).collection("friends_received").doc(fromUid).delete();
+    // 3. Escribir en MI friends_accepted un marcador especial que el remitente puede leer
+    //    para saber que fue aceptado (él lo detecta vía su propia friends_sent → estado "accepted")
+    // 4. Actualizar el estado en MI friends_sent del remitente hacia mí
+    //    — NO podemos escribir en el doc del remitente sin reglas especiales,
+    //    por eso usamos su public_profile para notificarle indirectamente.
+    //    El remitente, al hacer Sync o abrir el panel, verá que está en friends_accepted del receptor.
+
+    // Intentar limpiar su friends_sent (puede fallar por permisos — no es crítico)
+    try{
+      await fbDb.collection("users").doc(fromUid).collection("friends_sent").doc(fbUser.uid).delete();
+    }catch(e){console.warn("No se pudo limpiar friends_sent del remitente:",e.code);}
+
+    // Intentar escribir en su friends_accepted (puede fallar por permisos)
+    try{
+      await fbDb.collection("users").doc(fromUid).collection("friends_accepted").doc(fbUser.uid).set({
+        since:ts,uid:fbUser.uid,
+        displayName:fbUser.displayName||"",username:myUsername,avatarUrl:fbUser.photoURL||""
+      });
+    }catch(e){console.warn("No se pudo escribir friends_accepted del remitente:",e.code);}
+
+    showToast("✓ ¡Amigo agregado!");
+    friendsState.searchResult=null;
     renderFriendsPanel();
   }catch(e){
     console.error("fnAcceptRequest error:",e.code,e.message);
-    showToast("Error al aceptar: "+e.message);
+    showToast("Error al aceptar: "+(e.code||e.message));
   }
 }
 
@@ -551,6 +594,9 @@ async function _renderFriendsPanelInner(container){
   // no al renderizar la UI (causaba ciclo infinito con onSnapshot)
   const myUsername=await withTimeout(fnGetMyUsername());
   const ac=theme.accentManga||"#e74c6f";
+
+  // Sincronizar solicitudes aceptadas por el remitente (detecta si alguien aceptó mi solicitud)
+  fnSyncAcceptedRequests().catch(()=>{});
 
   // Vista perfil de amigo
   if(friendsState.view==="profile" && friendsState.viewingUid){
