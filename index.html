@@ -118,6 +118,152 @@
 .btn-top{position:fixed;bottom:20px;right:16px;width:44px;height:44px;border-radius:50%;border:1px solid rgba(99,179,237,.25);background:linear-gradient(135deg,#1a6fa8,var(--am));color:#fff;font-size:20px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(99,179,237,.32);z-index:999;opacity:0;pointer-events:none;transition:opacity .25s}
 .btn-top.vis{opacity:1;pointer-events:auto}
 
+/* ══════════════════════════════════════════════════════
+   PARCHE 2.8 — CSS
+   • Streak banner
+   • Continuar leyendo (Netflix row)
+   • Onboarding examples
+   • Animación +1 (dopamina)
+   • Panel Recomendaciones
+   • Perfil público mejorado
+   • Modo lectura rápida
+══════════════════════════════════════════════════════ */
+
+/* ── STREAK BANNER ── */
+.streak-banner{margin:12px 0 0;padding:9px 14px;background:linear-gradient(135deg,rgba(251,191,36,.13),rgba(251,191,36,.06));border:1px solid rgba(251,191,36,.28);border-radius:14px;display:flex;align-items:center;gap:10px;animation:streakPop .4s cubic-bezier(.175,.885,.32,1.275)}
+@keyframes streakPop{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+.streak-fire{font-size:20px;animation:flamePulse .8s ease-in-out infinite alternate}
+@keyframes flamePulse{from{transform:scale(1) rotate(-3deg)}to{transform:scale(1.12) rotate(3deg)}}
+.streak-info{flex:1}
+.streak-days{font-size:14px;font-weight:700;color:#fbbf24}
+.streak-sub{font-size:10px;color:var(--t3);margin-top:2px}
+.streak-count{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:#fbbf24;line-height:1}
+
+/* ── CONTINUAR LEYENDO ── */
+.continue-section{margin:16px 0 0}
+.continue-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.continue-title{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1.2px;display:flex;align-items:center;gap:6px}
+.continue-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(99,179,237,.12);color:var(--am);border:1px solid rgba(99,179,237,.2)}
+.continue-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.continue-row::-webkit-scrollbar{display:none}
+.cc-card{flex-shrink:0;width:118px;background:var(--bg2);border:1px solid var(--bd);border-radius:14px;overflow:hidden;position:relative;cursor:pointer;transition:.2s}
+.cc-card:hover{border-color:rgba(255,255,255,.13);transform:translateY(-2px)}
+.cc-cover{width:100%;height:152px;object-fit:cover;display:block;background:var(--bg3)}
+.cc-cover-ph{width:100%;height:152px;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:800;background:linear-gradient(145deg,rgba(99,179,237,.14),rgba(90,180,240,.07))}
+.cc-type-badge{position:absolute;top:7px;right:7px;font-size:8px;font-weight:700;padding:2px 6px;border-radius:8px;background:rgba(10,14,26,.82);color:var(--am);border:1px solid rgba(99,179,237,.3);backdrop-filter:blur(4px)}
+.cc-type-badge.anime{color:var(--aa);border-color:rgba(104,211,145,.3)}
+.cc-body{padding:8px 8px 7px}
+.cc-title{font-size:10px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.cc-prog{font-size:9px;font-family:'Space Mono',monospace;color:var(--t3);margin-bottom:5px}
+.cc-pbar{height:2px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;margin-bottom:7px}
+.cc-pfill{height:100%;border-radius:2px}
+.cc-btn{width:100%;padding:5px 0;border:none;border-radius:8px;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:4px;background:rgba(99,179,237,.15);color:var(--am)}
+.cc-btn:hover{background:rgba(99,179,237,.26)}
+.cc-btn:active{transform:scale(.93)}
+.cc-btn.anime-btn{background:rgba(104,211,145,.13);color:var(--aa)}
+.cc-btn.anime-btn:hover{background:rgba(104,211,145,.22)}
+
+/* ── ONBOARDING EXAMPLES ── */
+.onb-examples{margin:14px 0 0;background:linear-gradient(135deg,rgba(99,179,237,.07),rgba(155,125,255,.05));border:1px solid rgba(99,179,237,.16);border-radius:16px;padding:14px}
+.onb-ex-hdr{font-size:10px;font-weight:700;color:var(--am);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+.onb-ex-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.onb-ex-card{background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:10px;padding:10px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:.2s}
+.onb-ex-card:hover{background:rgba(255,255,255,.09);border-color:var(--bdl)}
+.onb-ex-card:active{transform:scale(.96)}
+.onb-ex-ico{width:32px;height:44px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;flex-shrink:0}
+.onb-ex-info{min-width:0}
+.onb-ex-name{font-size:10px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.onb-ex-type{font-size:8px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.onb-ex-add{font-size:9px;color:var(--am);margin-top:3px}
+
+/* ── ANIMACIÓN +1 DOPAMINA ── */
+.p28-anim-overlay{position:fixed;inset:0;z-index:9999;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.p28-plus-main{font-size:72px;font-weight:900;font-family:'Space Mono',monospace;line-height:1;animation:p28Main 1s cubic-bezier(.175,.885,.32,1.275) forwards}
+.p28-plus-sub{font-size:15px;font-weight:700;animation:p28Sub 1s ease forwards;animation-delay:.1s;opacity:0}
+@keyframes p28Main{
+  0%{transform:scale(.3) translateY(30px);opacity:0}
+  18%{transform:scale(1.35) translateY(0);opacity:1}
+  65%{transform:scale(1.05) translateY(-12px);opacity:1}
+  100%{transform:scale(.75) translateY(-50px);opacity:0}
+}
+@keyframes p28Sub{
+  0%{opacity:0;transform:translateY(12px)}
+  25%{opacity:1;transform:translateY(0)}
+  75%{opacity:1}
+  100%{opacity:0;transform:translateY(-22px)}
+}
+.p28-particle{position:fixed;width:7px;height:7px;border-radius:50%;pointer-events:none;animation:p28Particle 1s ease forwards}
+@keyframes p28Particle{
+  0%{opacity:1;transform:translate(0,0) scale(1)}
+  100%{opacity:0;transform:translate(var(--px),var(--py)) scale(0)}
+}
+
+/* ── RECOMENDACIONES ── */
+.reco-section{margin:20px 0 0}
+.reco-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.reco-title-wrap{display:flex;align-items:center;gap:8px}
+.reco-icon-box{width:28px;height:28px;border-radius:8px;background:rgba(155,125,255,.14);border:1px solid rgba(155,125,255,.24);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.reco-label{font-size:13px;font-weight:700;color:var(--t1)}
+.reco-sublabel{font-size:10px;color:var(--t3);margin-top:1px}
+.reco-new-tag{font-size:8px;font-weight:700;padding:2px 7px;border-radius:10px;background:rgba(155,125,255,.14);color:var(--purple);border:1px solid rgba(155,125,255,.24)}
+.reco-context{font-size:10px;color:var(--t3);margin-bottom:10px;padding:8px 10px;background:rgba(155,125,255,.06);border:1px solid rgba(155,125,255,.12);border-radius:8px;line-height:1.5}
+.reco-context b{color:var(--purple)}
+.reco-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.reco-row::-webkit-scrollbar{display:none}
+.reco-card{flex-shrink:0;width:128px;background:var(--bg2);border:1px solid var(--bd);border-radius:14px;overflow:hidden;cursor:pointer;transition:.2s;position:relative}
+.reco-card:hover{border-color:rgba(155,125,255,.3);transform:translateY(-2px);box-shadow:0 8px 24px rgba(155,125,255,.1)}
+.reco-card:active{transform:scale(.97)}
+.reco-card-cover{width:100%;height:168px;display:flex;align-items:center;justify-content:center;font-size:48px}
+.reco-card-score{position:absolute;top:7px;right:7px;font-size:8px;font-weight:700;padding:2px 6px;border-radius:8px;background:rgba(10,14,26,.82);color:#fbbf24;backdrop-filter:blur(4px)}
+.reco-card-body{padding:8px 10px 10px}
+.reco-card-title{font-size:10px;font-weight:600;color:var(--t1);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reco-card-reason{font-size:9px;color:var(--t3);line-height:1.4;margin-bottom:6px}
+.reco-card-tag{font-size:8px;font-weight:700;padding:2px 6px;border-radius:6px;background:rgba(155,125,255,.11);color:var(--purple);border:1px solid rgba(155,125,255,.2)}
+.reco-empty{font-size:11px;color:var(--t3);padding:14px;text-align:center}
+
+/* ── PERFIL PÚBLICO MEJORADO ── */
+.pubprof-wrap{background:var(--bg2);border:1px solid var(--bd);border-radius:16px;overflow:hidden;margin-top:16px}
+.pubprof-cover{height:68px;background:linear-gradient(135deg,rgba(99,179,237,.28),rgba(155,125,255,.22));position:relative}
+.pubprof-av-wrap{position:absolute;bottom:-22px;left:16px}
+.pubprof-av{width:46px;height:46px;border-radius:50%;border:3px solid var(--bg2);background:linear-gradient(135deg,var(--am),var(--aa));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;overflow:hidden}
+.pubprof-av img{width:100%;height:100%;object-fit:cover}
+.pubprof-body{padding:28px 14px 14px}
+.pubprof-name{font-size:15px;font-weight:700;color:var(--t1)}
+.pubprof-handle{font-size:11px;color:var(--t3);margin-bottom:12px}
+.pubprof-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px}
+.pp-sc{background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:8px;padding:8px 5px;text-align:center}
+.pp-sc-v{font-family:'Space Mono',monospace;font-size:16px;font-weight:700;line-height:1}
+.pp-sc-l{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.pubprof-sec-lbl{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+.pubprof-mini-list{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.pp-mini{display:flex;align-items:center;gap:8px;padding:6px 8px;background:rgba(255,255,255,.03);border-radius:8px}
+.pp-mini-ico{width:24px;height:34px;border-radius:4px;background:rgba(99,179,237,.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--am);flex-shrink:0}
+.pp-mini-info{flex:1;min-width:0}
+.pp-mini-title{font-size:10px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-mini-prog{font-size:9px;color:var(--t3);font-family:'Space Mono',monospace}
+.pubprof-share-btn{width:100%;padding:9px;border:1px solid rgba(99,179,237,.25);background:rgba(99,179,237,.08);color:var(--am);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;border-radius:10px;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:6px}
+.pubprof-share-btn:hover{background:rgba(99,179,237,.16)}
+
+/* ── MODO LECTURA RÁPIDA ── */
+.quick-read-fab{position:fixed;bottom:80px;right:16px;z-index:500;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.qr-toggle{width:48px;height:48px;border-radius:50%;border:1px solid rgba(99,179,237,.3);background:linear-gradient(135deg,rgba(99,179,237,.2),rgba(99,179,237,.1));color:var(--am);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(99,179,237,.2);transition:.2s;backdrop-filter:blur(8px)}
+.qr-toggle:hover{background:rgba(99,179,237,.28)}
+.qr-panel{background:rgba(14,18,32,.95);border:1px solid var(--bdl);border-radius:16px;padding:12px;min-width:200px;max-width:260px;backdrop-filter:blur(16px);animation:slideDown .2s;display:none}
+.qr-panel.open{display:block}
+.qr-panel-title{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+.qr-item{display:flex;align-items:center;gap:8px;padding:7px 8px;background:rgba(255,255,255,.04);border-radius:8px;margin-bottom:6px}
+.qr-item:last-child{margin-bottom:0}
+.qr-item-title{font-size:11px;font-weight:600;color:var(--t1);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qr-item-prog{font-size:9px;color:var(--t3);font-family:'Space Mono',monospace}
+.qr-plus-btn{width:30px;height:30px;border:none;border-radius:8px;background:var(--am);color:#fff;font-size:16px;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:.14s;font-family:'Space Mono',monospace}
+.qr-plus-btn:active{transform:scale(.88)}
+.qr-plus-btn.anime{background:var(--aa)}
+
+/* ── SEPARADOR ── */
+.p28-divider{height:1px;background:var(--bd);margin:18px 0}
+
+/* ── FIN P2.8 CSS ── */
+
 /* ── MOBILE: add form row fixes ── */
 @media(max-width:600px){
   .add-m-actions{flex-wrap:wrap;gap:6px}
@@ -1142,19 +1288,23 @@ function render(){const root=document.getElementById("app");root.innerHTML="";co
 // Header
 const hdr=h("div","hdr");hdr.innerHTML=`<div class="logo"><div class="logo-icon" style="position:relative">▣</div><div><div class="logo-title">mangu</div><div class="logo-subtitle">Trackea tus mangas y animes gordito regalón</div></div></div>`;const hr=h("div","hdr-r");
 const homeBtn=h("button","home-btn","🏠 Inicio");homeBtn.onclick=()=>{tab="manga";search="";expanded={};viewMode="catalog";sortKey="recent";showSettings=false;showPatch=false;filterStatus="all";filterTag="all";showFavsOnly=false;pinnedId=null;render();window.scrollTo({top:0,behavior:"smooth"});};hr.appendChild(homeBtn);
-const patchBtn=h("button",`ib${showPatch?" on":""}`,`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`);patchBtn.title="Notas del parche";patchBtn.onclick=()=>{showPatch=!showPatch;if(showPatch){showSettings=false;tab=(tab==="dashboard"||tab==="friends")?"manga":tab;pinnedId=null;}render();if(showPatch)window.scrollTo({top:0,behavior:"smooth"});};hr.appendChild(patchBtn);
-hr.appendChild(h("button",`ib${showSettings?" on":""}`,svg.pal,{onclick:()=>{showSettings=!showSettings;if(showSettings){showPatch=false;tab=(tab==="dashboard"||tab==="friends")?"manga":tab;}render();}}));
+const patchBtn=h("button",`ib${showPatch?" on":""}`,`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`);patchBtn.title="Notas del parche";patchBtn.onclick=()=>{showPatch=!showPatch;if(showPatch){showSettings=false;tab=(tab==="dashboard"||tab==="friends"||tab==="discover"||tab==="profile")?"manga":tab;pinnedId=null;}render();if(showPatch)window.scrollTo({top:0,behavior:"smooth"});};hr.appendChild(patchBtn);
+hr.appendChild(h("button",`ib${showSettings?" on":""}`,svg.pal,{onclick:()=>{showSettings=!showSettings;if(showSettings){showPatch=false;tab=(tab==="dashboard"||tab==="friends"||tab==="discover"||tab==="profile")?"manga":tab;}render();}}));
 hr.appendChild(h("button",`ib${tab==="dashboard"?" on":""}`,svg.chart,{onclick:()=>{tab=tab==="dashboard"?"manga":"dashboard";showSettings=false;showPatch=false;render();}}));{const fb2=h("button",`ib${tab==="friends"?" on":""}`,`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,{onclick:()=>{tab=tab==="friends"?"manga":"friends";if(tab==="friends"){showSettings=false;showPatch=false;render();setTimeout(()=>renderFriendsPanel(),100);}else render();}});fb2.style.position="relative";const bdg=document.createElement("div");bdg.id="friends-badge";bdg.style.cssText="position:absolute;top:2px;right:2px;min-width:16px;height:16px;border-radius:8px;background:#e74c4c;color:#fff;font-size:9px;font-weight:700;display:none;align-items:center;justify-content:center;padding:0 3px;pointer-events:none;font-family:'Space Mono',monospace;border:2px solid var(--bg1);line-height:1";bdg.textContent=pendingRequestsCount>9?"9+":pendingRequestsCount;if(pendingRequestsCount>0)bdg.style.display="flex";fb2.appendChild(bdg);hr.appendChild(fb2);}hdr.appendChild(hr);root.appendChild(hdr);
 // Sync bar
 const syncBar=h("div","sync-bar");
 if(FIREBASE_ENABLED){if(fbUser){syncBar.innerHTML=`<div class="dot on"></div><div class="sync-user">${fbUser.photoURL?`<img class="sync-avatar" src="${fbUser.photoURL}">`:""}<span>${(friendsState.cachedUsername&&friendsState.usernameCacheUid===fbUser.uid)?"@"+friendsState.cachedUsername:(fbUser.displayName||fbUser.email)}</span></div><div class="fill"></div>`;const ob=h("button","sync-btn out","Salir");ob.onclick=signOut;syncBar.appendChild(ob);const sb=h("button","sync-btn","↻ Sync");sb.onclick=loadFromCloud;syncBar.appendChild(sb);}else{syncBar.innerHTML=`<div class="dot off"></div><span>Sin sincronizar</span><div class="fill"></div>`;const lb=h("button","sync-btn ggl","Iniciar con Google");lb.onclick=signIn;syncBar.appendChild(lb);}}else{syncBar.innerHTML=`<div class="dot no"></div><span>Firebase no configurado — ver comentarios en el código</span>`;}
 root.appendChild(syncBar);
+// ── P2.8: Streak Banner ──
+p28RenderStreakBanner(root);
+// ── P2.8: Continuar Leyendo ──
+p28RenderContinueRow(root);
 // Settings
 if(showSettings){const sett=h("div","sett open");sett.innerHTML=`<div class="sett-top">Personalización</div>`;const s1=h("div","sett-sec");s1.innerHTML=`<div class="sett-lbl">Color Manga</div>`;const cr1=h("div","clr-row");APS.forEach(c=>{const sw=h("div",`csw${theme.accentManga===c?" sel":""}`,null);sw.style.background=c;sw.onclick=()=>{theme.accentManga=c;applyTheme();save();render();};cr1.appendChild(sw);});const cp1=h("div","cpick");cp1.innerHTML=`<div class="cpick-v">+</div>`;const ci1=h("input","",null,{type:"color",value:theme.accentManga});ci1.oninput=e=>{theme.accentManga=e.target.value;applyTheme();save();render();};cp1.appendChild(ci1);cr1.appendChild(cp1);s1.appendChild(cr1);sett.appendChild(s1);const s2=h("div","sett-sec");s2.innerHTML=`<div class="sett-lbl">Color Anime</div>`;const cr2=h("div","clr-row");APS.forEach(c=>{const sw=h("div",`csw${theme.accentAnime===c?" sel":""}`,null);sw.style.background=c;sw.onclick=()=>{theme.accentAnime=c;applyTheme();save();render();};cr2.appendChild(sw);});const cp2=h("div","cpick");cp2.innerHTML=`<div class="cpick-v">+</div>`;const ci2=h("input","",null,{type:"color",value:theme.accentAnime});ci2.oninput=e=>{theme.accentAnime=e.target.value;applyTheme();save();render();};cp2.appendChild(ci2);cr2.appendChild(cp2);s2.appendChild(cr2);sett.appendChild(s2);const s3=h("div","sett-sec");s3.innerHTML=`<div class="sett-lbl">Fondo</div>`;const bgr=h("div","bgr");Object.keys(BGS).forEach(k=>{bgr.appendChild(h("button",`bgb${theme.bgMode===k?" on":""}`,k.charAt(0).toUpperCase()+k.slice(1),{onclick:()=>{theme.bgMode=k;applyTheme();save();render();}}));});s3.appendChild(bgr);sett.appendChild(s3);const s4=h("div","sett-sec");s4.appendChild(h("button","rst","Reset todos los datos",{onclick:()=>{showModal("Reset","Eliminar <b>todos</b> los datos?","⚠️",()=>{data={manga:[],anime:[]};save();showToast("Eliminado");render();});}}));sett.appendChild(s4);
 const s5=h("div","sett-sec");s5.innerHTML=`<div class="sett-lbl">Botón +1</div>`;const qnRow=h("div","bgr");[{k:"default",l:"Pequeño"},{k:"colored",l:"Color"},{k:"large",l:"Grande"},{k:"colored-large",l:"Color + Grande"}].forEach(opt=>{const btn=h("button",`bgb${(theme.qnextStyle||"default")===opt.k?" on":""}`,opt.l);btn.onclick=()=>{theme.qnextStyle=opt.k;save();render();};qnRow.appendChild(btn);});s5.appendChild(qnRow);sett.appendChild(s5);const s6=h("div","sett-sec");s6.innerHTML=`<div class="sett-lbl">Tamaño de letra</div>`;const fsRow=h("div","bgr");[{k:13,l:"Pequeño"},{k:15,l:"Normal"},{k:18,l:"Grande"},{k:22,l:"Muy grande"}].forEach(opt=>{const btn=h("button",`bgb${(theme.fontSize||15)===opt.k?" on":""}`,opt.l);btn.onclick=()=>{theme.fontSize=opt.k;applyTheme();save();render();};fsRow.appendChild(btn);});s6.appendChild(fsRow);sett.appendChild(s6);root.appendChild(sett);}
 
 // Patch notes
-if(showPatch){const pp=h("div","patch-panel");pp.innerHTML=`<h3>📋 NOTAS DEL PARCHE</h3><div class="patch-version"><div class="patch-ver-tag">Parche v2.7 — 2026-04</div><ul class="patch-ver-items"><li>Portadas en perfil de amigo — fix definitivo: se eliminó el filtro <code>startsWith(&quot;http&quot;)</code> que descartaba las portadas Base64 comprimidas subidas al perfil público; ahora se acepta cualquier string de portada con longitud mayor a 10 caracteres (URL o Base64), igual que en la lista propia</li><li>Banner mobile — corregido centrado del logo &quot;mangu&quot; y subtítulo en Safari iOS y Chrome Android; el header ahora cambia a <code>flex-direction:column</code> en pantallas &lt;600px, centrando el logo verticalmente y reposicionando los botones debajo</li><li>Aislamiento de datos por cuenta — los capítulos/episodios que salen en la lista corresponden estrictamente a la cuenta autenticada; se eliminó la lectura de claves antiguas de localStorage cuando hay usuario activo, evitando que aparezca contenido de otra sesión en el mismo dispositivo</li><li>Portadas en perfil de amigo — corregido: el handler <code>onerror</code> ahora oculta correctamente la img rota y muestra el placeholder con la inicial; además, solo se envían portadas con URL HTTP (Jikan), las Base64 locales se filtran antes de publicar al perfil público</li><li>Bug amigo duplicado — reforzada la deduplicación por UID en la lista de amigos; las solicitudes enviadas a usuarios que ya son amigos se filtran antes de renderizar el panel, eliminando el doble perfil reportado</li><li>Compatibilidad Safari/iOS — eliminado CSS <code>zoom</code> (no soportado en WebKit); el escalado de fuente se aplica vía <code>font-size</code> en body; <code>signInWithRedirect</code> como fallback cuando Safari bloquea el popup de Google</li><li>Icono web mejorado — favicon con <code>type="image/svg+xml"</code>, <code>shortcut icon</code> como fallback para navegadores legacy, y <code>apple-touch-icon</code> con <code>sizes="180x180"</code> para pantalla de inicio en iPhone/iPad</li><li>Orden de series — el primer manga/anime que aparece (izquierda→derecha, arriba→abajo) es el último al que se le marcó un nuevo cap./ep.; el criterio de orden default ahora usa <code>lastUpdated</code> en vez de <code>createdAt</code></li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.6 — 2026-04</div><ul class="patch-ver-items"><li>Portadas en perfil de amigo — corregido: el onerror handler oculta img rota y muestra placeholder correctamente</li><li>Jikan API — nuevos capítulos ahora se detectan automáticamente; al cargar la app avisa si hay cap nuevo en series que ya estás al día</li><li>Se cambió el subtítulo de la página</li><li>Tema por defecto Midnight con colores verdes (#22c55e) en manga y anime</li><li>Nombre en barra superior muestra el @username de Firestore si ya está registrado</li><li>Rediseño del formulario de agregar — más limpio y profesional con header, inputs mejorados y botón reestilizado</li><li>Tamaños de letra corregidos — ahora 13/15/18/22px para diferencia visible entre opciones</li><li>Panel de Detalles con mejor presentación visual de Géneros, Notas y Personajes</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.4 — 2026-04</div><ul class="patch-ver-items"><li>Perfil de amigo mejorado — manga y anime en secciones separadas, muestra el capítulo/episodio exacto en que va cada serie (Cap. X / N · %)</li><li>Sección "En pausa / Pendientes" agregada al perfil del amigo</li><li>Últimos completados ampliado a 8 series</li><li>Invitaciones de amistad — validación previa: el remitente debe tener @username registrado; detección de solicitudes cruzadas</li><li>Bug fix: el campo lastChapter (último cap/ep leído) se sincroniza al perfil público al hacer Sync</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.3 — 2026-04</div><ul class="patch-ver-items"><li>Paneles exclusivos — al abrir Estadísticas o Amigos, todos los otros paneles se cierran automáticamente</li><li>Bug invitación de amistad — corregido error de permisos al enviar solicitud; requiere actualizar reglas de Firestore (ver instrucciones en consola)</li><li>Bug caché multi-cuenta — el localStorage ahora se segmenta por UID; al cambiar de cuenta en el mismo dispositivo se cargan los datos correctos del usuario autenticado</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Mega parche v2.2 — 2026-04</div><ul class="patch-ver-items"><li>Sistema de amigos — nuevo panel accesible desde el icono de personas en el encabezado</li><li>Username propio — elige un @username unico para que tus amigos te encuentren</li><li>Busqueda por @username — busca y agrega amigos que usen la misma app</li><li>Solicitudes de amistad — envia, recibe, acepta o rechaza solicitudes</li><li>Ver perfil de amigo — muestra que manga/anime estan leyendo actualmente, progreso por capitulos y series completadas</li><li>Perfil publico sincronizado — cada vez que guardas cambios, tu perfil publico se actualiza automaticamente en Firestore</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.1 — 2026-04</div><ul class="patch-ver-items"><li>Botón Inicio — aparece en el encabezado, resetea la vista principal y hace scroll al tope</li><li>Scroll-to-top — botón circular fijo en esquina inferior derecha (↑), aparece al bajar 250px</li><li>Onboarding 3 pasos — se activa solo la primera vez al abrir la app (bienvenida, Jikan/MAL, progreso/stats)</li><li>Botón Limpiar — en el formulario de agregar, limpia título, portada, total, tags y selección de Jikan</li><li>Correcciones mobile — flecha ↑ ahora visible sin hacer zoom; campo Cap. y botón + correctamente ajustados en pantallas estrechas</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.0 — 2026-04</div><ul class="patch-ver-items"><li>Banner responsive — altura dinámica que se adapta a móvil y PC (clamp por viewport); la imagen ahora llena el recuadro completo sin dejar espacios vacíos (object-fit: cover)</li><li>Géneros auto-seleccionados desde Jikan — al agregar una serie vía MyAnimeList, los géneros/temas/demografía de la API se marcan automáticamente (Shounen, Action, Horror, etc.); los no existentes se agregan como tags personalizados</li><li>Capítulos auto-rellenados para series en publicación — si la API no entrega el total de capítulos (obra en publicación), el campo se inicializa en 1 en vez de quedar vacío, para poder agregar de inmediato y luego ajustar</li><li>Tamaño de letra escala todo el sitio — al cambiar entre Pequeño / Normal / Grande / Muy grande, ahora se reescalan proporcionalmente títulos, textos, inputs, botones y tarjetas (antes solo afectaba al input de título)</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Mega parche v1.9 — 2026-04</div><ul class="patch-ver-items"><li>Tema por defecto cambiado a Midnight — tonos azul medianoche al abrir la app por primera vez (los demás temas siguen disponibles en Ajustes)</li><li>Banner de encabezado corregido — se muestra la imagen completa sin recorte, centrada en el área del header</li><li>Integración Jikan API — al escribir en el campo de título, aparece un autocompletado con resultados de MyAnimeList: portada miniatura, nombre, capítulos/episodios actuales y estado (En publicación / Finalizado)</li><li>Portadas desde Jikan guardadas como URL externa — elimina el problema de localStorage por tamaño (URL ~60 bytes vs ~50KB en Base64); las portadas manuales siguen guardándose en Base64</li><li>Polling automático cada 6h — para series con publicación activa, compara capítulos guardados vs API y muestra notificación si hay nuevos capítulos disponibles</li><li>Personalización avanzada — control de tamaño de letra (Pequeño 12px / Normal 14px / Grande 16px) y paleta de colores ampliada en el panel de Ajustes</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.8 — 2026-04</div><ul class="patch-ver-items"><li>Pantalla principal adaptativa — si solo tienes anime (sin manga), arranca en la pestaña Anime; si tienes ambos, se muestra primero la que tenga más elementos</li><li>Corregida superposición de indicadores en vista catálogo — el ícono de estado (📖/🎬) sube a la esquina superior derecha de la portada, el % de avance se ancla al borde inferior derecho</li><li>Banner de bienvenida visual integrado en el encabezado — el banner de Mangu aparece entre el logo y los botones de control</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.7 — 2026-04</div><ul class="patch-ver-items"><li>Corregida superposición del ícono de estado con el título — los badges (%, estado) ahora están contenidos dentro del área de la portada y no invaden el texto</li><li>Nombre y capítulos se preservan al subir portada — el formulario de agregar ya no se resetea al seleccionar imagen</li><li>Colores del gráfico de distribución ahora son independientes — pickers M/A directamente en la tarjeta del dashboard, separados del color accent</li><li>Al abrir un manga desde catálogo, aparece primero en la lista — sin importar su posición original, sube al tope y hace scroll automático</li><li>Géneros, Notas y Personajes agrupados en "📂 Detalles" — un solo bloque colapsable con sub-secciones, reduciendo el espacio entre Estado y los Capítulos</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.6 — 2026-04</div><ul class="patch-ver-items"><li>Notas desplegables — la sección de notas ahora es colapsable con preview del texto; muestra los primeros 28 caracteres en el encabezado</li><li>Portada integrada en bloque Estado — el botón 🖼️ Portada se unió a la fila de Estado/Favorito/Re-lectura, eliminando la sección separada y reduciendo el espacio hasta llegar a los capítulos</li><li>Personalización del botón +1 — en Ajustes aparece nueva sección "Botón +1" con 4 opciones: Pequeño (default), Color (accent), Grande, y Color + Grande</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.5 — 2026-04</div><ul class="patch-ver-items"><li>Contador de progreso en catálogo — badge de % y emoji de estado flotante sobre cada portada</li><li>Desmarcado en cascada — al desmarcar un capítulo con posteriores leídos, aparece modal de 3 opciones: Cancelar / Solo este / Desmarcar todos los posteriores</li><li>Tags personalizados — botón "+ Tag" en la sección de géneros (al agregar serie y en el panel de detalle) para crear etiquetas propias; se pueden eliminar con ✕ al hacer hover</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.4 — 2026-04</div><ul class="patch-ver-items"><li>Vista por defecto cambiada a portadas grandes (catálogo) — la vista de lista sigue disponible con el botón del toolbar</li><li>Corregido error "firebase is not defined" al iniciar sesión con Google — scripts ahora se cargan desde CDN oficial</li><li>Eliminada inicialización duplicada de Firebase con credenciales placeholder</li><li>Corregida selección de capítulos anteriores — al marcar un capítulo, todas las celdas intermedias del panel se actualizan visualmente de inmediato sin necesidad de recargar</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.3 — 2026-04</div><ul class="patch-ver-items"><li>Al marcar un capítulo, todos los anteriores se seleccionan automáticamente</li><li>El número de capítulos/episodios ahora es obligatorio al agregar — el campo se resalta en rojo si se deja vacío</li><li>Login con Google restaurado a popup (ventana emergente) — más compatible con distintos navegadores</li><li>Eliminado getRedirectResult obsoleto del flujo de autenticación</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.2 — 2025-04</div><ul class="patch-ver-items"><li>Eliminados botones de exportar e importar JSON del encabezado</li><li>El ícono de estadísticas ahora actúa como toggle — presionarlo de nuevo cierra el dashboard y regresa al menú principal</li><li>Eliminado el botón "Volver" del dashboard</li><li>Corregido inicio de sesión con Google — ahora usa redirect en vez de popup (más compatible con navegadores móviles y bloqueadores)</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.1 — 2025-04</div><ul class="patch-ver-items"><li>Eliminada la sección de fechas (inicio / fin) del panel de cada serie</li><li>Eliminado el botón de exportar backup JSON del encabezado</li><li>Corregido error de inicio de sesión con Google Firebase — usa redirect automático si el popup es bloqueado</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.0 — 2025-04</div><ul class="patch-ver-items"><li>Mensaje de bienvenida "¡Bienvenido a mangu!" en el encabezado</li><li>Lista de personajes ahora es desplegable (no se apilan)</li><li>Sección de portada se colapsa automáticamente cuando ya hay una imagen seleccionada</li><li>Nueva etiqueta Re-watch/Re-lectura para segunda o más lecturas/vistas</li><li>En la pestaña Anime, el estado "Leyendo" ahora dice "Viendo"</li><li>Sección de notas del parche (esta pantalla)</li></ul></div>`;root.appendChild(pp);}
+if(showPatch){const pp=h("div","patch-panel");pp.innerHTML=`<h3>📋 NOTAS DEL PARCHE</h3>${P28_PATCH_NOTES}<div class="patch-version"><div class="patch-ver-tag">Parche v2.5b — 2026-04</div><ul class="patch-ver-items"><li>Portadas en perfil de amigo — fix definitivo: se eliminó el filtro <code>startsWith(&quot;http&quot;)</code> que descartaba las portadas Base64 comprimidas subidas al perfil público; ahora se acepta cualquier string de portada con longitud mayor a 10 caracteres (URL o Base64), igual que en la lista propia</li><li>Banner mobile — corregido centrado del logo &quot;mangu&quot; y subtítulo en Safari iOS y Chrome Android; el header ahora cambia a <code>flex-direction:column</code> en pantallas &lt;600px, centrando el logo verticalmente y reposicionando los botones debajo</li><li>Aislamiento de datos por cuenta — los capítulos/episodios que salen en la lista corresponden estrictamente a la cuenta autenticada; se eliminó la lectura de claves antiguas de localStorage cuando hay usuario activo, evitando que aparezca contenido de otra sesión en el mismo dispositivo</li><li>Portadas en perfil de amigo — corregido: el handler <code>onerror</code> ahora oculta correctamente la img rota y muestra el placeholder con la inicial; además, solo se envían portadas con URL HTTP (Jikan), las Base64 locales se filtran antes de publicar al perfil público</li><li>Bug amigo duplicado — reforzada la deduplicación por UID en la lista de amigos; las solicitudes enviadas a usuarios que ya son amigos se filtran antes de renderizar el panel, eliminando el doble perfil reportado</li><li>Compatibilidad Safari/iOS — eliminado CSS <code>zoom</code> (no soportado en WebKit); el escalado de fuente se aplica vía <code>font-size</code> en body; <code>signInWithRedirect</code> como fallback cuando Safari bloquea el popup de Google</li><li>Icono web mejorado — favicon con <code>type="image/svg+xml"</code>, <code>shortcut icon</code> como fallback para navegadores legacy, y <code>apple-touch-icon</code> con <code>sizes="180x180"</code> para pantalla de inicio en iPhone/iPad</li><li>Orden de series — el primer manga/anime que aparece (izquierda→derecha, arriba→abajo) es el último al que se le marcó un nuevo cap./ep.; el criterio de orden default ahora usa <code>lastUpdated</code> en vez de <code>createdAt</code></li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.6 — 2026-04</div><ul class="patch-ver-items"><li>Portadas en perfil de amigo — corregido: el onerror handler oculta img rota y muestra placeholder correctamente</li><li>Jikan API — nuevos capítulos ahora se detectan automáticamente; al cargar la app avisa si hay cap nuevo en series que ya estás al día</li><li>Se cambió el subtítulo de la página</li><li>Tema por defecto Midnight con colores verdes (#22c55e) en manga y anime</li><li>Nombre en barra superior muestra el @username de Firestore si ya está registrado</li><li>Rediseño del formulario de agregar — más limpio y profesional con header, inputs mejorados y botón reestilizado</li><li>Tamaños de letra corregidos — ahora 13/15/18/22px para diferencia visible entre opciones</li><li>Panel de Detalles con mejor presentación visual de Géneros, Notas y Personajes</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.4 — 2026-04</div><ul class="patch-ver-items"><li>Perfil de amigo mejorado — manga y anime en secciones separadas, muestra el capítulo/episodio exacto en que va cada serie (Cap. X / N · %)</li><li>Sección "En pausa / Pendientes" agregada al perfil del amigo</li><li>Últimos completados ampliado a 8 series</li><li>Invitaciones de amistad — validación previa: el remitente debe tener @username registrado; detección de solicitudes cruzadas</li><li>Bug fix: el campo lastChapter (último cap/ep leído) se sincroniza al perfil público al hacer Sync</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.3 — 2026-04</div><ul class="patch-ver-items"><li>Paneles exclusivos — al abrir Estadísticas o Amigos, todos los otros paneles se cierran automáticamente</li><li>Bug invitación de amistad — corregido error de permisos al enviar solicitud; requiere actualizar reglas de Firestore (ver instrucciones en consola)</li><li>Bug caché multi-cuenta — el localStorage ahora se segmenta por UID; al cambiar de cuenta en el mismo dispositivo se cargan los datos correctos del usuario autenticado</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Mega parche v2.2 — 2026-04</div><ul class="patch-ver-items"><li>Sistema de amigos — nuevo panel accesible desde el icono de personas en el encabezado</li><li>Username propio — elige un @username unico para que tus amigos te encuentren</li><li>Busqueda por @username — busca y agrega amigos que usen la misma app</li><li>Solicitudes de amistad — envia, recibe, acepta o rechaza solicitudes</li><li>Ver perfil de amigo — muestra que manga/anime estan leyendo actualmente, progreso por capitulos y series completadas</li><li>Perfil publico sincronizado — cada vez que guardas cambios, tu perfil publico se actualiza automaticamente en Firestore</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.1 — 2026-04</div><ul class="patch-ver-items"><li>Botón Inicio — aparece en el encabezado, resetea la vista principal y hace scroll al tope</li><li>Scroll-to-top — botón circular fijo en esquina inferior derecha (↑), aparece al bajar 250px</li><li>Onboarding 3 pasos — se activa solo la primera vez al abrir la app (bienvenida, Jikan/MAL, progreso/stats)</li><li>Botón Limpiar — en el formulario de agregar, limpia título, portada, total, tags y selección de Jikan</li><li>Correcciones mobile — flecha ↑ ahora visible sin hacer zoom; campo Cap. y botón + correctamente ajustados en pantallas estrechas</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Parche v2.0 — 2026-04</div><ul class="patch-ver-items"><li>Banner responsive — altura dinámica que se adapta a móvil y PC (clamp por viewport); la imagen ahora llena el recuadro completo sin dejar espacios vacíos (object-fit: cover)</li><li>Géneros auto-seleccionados desde Jikan — al agregar una serie vía MyAnimeList, los géneros/temas/demografía de la API se marcan automáticamente (Shounen, Action, Horror, etc.); los no existentes se agregan como tags personalizados</li><li>Capítulos auto-rellenados para series en publicación — si la API no entrega el total de capítulos (obra en publicación), el campo se inicializa en 1 en vez de quedar vacío, para poder agregar de inmediato y luego ajustar</li><li>Tamaño de letra escala todo el sitio — al cambiar entre Pequeño / Normal / Grande / Muy grande, ahora se reescalan proporcionalmente títulos, textos, inputs, botones y tarjetas (antes solo afectaba al input de título)</li></ul></div><div class="patch-version"><div class="patch-ver-tag">Mega parche v1.9 — 2026-04</div><ul class="patch-ver-items"><li>Tema por defecto cambiado a Midnight — tonos azul medianoche al abrir la app por primera vez (los demás temas siguen disponibles en Ajustes)</li><li>Banner de encabezado corregido — se muestra la imagen completa sin recorte, centrada en el área del header</li><li>Integración Jikan API — al escribir en el campo de título, aparece un autocompletado con resultados de MyAnimeList: portada miniatura, nombre, capítulos/episodios actuales y estado (En publicación / Finalizado)</li><li>Portadas desde Jikan guardadas como URL externa — elimina el problema de localStorage por tamaño (URL ~60 bytes vs ~50KB en Base64); las portadas manuales siguen guardándose en Base64</li><li>Polling automático cada 6h — para series con publicación activa, compara capítulos guardados vs API y muestra notificación si hay nuevos capítulos disponibles</li><li>Personalización avanzada — control de tamaño de letra (Pequeño 12px / Normal 14px / Grande 16px) y paleta de colores ampliada en el panel de Ajustes</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.8 — 2026-04</div><ul class="patch-ver-items"><li>Pantalla principal adaptativa — si solo tienes anime (sin manga), arranca en la pestaña Anime; si tienes ambos, se muestra primero la que tenga más elementos</li><li>Corregida superposición de indicadores en vista catálogo — el ícono de estado (📖/🎬) sube a la esquina superior derecha de la portada, el % de avance se ancla al borde inferior derecho</li><li>Banner de bienvenida visual integrado en el encabezado — el banner de Mangu aparece entre el logo y los botones de control</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.7 — 2026-04</div><ul class="patch-ver-items"><li>Corregida superposición del ícono de estado con el título — los badges (%, estado) ahora están contenidos dentro del área de la portada y no invaden el texto</li><li>Nombre y capítulos se preservan al subir portada — el formulario de agregar ya no se resetea al seleccionar imagen</li><li>Colores del gráfico de distribución ahora son independientes — pickers M/A directamente en la tarjeta del dashboard, separados del color accent</li><li>Al abrir un manga desde catálogo, aparece primero en la lista — sin importar su posición original, sube al tope y hace scroll automático</li><li>Géneros, Notas y Personajes agrupados en "📂 Detalles" — un solo bloque colapsable con sub-secciones, reduciendo el espacio entre Estado y los Capítulos</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.6 — 2026-04</div><ul class="patch-ver-items"><li>Notas desplegables — la sección de notas ahora es colapsable con preview del texto; muestra los primeros 28 caracteres en el encabezado</li><li>Portada integrada en bloque Estado — el botón 🖼️ Portada se unió a la fila de Estado/Favorito/Re-lectura, eliminando la sección separada y reduciendo el espacio hasta llegar a los capítulos</li><li>Personalización del botón +1 — en Ajustes aparece nueva sección "Botón +1" con 4 opciones: Pequeño (default), Color (accent), Grande, y Color + Grande</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.5 — 2026-04</div><ul class="patch-ver-items"><li>Contador de progreso en catálogo — badge de % y emoji de estado flotante sobre cada portada</li><li>Desmarcado en cascada — al desmarcar un capítulo con posteriores leídos, aparece modal de 3 opciones: Cancelar / Solo este / Desmarcar todos los posteriores</li><li>Tags personalizados — botón "+ Tag" en la sección de géneros (al agregar serie y en el panel de detalle) para crear etiquetas propias; se pueden eliminar con ✕ al hacer hover</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.4 — 2026-04</div><ul class="patch-ver-items"><li>Vista por defecto cambiada a portadas grandes (catálogo) — la vista de lista sigue disponible con el botón del toolbar</li><li>Corregido error "firebase is not defined" al iniciar sesión con Google — scripts ahora se cargan desde CDN oficial</li><li>Eliminada inicialización duplicada de Firebase con credenciales placeholder</li><li>Corregida selección de capítulos anteriores — al marcar un capítulo, todas las celdas intermedias del panel se actualizan visualmente de inmediato sin necesidad de recargar</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.3 — 2026-04</div><ul class="patch-ver-items"><li>Al marcar un capítulo, todos los anteriores se seleccionan automáticamente</li><li>El número de capítulos/episodios ahora es obligatorio al agregar — el campo se resalta en rojo si se deja vacío</li><li>Login con Google restaurado a popup (ventana emergente) — más compatible con distintos navegadores</li><li>Eliminado getRedirectResult obsoleto del flujo de autenticación</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.2 — 2025-04</div><ul class="patch-ver-items"><li>Eliminados botones de exportar e importar JSON del encabezado</li><li>El ícono de estadísticas ahora actúa como toggle — presionarlo de nuevo cierra el dashboard y regresa al menú principal</li><li>Eliminado el botón "Volver" del dashboard</li><li>Corregido inicio de sesión con Google — ahora usa redirect en vez de popup (más compatible con navegadores móviles y bloqueadores)</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.1 — 2025-04</div><ul class="patch-ver-items"><li>Eliminada la sección de fechas (inicio / fin) del panel de cada serie</li><li>Eliminado el botón de exportar backup JSON del encabezado</li><li>Corregido error de inicio de sesión con Google Firebase — usa redirect automático si el popup es bloqueado</li></ul></div><div class="patch-version"><div class="patch-ver-tag">v1.0 — 2025-04</div><ul class="patch-ver-items"><li>Mensaje de bienvenida "¡Bienvenido a mangu!" en el encabezado</li><li>Lista de personajes ahora es desplegable (no se apilan)</li><li>Sección de portada se colapsa automáticamente cuando ya hay una imagen seleccionada</li><li>Nueva etiqueta Re-watch/Re-lectura para segunda o más lecturas/vistas</li><li>En la pestaña Anime, el estado "Leyendo" ahora dice "Viendo"</li><li>Sección de notas del parche (esta pantalla)</li></ul></div>`;root.appendChild(pp);}
 
 if(tab==="friends"){
   const fDiv=h("div","");fDiv.id="friends-panel-container";
@@ -1259,7 +1409,27 @@ if(tab==="dashboard"){
 }
 
 // ═══ MAIN ═══
-const tabs=h("div","tabs");tabs.appendChild(h("button",`tab ${tab==="manga"?"am":""}`,`${svg.book} Manga <span class="tab-c">(${data.manga.length})</span>`,{onclick:()=>{tab="manga";filterStatus="all";filterTag="all";showFavsOnly=false;render();}}));tabs.appendChild(h("button",`tab ${tab==="anime"?"aa":""}`,`${svg.tv} Anime <span class="tab-c">(${data.anime.length})</span>`,{onclick:()=>{tab="anime";filterStatus="all";filterTag="all";showFavsOnly=false;render();}}));root.appendChild(tabs);
+const tabs=h("div","tabs");tabs.appendChild(h("button",`tab ${tab==="manga"?"am":""}`,`${svg.book} Manga <span class="tab-c">(${data.manga.length})</span>`,{onclick:()=>{tab="manga";filterStatus="all";filterTag="all";showFavsOnly=false;render();}}));tabs.appendChild(h("button",`tab ${tab==="anime"?"aa":""}`,`${svg.tv} Anime <span class="tab-c">(${data.anime.length})</span>`,{onclick:()=>{tab="anime";filterStatus="all";filterTag="all";showFavsOnly=false;render();}}));
+// P2.8: Tab Descubrir
+const discBtn=h("button",`tab ${tab==="discover"?"am":""}`,`✨ Descubrir`,{onclick:()=>{tab="discover";showSettings=false;showPatch=false;render();}});
+tabs.appendChild(discBtn);
+// P2.8: Tab Perfil
+const profBtn=h("button",`tab ${tab==="profile"?"am":""}`,`👤 Perfil`,{onclick:()=>{tab="profile";showSettings=false;showPatch=false;render();}});
+tabs.appendChild(profBtn);
+root.appendChild(tabs);
+
+// ── P2.8: Tab Descubrir ──
+if(tab==="discover"){
+  const discRoot=document.createElement("div");
+  root.appendChild(discRoot);
+  p28RenderRecoSection(discRoot);
+  return;
+}
+// ── P2.8: Tab Perfil ──
+if(tab==="profile"){
+  p28RenderPublicProfile(root);
+  return;
+}
 const list=data[tab];const tRead=list.reduce((s,x)=>s+x.completed.length,0);const tAll=list.reduce((s,x)=>s+x.total,0);
 if(list.length>0){const ti=timeInvested();const sr=h("div","sr");sr.innerHTML=`<div class="stc"><div class="stc-glare"></div><span class="stc-icon">${tab==="manga"?"📚":"🎬"}</span><span class="stv">${list.length}</span><span class="stl">Series</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">✅</span><span class="stv">${tRead}</span><span class="stl">${tab==="manga"?"Leídos":"Vistos"}</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">▶</span><span class="stv">${tAll>0?Math.round(tRead/tAll*100):0}%</span><span class="stl">Progreso</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">⏱</span><span class="stv">${ti.val}</span><span class="stl">Tiempo</span></div>`;root.appendChild(sr);}
 // Toolbar
@@ -1269,7 +1439,7 @@ const fbar=h("div","fbar");fbar.appendChild(h("button",`fchip${animeCls}${showFa
 // Add
 const addS=h("div","add");const addHdr=h("div","add-header");const addHdrL=h("div","add-header-left");addHdrL.append(h("div","add-header-icon",tab==="manga"?"\u{1F4DA}":"\u{1F3AC}"),h("span","add-header-title","Agregar "+(tab==="manga"?"manga":"anime")));const addResetBtn=h("button","add-reset-btn","Limpiar");addResetBtn.onclick=()=>{newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;jikanResults=[];render();};addHdr.append(addHdrL,addResetBtn);addS.appendChild(addHdr);const addBody=h("div","add-body");addS.appendChild(addBody);const titleRow=h("div","add-title-row");const titleWrap=h("div","jikan-wrap");const sIcon=document.createElement("span");sIcon.className="add-title-icon";sIcon.textContent="🔍";const ti=h("input","",null,{placeholder:"Buscar en MyAnimeList...",id:"add-title",value:newTitle});ti.oninput=e=>{newTitle=e.target.value;clearTimeout(jikanSearchTimeout);if(e.target.value.length>=2){jikanSearchTimeout=setTimeout(()=>searchJikan(e.target.value,tab),450);}else{jikanResults=[];const d=document.getElementById("jikan-drop");if(d)d.remove();}};ti.onkeydown=e=>{if(e.key==="Enter"){jikanResults=[];doAdd();}if(e.key==="Escape"){jikanResults=[];render();}};titleWrap.append(sIcon,ti);if(jikanResults.length>0){const drop=h("div","jikan-drop",null,{id:"jikan-drop"});jikanResults.forEach(item=>{const row=h("div","jikan-item");const thumb=item.images?.jpg?.image_url||"";const count=tab==="manga"?(item.chapters||"?"):(item.episodes||"?");const pub=tab==="manga"?item.publishing:item.airing;const statusLabel=pub?"En publicacion":"Finalizado";const statusCls=pub?"":"fin";row.innerHTML=`${thumb?`<img class="jikan-thumb" src="${thumb}" loading="lazy">`:`<div class="jikan-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--t3)">?</div>`}<div class="jikan-info"><div class="jikan-title">${item.title_english||item.title}</div><div class="jikan-meta">${tab==="manga"?"Cap.":"Ep."}: ${count} <span class="jikan-badge ${statusCls}">${statusLabel}</span></div></div>`;row.onclick=()=>selectJikanResult(item,tab);drop.appendChild(row);});titleWrap.appendChild(drop);}titleRow.appendChild(titleWrap);addBody.appendChild(titleRow);
 const row2=h("div","add-row2");const ni=h("input","add-cap-input",null,{placeholder:tab==="manga"?"Total de capitulos *":"Total de episodios *",type:"number",min:"1",id:"add-total",value:newTotal});ni.oninput=e=>{newTotal=e.target.value;};ni.onkeydown=e=>{if(e.key==="Enter")doAdd();};const fi=h("input","hidden",null,{type:"file",accept:"image/*",id:"acf"});fi.onchange=e=>{const f=e.target.files?.[0];if(!f)return;resizeImg(f,b=>{newCover=b;render();});e.target.value="";};const coverBtn=h("button","add-cover-btn",svg.up+" Portada");coverBtn.onclick=()=>document.getElementById("acf").click();const ab=h("button","add-submit-btn",svg.plus);ab.style.background=ac;ab.title="Agregar";ab.onclick=doAdd;row2.append(fi,ni,coverBtn,ab);addBody.appendChild(row2);addBody.appendChild(h("div","add-divider"));const stSec=h("div","add-status-section");stSec.appendChild(h("div","add-status-label","Estado"));const spRow=h("div","add-status-pills");STATUSES.forEach(st=>{const lbl=(st.key==="reading"&&tab==="anime")?"Viendo":st.label;const pill=h("button","add-status-pill"+(newStatus===st.key?" sp-"+st.key:""),st.icon+" "+lbl);pill.onclick=()=>{newStatus=st.key;spRow.querySelectorAll(".add-status-pill").forEach(p=>{p.className="add-status-pill";});pill.className="add-status-pill sp-"+st.key;};spRow.appendChild(pill);});stSec.appendChild(spRow);addBody.appendChild(stSec);const genSec=h("div","add-genres-section");genSec.appendChild(h("div","add-genres-label","Generos"));const genGrid=h("div","add-genres-grid");const allTagsList=[...ALL_TAGS,...(theme.customTags||[])];allTagsList.forEach(t=>{const isCustom=!ALL_TAGS.includes(t);const wrapper=isCustom?h("div","tag-custom"):null;const chip=h("button","genre-chip"+(newTags.includes(t)?(animeCls?" anime-on":" on"):""),t);chip.onclick=()=>{if(newTags.includes(t)){newTags=newTags.filter(x=>x!==t);chip.className="genre-chip";}else{newTags.push(t);chip.className="genre-chip"+(animeCls?" anime-on":" on");}};if(isCustom&&wrapper){const dx=h("button","tag-del-x","✕");dx.onclick=e=>{e.stopPropagation();theme.customTags=(theme.customTags||[]).filter(c=>c!==t);newTags=newTags.filter(x=>x!==t);saveLocal();render();};wrapper.append(chip,dx);genGrid.appendChild(wrapper);}else{genGrid.appendChild(chip);}});const addGenChip=h("button","genre-add-chip","+ tag");addGenChip.onclick=()=>{const nm=prompt("Nombre del nuevo tag:");if(!nm||!nm.trim())return;const nt=nm.trim();if(allTagsList.includes(nt)){showToast("Ya existe ese tag");return;}if(!theme.customTags)theme.customTags=[];theme.customTags.push(nt);newTags.push(nt);saveLocal();render();};genGrid.appendChild(addGenChip);genSec.appendChild(genGrid);addBody.appendChild(genSec);if(newCover){const prevW=h("div","add-cover-preview");prevW.append(Object.assign(h("img","cvmn"),{src:newCover}),h("button","bcx","✕ quitar",{onclick:()=>{newCover="";render();}}));addBody.appendChild(prevW);}root.appendChild(addS);
-const filtered=sortList(filterList(list));if(filtered.length===0){root.appendChild(h("div","empty",`<div class="icn">${icon}</div><p>${list.length===0?`Agrega tu primer ${tab==="manga"?"manga":"anime"}`:"Sin resultados"}</p>`));return;}
+const filtered=sortList(filterList(list));if(filtered.length===0){const emptyWrap=h("div","");emptyWrap.appendChild(h("div","empty",`<div class="icn">${icon}</div><p>${list.length===0?`Agrega tu primer ${tab==="manga"?"manga":"anime"}`:"Sin resultados"}</p>`));if(list.length===0){p28RenderOnboardingExamples(emptyWrap,tab);}root.appendChild(emptyWrap);return;}
 // Catalog view
 if(viewMode==="catalog"){const cat=h("div","catalog");filtered.forEach(s=>{const pct=s.total>0?(s.completed.length/s.total)*100:0;const cc=h("div","catc");cc.onclick=()=>{pinnedId=s.id;viewMode="list";expanded[s.id]=true;render();};const st=SM[s.status];const statusIcon=st?(s.status==="reading"&&tab==="anime"?"👁️":st.icon):"";cc.innerHTML=`<div style="position:relative">${s.cover?`<img class="catcv" src="${s.cover}">`:`<div class="catph">${icon}</div>`}${s.favorite?`<div class="cat-fav">★</div>`:""}${s.score?`<div class="cat-score">${s.score}</div>`:""}${pct>0?`<div class="cat-pct">${Math.round(pct)}%</div>`:""}${statusIcon?`<div class="cat-status-ov">${statusIcon}</div>`:""}</div><div class="cati"><div class="catt">${s.title}</div><div class="catp">${s.completed.length}/${s.total}</div><div class="catb"><div class="catf" style="width:${pct}%;background:${ac}"></div></div></div>`;cat.appendChild(cc);});root.appendChild(cat);return;}
 // List view
@@ -1277,7 +1447,7 @@ const sl=h("div","slist");
 let displayList=[...filtered];
 if(pinnedId){const pi=displayList.findIndex(x=>x.id===pinnedId);if(pi>0){const item=displayList.splice(pi,1)[0];displayList.unshift(item);}}
 displayList.forEach(s=>{const pct=s.total>0?(s.completed.length/s.total)*100:0;const isExp=expanded[s.id];const st=SM[s.status];const sc=h("div","scard");sc.setAttribute("data-id",s.id);const sh=h("div","shdr");sh.onclick=()=>{expanded[s.id]=!expanded[s.id];render();};sh.innerHTML=`${s.cover?`<img class="cthm" src="${s.cover}">`:`<div class="cph">${icon}</div>`}<div class="sinf"><div class="stit">${s.favorite?`<span class="fav-star">★</span>`:""}${s.title}</div><div class="smeta"><span class="sprg">${s.completed.length}/${s.total}</span>${st?`<span class="sbadge ${s.status}">${st.key==="reading"&&tab==="anime"?"👁️":st.icon}</span>`:""}${s.rewatch?`<span class="sbadge rewatch">🔄</span>`:""}${s.score?`<span class="sscore" style="color:${scoreColor(s.score)}">${s.score}</span>`:""}<span class="slast">${s.lastUpdated?timeAgo(s.lastUpdated):""}</span>${s.characters?.length?`<span class="slast">👤${s.characters.length}</span>`:""}</div><div class="pbar"><div class="pfill" style="width:${pct}%;background:${ac}"></div></div></div>`;
-const sa=h("div","sact");const nxt=nextChapter(s);if(nxt){const qbCls=["qnext",theme.qnextStyle==="colored"?"qn-colored":"",theme.qnextStyle==="large"?"qn-large":"",theme.qnextStyle==="colored-large"?"qn-colored qn-large":""].join(" ").trim();const qb=h("button",qbCls,"+1");if(theme.qnextStyle==="colored"||theme.qnextStyle==="colored-large")qb.style.background=ac;qb.onclick=e=>{e.stopPropagation();const x=data[tab].find(z=>z.id===s.id);if(!x)return;x.completed.push(nxt);x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();if(x.completed.length===x.total)x.status="completed";else if(x.status==="plan")x.status="reading";save();render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxt} ✓`);};sa.appendChild(qb);}sa.appendChild(h("button","ib dng",svg.trash,{onclick:e=>{e.stopPropagation();showModal("Eliminar",`¿Eliminar <b>${s.title}</b>?`,"🗑",()=>{data[tab]=data[tab].filter(x=>x.id!==s.id);save();render();showToast(`"${s.title}" eliminado`);});}}));sa.appendChild(h("div","ib",isExp?svg.chu:svg.chd));sh.appendChild(sa);sc.appendChild(sh);
+const sa=h("div","sact");const nxt=nextChapter(s);if(nxt){const qbCls=["qnext",theme.qnextStyle==="colored"?"qn-colored":"",theme.qnextStyle==="large"?"qn-large":"",theme.qnextStyle==="colored-large"?"qn-colored qn-large":""].join(" ").trim();const qb=h("button",qbCls,"+1");if(theme.qnextStyle==="colored"||theme.qnextStyle==="colored-large")qb.style.background=ac;qb.onclick=e=>{e.stopPropagation();const x=data[tab].find(z=>z.id===s.id);if(!x)return;x.completed.push(nxt);x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();if(x.completed.length===x.total)x.status="completed";else if(x.status==="plan")x.status="reading";p28TouchStreak();save();p28ShowPlusAnim(tab,x.title);setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxt} ✓`);},200);};sa.appendChild(qb);}sa.appendChild(h("button","ib dng",svg.trash,{onclick:e=>{e.stopPropagation();showModal("Eliminar",`¿Eliminar <b>${s.title}</b>?`,"🗑",()=>{data[tab]=data[tab].filter(x=>x.id!==s.id);save();render();showToast(`"${s.title}" eliminado`);});}}));sa.appendChild(h("div","ib",isExp?svg.chu:svg.chd));sh.appendChild(sa);sc.appendChild(sh);
 // ── Expanded panel ──
 if(isExp){const cp=h("div","cpnl");
 // ── SECCIÓN ESTADO ──
@@ -1332,7 +1502,7 @@ const ctl=h("div","cctl");
 const nxtCh=nextChapter(s);
 const pillBtn=h("button","qnext-pill",null);pillBtn.disabled=!nxtCh;
 pillBtn.innerHTML=`<span style="font-size:13px;font-weight:700">+1</span>${nxtCh?`<span class="cap-num">${tab==="manga"?"cap.":"ep."} ${nxtCh}</span>`:"<span class='cap-num'>completo</span>"}`;
-pillBtn.onclick=e=>{e.stopPropagation();if(!nxtCh)return;const x=data[tab].find(z=>z.id===s.id);if(!x)return;x.completed.push(nxtCh);x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();if(x.completed.length===x.total)x.status="completed";else if(x.status==="plan")x.status="reading";save();render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxtCh} ✓`);};
+pillBtn.onclick=e=>{e.stopPropagation();if(!nxtCh)return;const x=data[tab].find(z=>z.id===s.id);if(!x)return;x.completed.push(nxtCh);x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();if(x.completed.length===x.total)x.status="completed";else if(x.status==="plan")x.status="reading";p28TouchStreak();save();p28ShowPlusAnim(tab,x.title);setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxtCh} ✓`);},200);};
 ctl.appendChild(pillBtn);
 const cbtns=h("div","");cbtns.style.cssText="display:flex;gap:5px;flex-wrap:wrap";
 cbtns.appendChild(h("button","bs",svg.edit+" Total",{onclick:()=>{editTotal=editTotal===s.id?null:s.id;editTotalVal=String(s.total);render();}}));
@@ -1373,6 +1543,432 @@ sc.appendChild(cp);}sl.appendChild(sc);});root.appendChild(sl);
 if(pinnedId){requestAnimationFrame(()=>{const el=document.querySelector(`[data-id="${pinnedId}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});});}
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// PARCHE 2.8 — FUNCIONES
+// ═══════════════════════════════════════════════════════════════════
+
+// ── P2.8: RACHA DE LECTURA ──
+function p28GetStreakKey(){return fbUser?"mat-streak-"+fbUser.uid:"mat-streak-guest";}
+function p28GetStreakData(){
+  try{const raw=localStorage.getItem(p28GetStreakKey());return raw?JSON.parse(raw):{count:0,lastDate:""};}
+  catch(e){return{count:0,lastDate:""};}
+}
+function p28SaveStreakData(d){try{localStorage.setItem(p28GetStreakKey(),JSON.stringify(d));}catch(e){}}
+function p28TouchStreak(){
+  const td=today();
+  const d=p28GetStreakData();
+  const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
+  const yd=yesterday.toISOString().slice(0,10);
+  if(d.lastDate===td)return;// ya marcó hoy
+  if(d.lastDate===yd){d.count=(d.count||0)+1;}
+  else if(d.lastDate!==td){d.count=1;}
+  d.lastDate=td;
+  p28SaveStreakData(d);
+}
+function p28GetStreak(){const d=p28GetStreakData();const td=today();const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);const yd=yesterday.toISOString().slice(0,10);if(d.lastDate===td||d.lastDate===yd)return d.count||0;return 0;}
+
+// ── P2.8: ANIMACIÓN DOPAMINA +1 ──
+function p28ShowPlusAnim(type,title){
+  document.querySelectorAll(".p28-anim-overlay,.p28-particle").forEach(e=>e.remove());
+  const colors=type==="manga"
+    ?["#63b3ed","#7ecbff","#34d399","#9b7dff"]
+    :["#68d391","#34d399","#63b3ed","#fbbf24"];
+  const mc=colors[0];
+  const label=type==="manga"?"📖 +1 cap":"▶ +1 ep";
+
+  const ov=document.createElement("div");
+  ov.className="p28-anim-overlay";
+  ov.innerHTML=`<div class="p28-plus-main" style="color:${mc};text-shadow:0 0 40px ${mc}55">+1</div><div class="p28-plus-sub" style="color:${mc}">${label}</div>`;
+  document.body.appendChild(ov);
+
+  // Partículas
+  const cx=window.innerWidth/2;const cy=window.innerHeight/2;
+  for(let i=0;i<14;i++){
+    const p=document.createElement("div");
+    p.className="p28-particle";
+    const angle=(i/14)*360;
+    const dist=50+Math.random()*60;
+    const px=Math.cos(angle*Math.PI/180)*dist+"px";
+    const py=Math.sin(angle*Math.PI/180)*dist+"px";
+    p.style.cssText=`left:${cx-3}px;top:${cy-3}px;--px:${px};--py:${py};background:${colors[i%colors.length]};animation-delay:${Math.random()*80}ms`;
+    document.body.appendChild(p);
+  }
+  setTimeout(()=>{ov.remove();document.querySelectorAll(".p28-particle").forEach(e=>e.remove());},1050);
+}
+
+// ── P2.8: RENDERIZAR STREAK BANNER ──
+function p28RenderStreakBanner(root){
+  const streak=p28GetStreak();
+  if(streak<2)return;// solo mostrar si ≥2 días
+  const sb=document.createElement("div");
+  sb.className="streak-banner";
+  const msg=streak>=7?"¡Racha épica! No la rompas":streak>=3?"¡Sigue así! Lee hoy para mantenerla":"¡Buen comienzo! Lee hoy para crecer";
+  sb.innerHTML=`<div class="streak-fire">🔥</div><div class="streak-info"><div class="streak-days">${streak} días seguidos</div><div class="streak-sub">${msg}</div></div><div class="streak-count">${streak}</div>`;
+  root.appendChild(sb);
+}
+
+// ── P2.8: RENDERIZAR "CONTINUAR LEYENDO" ──
+function p28RenderContinueRow(root){
+  const reading=[
+    ...data.manga.filter(s=>s.status==="reading").map(s=>({...s,_type:"manga"})),
+    ...data.anime.filter(s=>s.status==="reading").map(s=>({...s,_type:"anime"}))
+  ].sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0)).slice(0,6);
+  if(reading.length===0)return;
+
+  const sec=document.createElement("div");
+  sec.className="continue-section";
+  const hdr=document.createElement("div");
+  hdr.className="continue-hdr";
+  hdr.innerHTML=`<span class="continue-title">▶ Continuar leyendo</span><span class="continue-badge">EN PROGRESO · ${reading.length}</span>`;
+  sec.appendChild(hdr);
+
+  const row=document.createElement("div");
+  row.className="continue-row";
+
+  reading.forEach(s=>{
+    const isM=s._type==="manga";
+    const ac=isM?theme.accentManga:theme.accentAnime;
+    const pct=s.total>0?Math.round(s.completed.length/s.total*100):0;
+    const nextCh=nextChapter(s);
+    const lbl=isM?"cap":"ep";
+
+    const card=document.createElement("div");
+    card.className="cc-card";
+
+    let coverHTML;
+    if(s.cover){
+      coverHTML=`<img class="cc-cover" src="${s.cover}" loading="lazy">`;
+    } else {
+      const letter=s.title.charAt(0).toUpperCase();
+      coverHTML=`<div class="cc-cover-ph" style="color:${ac}55">${letter}</div>`;
+    }
+
+    card.innerHTML=`
+      ${coverHTML}
+      <div class="cc-type-badge ${isM?"":"anime"}">${isM?"MANGA":"ANIME"}</div>
+      <div class="cc-body">
+        <div class="cc-title">${s.title}</div>
+        <div class="cc-prog">${lbl.charAt(0).toUpperCase()+lbl.slice(1)}. ${s.completed.length}/${s.total} · ${pct}%</div>
+        <div class="cc-pbar"><div class="cc-pfill" style="width:${pct}%;background:${ac}"></div></div>
+        <button class="cc-btn ${isM?"":"anime-btn"}" data-sid="${s.id}" data-type="${s._type}">
+          ${nextCh?`+1 ${lbl}`:"✓ Al día"}
+        </button>
+      </div>`;
+
+    card.querySelector(".cc-btn").addEventListener("click",e=>{
+      e.stopPropagation();
+      const type=e.currentTarget.dataset.type;
+      const sid=e.currentTarget.dataset.sid;
+      const arr=data[type];
+      const x=arr.find(z=>z.id.toString()===sid.toString());
+      if(!x)return;
+      const nc=nextChapter(x);
+      if(!nc)return;
+      x.completed.push(nc);
+      x.completed.sort((a,b)=>a-b);
+      x.lastUpdated=Date.now();
+      if(x.completed.length===x.total)x.status="completed";
+      else if(x.status==="plan")x.status="reading";
+      p28TouchStreak();
+      save();
+      p28ShowPlusAnim(type,x.title);
+      setTimeout(()=>{render();showToast(`${type==="manga"?"Cap.":"Ep."} ${nc} ✓`);},200);
+    });
+
+    card.addEventListener("click",()=>{
+      tab=s._type;expanded[s.id]=true;pinnedId=s.id;viewMode="list";render();
+      requestAnimationFrame(()=>{const el=document.querySelector(`[data-id="${s.id}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});});
+    });
+
+    row.appendChild(card);
+  });
+  sec.appendChild(row);
+  root.appendChild(sec);
+}
+
+// ── P2.8: ONBOARDING EXAMPLES (lista vacía) ──
+const P28_EXAMPLES={
+  manga:[
+    {title:"Jujutsu Kaisen",type:"manga",jikanId:113138,chapters:265,tags:["Shōnen","Acción","Sobrenatural"],color:"rgba(99,179,237,.14)",textColor:"#63b3ed",icon:"呪"},
+    {title:"One Piece",type:"manga",jikanId:13,chapters:1,tags:["Shōnen","Acción","Fantasy"],publishing:true,color:"rgba(104,211,145,.12)",textColor:"#68d391",icon:"⚓"},
+  ],
+  anime:[
+    {title:"Naruto",type:"anime",jikanId:20,episodes:220,tags:["Shōnen","Acción"],color:"rgba(249,115,22,.12)",textColor:"#f97316",icon:"忍"},
+    {title:"Mob Psycho 100",type:"anime",jikanId:32182,episodes:12,tags:["Shōnen","Sobrenatural","Comedia"],color:"rgba(155,125,255,.12)",textColor:"#9b7dff",icon:"霊"},
+  ]
+};
+function p28RenderOnboardingExamples(root,type){
+  const examples=P28_EXAMPLES[type]||[];
+  const sec=document.createElement("div");
+  sec.className="onb-examples";
+  sec.innerHTML=`<div class="onb-ex-hdr">💡 Ejemplos para empezar</div>`;
+  const grid=document.createElement("div");
+  grid.className="onb-ex-grid";
+  examples.forEach(ex=>{
+    const card=document.createElement("div");
+    card.className="onb-ex-card";
+    card.innerHTML=`<div class="onb-ex-ico" style="background:${ex.color};color:${ex.textColor}">${ex.icon}</div><div class="onb-ex-info"><div class="onb-ex-name">${ex.title}</div><div class="onb-ex-type">${ex.type==="manga"?"MANGA":"ANIME"}</div><div class="onb-ex-add">+ Agregar</div></div>`;
+    card.addEventListener("click",()=>{
+      const now=Date.now();
+      const total=ex.chapters||ex.episodes||1;
+      data[ex.type].push(migrate({id:now.toString(),title:ex.title,total:total,completed:[],cover:"",coverIsUrl:false,status:"reading",tags:ex.tags||[],notes:"",score:0,favorite:false,lastUpdated:now,createdAt:now,startDate:"",endDate:"",seasons:[],characters:[],jikanId:ex.jikanId||null,jikanPublishing:ex.publishing||false}));
+      save();render();showToast(`"${ex.title}" agregado ✓`);
+    });
+    grid.appendChild(card);
+  });
+  sec.appendChild(grid);
+  root.appendChild(sec);
+}
+
+// ── P2.8: RECOMENDACIONES POR SIMILITUD DE TAGS ──
+async function p28FetchReco(tags,type){
+  if(!tags||tags.length===0)return[];
+  const jikanType=type==="manga"?"manga":"anime";
+  const existingTitles=new Set([...data.manga,...data.anime].map(s=>s.title.toLowerCase()));
+  const results=[];
+  const tag=tags[Math.floor(Math.random()*tags.length)];
+  // Mapeo básico tag→genre_id Jikan
+  const genreMap={"Shōnen":27,"Seinen":42,"Acción":1,"Comedia":4,"Romance":22,"Horror":14,"Fantasy":10,"Sci-Fi":24,"Sobrenatural":37,"Deportes":30,"Thriller":41,"Mecha":18,"Slice of Life":36,"Isekai":62};
+  const genreId=genreMap[tag]||27;
+  try{
+    const res=await fetch(`https://api.jikan.moe/v4/${jikanType}?genres=${genreId}&order_by=score&sort=desc&limit=10`);
+    if(!res.ok)return[];
+    const json=await res.json();
+    (json.data||[]).forEach(item=>{
+      const t=(item.title_english||item.title||"").toLowerCase();
+      if(!existingTitles.has(t)&&results.length<6){
+        results.push({
+          id:item.mal_id,
+          title:item.title_english||item.title,
+          score:item.score||0,
+          tag:tag,
+          reason:`Ya que te gusta "${tag}" en ${type==="manga"?"tu manga":"tu anime"}`,
+          image:item.images?.jpg?.image_url||""
+        });
+      }
+    });
+  }catch(e){console.warn("p28 reco fetch:",e);}
+  return results;
+}
+
+let p28RecoCache={manga:[],anime:[],tagsKey:""};
+async function p28RenderRecoSection(root){
+  const allTags=[...new Set([...data.manga,...data.anime].flatMap(s=>s.tags||[]))];
+  if(allTags.length===0){
+    const sec=document.createElement("div");
+    sec.className="reco-section";
+    sec.innerHTML=`<div class="reco-hdr"><div class="reco-title-wrap"><div class="reco-icon-box">✨</div><div><div class="reco-label">Descubrir</div><div class="reco-sublabel">Recomendaciones por tags · Jikan API</div></div></div><span class="reco-new-tag">NUEVO</span></div><div class="reco-empty">Agrega tags a tu manga o anime para ver recomendaciones personalizadas</div>`;
+    root.appendChild(sec);
+    return;
+  }
+
+  const tagsKey=allTags.sort().join(",");
+  const isCached=p28RecoCache.tagsKey===tagsKey&&(p28RecoCache.manga.length>0||p28RecoCache.anime.length>0);
+
+  const sec=document.createElement("div");
+  sec.className="reco-section";
+  const topTags=allTags.slice(0,3).join(", ");
+  sec.innerHTML=`
+    <div class="reco-hdr">
+      <div class="reco-title-wrap">
+        <div class="reco-icon-box">✨</div>
+        <div><div class="reco-label">Descubrir</div><div class="reco-sublabel">Basado en tus tags · Jikan API</div></div>
+      </div>
+      <span class="reco-new-tag">NUEVO</span>
+    </div>
+    <div class="reco-context">🎯 Tus tags: <b>${topTags}</b></div>
+    <div id="reco-manga-wrap"></div>
+    <div id="reco-anime-wrap"></div>`;
+  root.appendChild(sec);
+
+  async function renderRecoList(containerId,type,items){
+    const wrap=document.getElementById(containerId);
+    if(!wrap)return;
+    const lbl=type==="manga"?"📚 Manga":"🎬 Anime";
+    if(items.length===0){wrap.innerHTML=`<div class="reco-empty">${lbl} — sin resultados para estos tags</div>`;return;}
+    const row=document.createElement("div");
+    row.className="reco-row";
+    items.forEach(r=>{
+      const card=document.createElement("div");
+      card.className="reco-card";
+      const bgStyle=r.image?`background:url('${r.image}') center/cover`:`background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:44px`;
+      card.innerHTML=`
+        ${r.score?`<div class="reco-card-score">⭐ ${r.score.toFixed(1)}</div>`:""}
+        <div class="reco-card-cover" style="${bgStyle}">${r.image?"":"📚"}</div>
+        <div class="reco-card-body">
+          <div class="reco-card-title">${r.title}</div>
+          <div class="reco-card-reason">${r.reason}</div>
+          <span class="reco-card-tag">${r.tag}</span>
+        </div>`;
+      card.addEventListener("click",()=>{
+        // Pre-rellena el formulario con el título y cambia al tab correspondiente
+        tab=type;newTitle=r.title;render();
+        setTimeout(()=>{const inp=document.getElementById("add-title");if(inp){inp.value=r.title;searchJikan(r.title,type);}},100);
+        showToast(`Buscando "${r.title}"...`);
+      });
+      row.appendChild(card);
+    });
+    const seclbl=document.createElement("div");
+    seclbl.style.cssText="font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px";
+    seclbl.textContent=lbl;
+    wrap.appendChild(seclbl);
+    wrap.appendChild(row);
+  }
+
+  if(isCached){
+    await renderRecoList("reco-manga-wrap","manga",p28RecoCache.manga);
+    await renderRecoList("reco-anime-wrap","anime",p28RecoCache.anime);
+  } else {
+    const mangaWrap=document.getElementById("reco-manga-wrap");
+    const animeWrap=document.getElementById("reco-anime-wrap");
+    if(mangaWrap)mangaWrap.innerHTML=`<div class="reco-empty">⏳ Cargando manga...</div>`;
+    if(animeWrap)animeWrap.innerHTML=`<div class="reco-empty">⏳ Cargando anime...</div>`;
+    const [mangaReco,animeReco]=await Promise.all([
+      p28FetchReco(allTags,"manga"),
+      p28FetchReco(allTags,"anime")
+    ]);
+    p28RecoCache={manga:mangaReco,anime:animeReco,tagsKey};
+    await renderRecoList("reco-manga-wrap","manga",mangaReco);
+    await renderRecoList("reco-anime-wrap","anime",animeReco);
+  }
+}
+
+// ── P2.8: PERFIL PÚBLICO MEJORADO ──
+function p28RenderPublicProfile(root){
+  if(!fbUser)return;
+  const streak=p28GetStreak();
+  const mCount=data.manga.length;
+  const aCount=data.anime.length;
+  const reading=[
+    ...data.manga.filter(s=>s.status==="reading").map(s=>({...s,_type:"manga"})),
+    ...data.anime.filter(s=>s.status==="reading").map(s=>({...s,_type:"anime"}))
+  ].sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0)).slice(0,4);
+  const totalRead=data.manga.reduce((s,x)=>s+x.completed.length,0)+data.anime.reduce((s,x)=>s+x.completed.length,0);
+  const username=(friendsState.cachedUsername&&friendsState.usernameCacheUid===fbUser.uid)?friendsState.cachedUsername:null;
+  const displayName=fbUser.displayName||"Usuario";
+  const photoURL=fbUser.photoURL||"";
+
+  const wrap=document.createElement("div");
+  wrap.className="pubprof-wrap";
+  const avContent=photoURL?`<img src="${photoURL}" alt="avatar">`:`<span>${displayName.charAt(0).toUpperCase()}</span>`;
+  wrap.innerHTML=`
+    <div class="pubprof-cover"><div class="pubprof-av-wrap"><div class="pubprof-av">${avContent}</div></div></div>
+    <div class="pubprof-body">
+      <div class="pubprof-name">${displayName}</div>
+      <div class="pubprof-handle">${username?"@"+username+" · mangu.app/@"+username:"Sin @username — regístralo en Amigos"}</div>
+      <div class="pubprof-stats">
+        <div class="pp-sc"><div class="pp-sc-v" style="color:var(--am)">${mCount}</div><div class="pp-sc-l">Manga</div></div>
+        <div class="pp-sc"><div class="pp-sc-v" style="color:var(--aa)">${aCount}</div><div class="pp-sc-l">Anime</div></div>
+        <div class="pp-sc"><div class="pp-sc-v" style="color:var(--suc)">${totalRead}</div><div class="pp-sc-l">Leídos</div></div>
+        <div class="pp-sc"><div class="pp-sc-v" style="color:#fbbf24">${streak>0?"🔥"+streak:"—"}</div><div class="pp-sc-l">Racha</div></div>
+      </div>
+      ${reading.length>0?`
+        <div class="pubprof-sec-lbl">📖 En progreso</div>
+        <div class="pubprof-mini-list" id="pp-mini-list"></div>`:""}
+      ${username?`<button class="pubprof-share-btn" id="pp-share-btn">🔗 Compartir mi perfil</button>`:`<button class="pubprof-share-btn" style="opacity:.5;cursor:default">🔗 Necesitas @username para compartir</button>`}
+    </div>`;
+
+  const miniList=wrap.querySelector("#pp-mini-list");
+  if(miniList){
+    reading.forEach(s=>{
+      const isM=s._type==="manga";
+      const ac=isM?theme.accentManga:theme.accentAnime;
+      const lastCh=s.completed.length>0?Math.max(...s.completed):0;
+      const item=document.createElement("div");
+      item.className="pp-mini";
+      item.innerHTML=`<div class="pp-mini-ico" style="color:${ac}">${s.title.charAt(0)}</div><div class="pp-mini-info"><div class="pp-mini-title">${s.title}</div><div class="pp-mini-prog">${isM?"Cap":"Ep"}. ${lastCh} / ${s.total}</div></div>`;
+      miniList.appendChild(item);
+    });
+  }
+
+  const shareBtn=wrap.querySelector("#pp-share-btn");
+  if(shareBtn&&username){
+    shareBtn.addEventListener("click",()=>{
+      const url=`https://bbandit0.github.io/mangu/?user=${username}`;
+      if(navigator.share){navigator.share({title:"Mi perfil en mangu",url}).catch(()=>{});}
+      else if(navigator.clipboard){navigator.clipboard.writeText(url).then(()=>showToast("🔗 Link copiado: "+url)).catch(()=>showToast("🔗 "+url));}
+      else{showToast("🔗 mangu.app/@"+username);}
+    });
+  }
+  root.appendChild(wrap);
+}
+
+// ── P2.8: MODO LECTURA RÁPIDA (FAB) ──
+function p28RenderQuickReadFAB(){
+  const existing=document.getElementById("p28-qr-fab");
+  if(existing)existing.remove();
+
+  const reading=[
+    ...data.manga.filter(s=>s.status==="reading").map(s=>({...s,_type:"manga"})),
+    ...data.anime.filter(s=>s.status==="reading").map(s=>({...s,_type:"anime"}))
+  ].sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0)).slice(0,5);
+
+  if(reading.length===0)return;
+
+  const fab=document.createElement("div");
+  fab.id="p28-qr-fab";
+  fab.className="quick-read-fab";
+
+  const panel=document.createElement("div");
+  panel.className="qr-panel";
+  panel.id="p28-qr-panel";
+
+  const pTitle=document.createElement("div");
+  pTitle.className="qr-panel-title";
+  pTitle.textContent="⚡ Lectura rápida";
+  panel.appendChild(pTitle);
+
+  reading.forEach(s=>{
+    const isM=s._type==="manga";
+    const nc=nextChapter(s);
+    const item=document.createElement("div");
+    item.className="qr-item";
+    const lbl=isM?"cap":"ep";
+    item.innerHTML=`<div><div class="qr-item-title">${s.title}</div><div class="qr-item-prog">${lbl}. ${s.completed.length}/${s.total}</div></div>`;
+    const btn=document.createElement("button");
+    btn.className=`qr-plus-btn ${isM?"":"anime"}`;
+    btn.textContent="+";
+    btn.disabled=!nc;
+    btn.style.opacity=nc?"1":"0.4";
+    btn.addEventListener("click",e=>{
+      e.stopPropagation();
+      const type=s._type;
+      const x=data[type].find(z=>z.id===s.id);
+      if(!x||!nc)return;
+      x.completed.push(nc);x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();
+      if(x.completed.length===x.total)x.status="completed";
+      else if(x.status==="plan")x.status="reading";
+      p28TouchStreak();save();
+      p28ShowPlusAnim(type,x.title);
+      item.querySelector(".qr-item-prog").textContent=`${lbl}. ${x.completed.length}/${x.total}`;
+      showToast(`${type==="manga"?"Cap.":"Ep."} ${nc} ✓`);
+    });
+    item.appendChild(btn);
+    panel.appendChild(item);
+  });
+
+  const toggle=document.createElement("button");
+  toggle.className="qr-toggle";
+  toggle.title="Lectura rápida";
+  toggle.innerHTML="⚡";
+  toggle.addEventListener("click",e=>{e.stopPropagation();panel.classList.toggle("open");});
+  document.addEventListener("click",e=>{if(!fab.contains(e.target))panel.classList.remove("open");},{passive:true});
+
+  fab.appendChild(panel);
+  fab.appendChild(toggle);
+  document.body.appendChild(fab);
+}
+
+// ── P2.8: TAB DESCUBRIR ──
+let p28ShowDiscoverTab=false;
+
+// ── P2.8: PATCH NOTES ENTRY ──
+const P28_PATCH_NOTES=`<div class="patch-version"><div class="patch-ver-tag">Parche v2.8 — 2026-04</div><ul class="patch-ver-items"><li>🔥 Racha de lectura — detecta si marcaste capítulos hoy y ayer; muestra banner "X días seguidos" con animación de fuego; el contador persiste en localStorage por cuenta</li><li>▶ Continuar leyendo — sección fija al tope con scroll horizontal tipo Netflix; muestra las 6 series en progreso con portada, progreso, barra y botón +1 sin expandir la tarjeta</li><li>✨ Animación dopamina +1 — al presionar +1 aparece una animación centrada en pantalla (1 segundo) con partículas de colores que explotan; activa el circuito de recompensa</li><li>🔍 Recomendaciones por similitud de tags — nuevo tab "Descubrir" que consulta la Jikan API con los géneros/tags del usuario y sugiere manga y anime similares con score, razón y botón para agregar</li><li>💡 Onboarding con ejemplos — cuando la lista está vacía, aparece una grilla de 4 títulos de ejemplo (Jujutsu Kaisen, One Piece, Naruto, Mob Psycho 100) que se agregan con un clic</li><li>⚡ Modo lectura rápida — FAB flotante (⚡) accesible en cualquier tab; abre un panel rápido con las series en progreso y botón +1 por serie sin necesidad de expandir ni buscar</li><li>👤 Perfil público mejorado — nueva vista de perfil con cover, avatar de Google, stats (manga/anime/leídos/racha), lista de series en progreso y botón de compartir con link público</li></ul></div>`;
+
+// ═══════════════════════════════════════════════════════════════════
+// FIN PARCHE 2.8
+// ═══════════════════════════════════════════════════════════════════
+
 // ═══ ACTIONS ═══
 function markChapter(sid,n,cellEl,ac){const x=data[tab].find(z=>z.id===sid);if(!x)return;const wasRead=x.completed.includes(n);
   if(wasRead){
@@ -1403,7 +1999,11 @@ function markChapter(sid,n,cellEl,ac){const x=data[tab].find(z=>z.id===sid);if(!
 function doAdd(){const t=document.getElementById("add-title")?.value.trim();if(!t)return;const ni=document.getElementById("add-total");const totalVal=parseInt(ni?.value);if(!totalVal||totalVal<1){if(ni){ni.style.borderColor="var(--dng)";ni.style.boxShadow="0 0 0 3px rgba(231,76,76,.2)";}showToast("⚠️ Ingresa el número de capítulos");return;}if(ni){ni.style.borderColor="";ni.style.boxShadow="";}const now=Date.now();data[tab].push(migrate({id:now.toString(),title:t,total:totalVal,completed:[],cover:newCover||"",coverIsUrl:newCoverIsUrl||false,status:newStatus||"reading",tags:[...newTags],notes:"",score:0,favorite:false,lastUpdated:now,createdAt:now,startDate:"",endDate:"",seasons:[],characters:[],jikanId:window._pendingJikanId||null,jikanPublishing:window._pendingJikanPublishing||false}));newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";newTitle="";newTotal="";window._pendingJikanId=null;window._pendingJikanPublishing=false;save();render();showToast(`"${t}" agregado ✓`);}
 function doUpdTotal(sid){const v=parseInt(editTotalVal);if(!v||v<1)return;const x=data[tab].find(z=>z.id===sid);if(x){x.total=v;x.completed=x.completed.filter(c=>c<=v);x.lastUpdated=Date.now();}editTotal=null;save();render();}
 // ═══ INIT ═══
-applyTheme();render();
+applyTheme();
+// ── P2.8: inyectar FAB en render original ──
+const _p28_origRender=render;
+window.render=function render(){_p28_origRender();p28RenderQuickReadFAB();};
+render();
 // ── SCROLL TO TOP BUTTON ──
 (function(){
   let topBtn=document.getElementById("scroll-top-btn");
