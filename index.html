@@ -310,29 +310,55 @@
 .reco-empty{font-size:11px;color:var(--t3);padding:14px;text-align:center}
 
 /* ── PERFIL PÚBLICO MEJORADO ── */
-.pubprof-wrap{background:var(--bg2);border:1px solid rgba(99,179,237,.2);border-radius:20px;overflow:hidden;margin-top:16px;box-shadow:0 8px 32px rgba(0,0,0,.3)}
-.pubprof-cover{height:90px;background:linear-gradient(135deg,rgba(99,179,237,.5) 0%,rgba(155,125,255,.4) 50%,rgba(104,211,145,.3) 100%);position:relative;overflow:hidden}
-.pubprof-cover::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.03) 0,rgba(255,255,255,.03) 1px,transparent 1px,transparent 8px)}
-.pubprof-cover::after{content:"";position:absolute;bottom:0;left:0;right:0;height:36px;background:linear-gradient(transparent,var(--bg2))}
-.pubprof-av-wrap{position:absolute;bottom:-24px;left:18px;z-index:2}
-.pubprof-av{width:54px;height:54px;border-radius:50%;border:3px solid var(--bg2);background:linear-gradient(135deg,var(--am),var(--aa));display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;overflow:hidden;box-shadow:0 4px 16px rgba(99,179,237,.35)}
+/* ── PERFIL PERSONAL v4.0 ── */
+.pubprof-wrap{background:var(--bg2);border:1px solid rgba(99,179,237,.18);border-radius:24px;overflow:hidden;margin-top:16px;box-shadow:0 12px 48px rgba(0,0,0,.4)}
+.pubprof-cover{height:130px;position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(99,179,237,.7) 0%,rgba(155,125,255,.6) 35%,rgba(104,211,145,.5) 65%,rgba(251,191,36,.4) 100%)}
+.pubprof-cover::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0,rgba(255,255,255,.05) 1px,transparent 1px,transparent 14px),radial-gradient(ellipse 80% 80% at 80% 50%,rgba(255,255,255,.08),transparent)}
+.pubprof-cover::after{content:"";position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(transparent,var(--bg2))}
+/* orbes decorativos en el cover */
+.pubprof-cover-orb1{position:absolute;width:120px;height:120px;border-radius:50%;background:radial-gradient(rgba(99,179,237,.4),transparent 70%);top:-30px;right:40px;pointer-events:none}
+.pubprof-cover-orb2{position:absolute;width:80px;height:80px;border-radius:50%;background:radial-gradient(rgba(155,125,255,.45),transparent 70%);bottom:-10px;right:10px;pointer-events:none}
+.pubprof-av-wrap{position:absolute;bottom:-32px;left:20px;z-index:2}
+.pubprof-av{width:72px;height:72px;border-radius:50%;border:4px solid var(--bg2);background:linear-gradient(135deg,var(--am),var(--aa));display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#fff;overflow:hidden;box-shadow:0 6px 24px rgba(99,179,237,.5),0 0 0 2px rgba(99,179,237,.3)}
 .pubprof-av img{width:100%;height:100%;object-fit:cover}
-.pubprof-body{padding:34px 16px 16px}
-.pubprof-name{font-size:16px;font-weight:700;color:var(--am);font-family:"Space Mono",monospace}
-.pubprof-handle{font-size:11px;color:var(--t3);margin-bottom:14px;font-family:"Space Mono",monospace}
-.pubprof-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
-.pp-sc{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:10px 5px;text-align:center;transition:.18s}.pp-sc:hover{background:rgba(99,179,237,.08);border-color:rgba(99,179,237,.2)}
-.pp-sc-v{font-family:'Space Mono',monospace;font-size:16px;font-weight:700;line-height:1}
-.pp-sc-l{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
-.pubprof-sec-lbl{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
-.pubprof-mini-list{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
-.pp-mini{display:flex;align-items:center;gap:8px;padding:6px 8px;background:rgba(255,255,255,.03);border-radius:8px}
-.pp-mini-ico{width:24px;height:34px;border-radius:4px;background:rgba(99,179,237,.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--am);flex-shrink:0}
+.pubprof-body{padding:44px 18px 0}
+/* Nombre + handle */
+.pubprof-name{font-size:22px;font-weight:700;color:var(--am);font-family:"Space Mono",monospace;letter-spacing:-.5px;text-shadow:0 0 28px rgba(99,179,237,.35)}
+.pubprof-handle{font-size:11px;color:var(--t3);margin-bottom:0;font-family:"Space Mono",monospace;margin-top:3px}
+/* Fila de acción rápida: share + racha */
+.pubprof-action-row{display:flex;align-items:center;gap:10px;margin:12px 0 16px}
+.pubprof-streak-chip{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;background:linear-gradient(135deg,rgba(251,191,36,.18),rgba(251,191,36,.08));border:1px solid rgba(251,191,36,.35);border-radius:20px;font-size:12px;font-weight:700;color:#fbbf24;font-family:'Space Mono',monospace;flex-shrink:0}
+.pubprof-time-chip{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;font-size:11px;font-weight:600;color:var(--t2);flex-shrink:0}
+/* Stats grid horizontal con colores fuertes */
+.pubprof-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-bottom:0;background:rgba(0,0,0,.2);border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.06)}
+.pp-sc{padding:14px 8px;text-align:center;border-right:1px solid rgba(255,255,255,.06);transition:all .2s cubic-bezier(.34,1.56,.64,1);cursor:default;position:relative;overflow:hidden}
+.pp-sc:last-child{border-right:none}
+.pp-sc::before{content:"";position:absolute;inset:0;opacity:0;transition:.2s;background:rgba(99,179,237,.06)}
+.pp-sc:hover::before{opacity:1}
+.pp-sc:hover{transform:translateY(-2px)}
+.pp-sc-v{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;line-height:1;display:block}
+.pp-sc-l{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;margin-top:5px;display:block}
+/* Géneros favoritos */
+.pubprof-genres{display:flex;flex-wrap:wrap;gap:5px;margin:14px 0}
+.pubprof-genre-chip{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.2);color:var(--am)}
+/* Sección en progreso — más visual */
+.pubprof-sec-lbl{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06);margin-top:14px}
+.pubprof-mini-list{display:flex;flex-direction:column;gap:0;margin-bottom:0;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.06)}
+.pp-mini{display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.05);transition:all .18s ease;cursor:default;position:relative}
+.pp-mini:last-child{border-bottom:none}
+.pp-mini:hover{background:rgba(99,179,237,.07);padding-left:18px}
+.pp-mini-pbar-wrap{position:absolute;bottom:0;left:0;right:0;height:2px;background:rgba(255,255,255,.04)}
+.pp-mini-pbar-fill{height:100%;border-radius:0}
+.pp-mini-ico{width:36px;height:52px;border-radius:6px;background:rgba(99,179,237,.12);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:var(--am);flex-shrink:0;border:1px solid rgba(255,255,255,.08)}
 .pp-mini-info{flex:1;min-width:0}
-.pp-mini-title{font-size:10px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pp-mini-prog{font-size:9px;color:var(--t3);font-family:'Space Mono',monospace}
-.pubprof-share-btn{width:100%;padding:11px;border:1px solid rgba(99,179,237,.3);background:linear-gradient(135deg,rgba(99,179,237,.12),rgba(99,179,237,.06));color:var(--am);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;border-radius:12px;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px;letter-spacing:.2px}
-.pubprof-share-btn:hover{background:linear-gradient(135deg,rgba(99,179,237,.22),rgba(99,179,237,.1));transform:translateY(-1px);box-shadow:0 4px 16px rgba(99,179,237,.18)}
+.pp-mini-title{font-size:12px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-mini-prog{font-size:10px;color:var(--t3);font-family:'Space Mono',monospace;margin-top:2px}
+.pp-mini-pct{font-size:9px;font-weight:700;font-family:'Space Mono',monospace;flex-shrink:0;padding:2px 7px;border-radius:8px;background:rgba(255,255,255,.06)}
+/* Botón compartir — prominente y atractivo */
+.pubprof-share-btn{width:100%;padding:13px;border:none;background:linear-gradient(135deg,var(--am),var(--aa));color:#fff;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;border-radius:0;cursor:pointer;transition:all .2s ease;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.3px;margin-top:16px}
+.pubprof-share-btn:hover{filter:brightness(1.12);letter-spacing:.6px}
+.pubprof-share-btn:active{transform:scale(.98)}
+.pubprof-share-btn-disabled{width:100%;padding:13px;border:none;background:rgba(255,255,255,.04);color:var(--t3);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;border-radius:0;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;cursor:default}
 
 /* ── MODO LECTURA RÁPIDA ── */
 .quick-read-fab{position:fixed;bottom:80px;right:16px;z-index:500;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
@@ -2276,30 +2302,57 @@ function p28RenderPublicProfile(root){
   const reading=[
     ...data.manga.filter(s=>s.status==="reading").map(s=>({...s,_type:"manga"})),
     ...data.anime.filter(s=>s.status==="reading").map(s=>({...s,_type:"anime"}))
-  ].sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0)).slice(0,4);
+  ].sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0)).slice(0,6);
   const totalRead=data.manga.reduce((s,x)=>s+x.completed.length,0)+data.anime.reduce((s,x)=>s+x.completed.length,0);
+  const totalMangaCh=data.manga.reduce((s,x)=>s+x.completed.length,0);
+  const totalAnimeEp=data.anime.reduce((s,x)=>s+x.completed.length,0);
   const username=(friendsState.cachedUsername&&friendsState.usernameCacheUid===fbUser.uid)?friendsState.cachedUsername:null;
   const displayName=fbUser.displayName||"Usuario";
   const photoURL=fbUser.photoURL||"";
+  const ti=timeInvested();
+  const avgM=avgScore(data.manga);
+  const compM=completionRate(data.manga);
+  // Top géneros para mostrar chips
+  const genres=topGenres([...data.manga,...data.anime],5);
 
   const wrap=document.createElement("div");
   wrap.className="pubprof-wrap";
   const avContent=photoURL?`<img src="${photoURL}" alt="avatar">`:`<span>${displayName.charAt(0).toUpperCase()}</span>`;
+
+  // Chips de géneros
+  const genreChips=genres.length>0
+    ?`<div class="pubprof-genres">${genres.map(([g])=>`<span class="pubprof-genre-chip">${g}</span>`).join("")}</div>`
+    :"";
+
+  // Chip de racha
+  const streakChip=streak>0
+    ?`<div class="pubprof-streak-chip">🔥 ${streak} día${streak!==1?"s":""}</div>`
+    :`<div class="pubprof-streak-chip" style="opacity:.4">🔥 Sin racha</div>`;
+  const timeChip=`<div class="pubprof-time-chip">⏱ ${ti.val} invertidas</div>`;
+
   wrap.innerHTML=`
-    <div class="pubprof-cover"><div class="pubprof-av-wrap"><div class="pubprof-av">${avContent}</div></div></div>
+    <div class="pubprof-cover">
+      <div class="pubprof-cover-orb1"></div>
+      <div class="pubprof-cover-orb2"></div>
+      <div class="pubprof-av-wrap"><div class="pubprof-av">${avContent}</div></div>
+    </div>
     <div class="pubprof-body">
       <div class="pubprof-name">${username?"@"+username:displayName}</div>
       <div class="pubprof-handle">${username?displayName+" · mangu.app/@"+username:"Sin @username — regístralo en Amigos →"}</div>
+      <div class="pubprof-action-row">${streakChip}${timeChip}</div>
       <div class="pubprof-stats">
-        <div class="pp-sc"><div class="pp-sc-v" style="color:var(--am)">${mCount}</div><div class="pp-sc-l">Manga</div></div>
-        <div class="pp-sc"><div class="pp-sc-v" style="color:var(--aa)">${aCount}</div><div class="pp-sc-l">Anime</div></div>
-        <div class="pp-sc"><div class="pp-sc-v" style="color:var(--suc)">${totalRead}</div><div class="pp-sc-l">Leídos</div></div>
-        <div class="pp-sc"><div class="pp-sc-v" style="color:#fbbf24">${streak>0?"🔥"+streak:"—"}</div><div class="pp-sc-l">Racha</div></div>
+        <div class="pp-sc"><span class="pp-sc-v" style="color:var(--am)">📚 ${mCount}</span><span class="pp-sc-l">Manga</span></div>
+        <div class="pp-sc"><span class="pp-sc-v" style="color:var(--aa)">🎬 ${aCount}</span><span class="pp-sc-l">Anime</span></div>
+        <div class="pp-sc"><span class="pp-sc-v" style="color:var(--suc)">${totalMangaCh}</span><span class="pp-sc-l">📖 Caps</span></div>
+        <div class="pp-sc"><span class="pp-sc-v" style="color:var(--inf)">${totalAnimeEp}</span><span class="pp-sc-l">▶ Eps</span></div>
       </div>
+      ${genreChips}
       ${reading.length>0?`
-        <div class="pubprof-sec-lbl">📖 En progreso</div>
+        <div class="pubprof-sec-lbl"><span>▶</span> En progreso (${reading.length})</div>
         <div class="pubprof-mini-list" id="pp-mini-list"></div>`:""}
-      ${username?`<button class="pubprof-share-btn" id="pp-share-btn">🔗 Compartir mi perfil</button>`:`<button class="pubprof-share-btn" style="opacity:.5;cursor:default">🔗 Necesitas @username para compartir</button>`}
+      ${username
+        ?`<button class="pubprof-share-btn" id="pp-share-btn">🔗 Compartir mi perfil</button>`
+        :`<div class="pubprof-share-btn-disabled">🔗 Necesitas @username para compartir</div>`}
     </div>`;
 
   const miniList=wrap.querySelector("#pp-mini-list");
@@ -2308,13 +2361,13 @@ function p28RenderPublicProfile(root){
       const isM=s._type==="manga";
       const acColor=isM?theme.accentManga:theme.accentAnime;
       const lastCh=s.completed.length>0?Math.max(...s.completed):0;
+      const pct=s.total>0?Math.round(s.completed.length/s.total*100):0;
       const item=document.createElement("div");
       item.className="pp-mini";
-      // FIX P2.8: Mostrar portada real si existe, no solo inicial del título
       const coverHTML=s.cover
-        ?`<img class="pp-mini-cover" src="${s.cover}" style="width:38px;height:54px;border-radius:7px;object-fit:cover;border:1px solid rgba(255,255,255,.1);flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="pp-mini-ico" style="display:none;color:${acColor}">${s.title.charAt(0)}</div>`
-        :`<div class="pp-mini-ico" style="color:${acColor}">${s.title.charAt(0)}</div>`;
-      item.innerHTML=`${coverHTML}<div class="pp-mini-info"><div class="pp-mini-title">${s.title}</div><div class="pp-mini-prog">${isM?"Cap":"Ep"}. ${lastCh} / ${s.total}</div></div>`;
+        ?`<img src="${s.cover}" style="width:36px;height:52px;border-radius:6px;object-fit:cover;border:1px solid rgba(255,255,255,.1);flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="pp-mini-ico" style="display:none;color:${acColor};border-color:${acColor}33">${s.title.charAt(0)}</div>`
+        :`<div class="pp-mini-ico" style="color:${acColor};border-color:${acColor}33">${s.title.charAt(0)}</div>`;
+      item.innerHTML=`${coverHTML}<div class="pp-mini-info"><div class="pp-mini-title">${s.title}</div><div class="pp-mini-prog">${isM?"Cap.":"Ep."} ${lastCh} / ${s.total}</div></div><span class="pp-mini-pct" style="color:${acColor}">${pct}%</span><div class="pp-mini-pbar-wrap"><div class="pp-mini-pbar-fill" style="width:${pct}%;background:${acColor}"></div></div>`;
       miniList.appendChild(item);
     });
   }
@@ -2324,7 +2377,7 @@ function p28RenderPublicProfile(root){
     shareBtn.addEventListener("click",()=>{
       const url=`https://bbandit0.github.io/mangu/?user=${username}`;
       if(navigator.share){navigator.share({title:"Mi perfil en mangu",url}).catch(()=>{});}
-      else if(navigator.clipboard){navigator.clipboard.writeText(url).then(()=>showToast("🔗 Link copiado: "+url)).catch(()=>showToast("🔗 "+url));}
+      else if(navigator.clipboard){navigator.clipboard.writeText(url).then(()=>showToast("🔗 Link copiado")).catch(()=>showToast("🔗 "+url));}
       else{showToast("🔗 mangu.app/@"+username);}
     });
   }
