@@ -228,13 +228,13 @@
 .cc-btn.anime-btn:hover{background:rgba(104,211,145,.22)}
 
 /* ── ONBOARDING EXAMPLES ── */
-.onb-examples{margin:14px 0 0;background:linear-gradient(135deg,rgba(99,179,237,.07),rgba(155,125,255,.05));border:1px solid rgba(99,179,237,.16);border-radius:16px;padding:14px}
+.onb-examples{margin:14px 0 0;background:linear-gradient(135deg,rgba(99,179,237,.08),rgba(155,125,255,.06));border:1px solid rgba(99,179,237,.2);border-radius:16px;padding:16px}
 .onb-ex-hdr{font-size:10px;font-weight:700;color:var(--am);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
 .onb-ex-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.onb-ex-card{background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:10px;padding:10px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:.2s}
-.onb-ex-card:hover{background:rgba(255,255,255,.09);border-color:var(--bdl)}
+.onb-ex-card{background:rgba(255,255,255,.04);border:1px solid rgba(99,179,237,.15);border-radius:12px;padding:11px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:.2s}
+.onb-ex-card:hover{background:rgba(99,179,237,.1);border-color:rgba(99,179,237,.35);transform:translateY(-2px);box-shadow:0 4px 16px rgba(99,179,237,.12)}
 .onb-ex-card:active{transform:scale(.96)}
-.onb-ex-ico{width:32px;height:44px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;flex-shrink:0}
+.onb-ex-ico{width:38px;height:52px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;flex-shrink:0}
 .onb-ex-info{min-width:0}
 .onb-ex-name{font-size:10px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .onb-ex-type{font-size:8px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
@@ -498,8 +498,8 @@ let fb=null,fbAuth=null,fbDb=null,fbUser=null,fbUnsub=null,fbUnsubFriends=null,p
 if(FIREBASE_ENABLED){try{fb=firebase.initializeApp(FIREBASE_CONFIG);fbAuth=firebase.auth();fbDb=firebase.firestore();
 // Handle redirect result for Safari (popup blocked → redirect fallback)
 fbAuth.getRedirectResult().then(result=>{if(result&&result.user){fbUser=result.user;loadFromCloud();}}).catch(()=>{});
-fbAuth.onAuthStateChanged(u=>{const prevUid=fbUser?fbUser.uid:null;fbUser=u;if(u){if(prevUid&&prevUid!==u.uid){// Usuario diferente — limpiar datos en memoria antes de cargar de la nube
-data={manga:[],anime:[]};localStorage.removeItem("mat-v4-"+prevUid);}loadFromCloud();}render();});}catch(e){console.warn("Firebase init error:",e);}}
+fbAuth.onAuthStateChanged(async u=>{const prevUid=fbUser?fbUser.uid:null;fbUser=u;if(u){if(prevUid&&prevUid!==u.uid){data={manga:[],anime:[]};localStorage.removeItem("mat-v4-"+prevUid);}// FIX: Cargar username ANTES del primer render para evitar "Sin @username"
+try{const doc=await fbDb.collection("public_profiles").doc(u.uid).get();if(doc.exists&&doc.data().username){friendsState.cachedUsername=doc.data().username;friendsState.usernameCacheUid=u.uid;}}catch(e){}loadFromCloud();}render();});}catch(e){console.warn("Firebase init error:",e);}}
 async function signIn(){
   if(!FIREBASE_ENABLED)return showToast("Configura Firebase primero");
   try{
@@ -1355,7 +1355,7 @@ async function checkJikanUpdates(){
         const count=tabKey==="manga"?json.data?.chapters:json.data?.episodes;
         const stillPub=tabKey==="manga"?json.data?.publishing:json.data?.airing;
         // Actualizar si: hay cap nuevo, o si el total guardado es solo 1 (placeholder) y la API da más
-        const shouldUpdate=(count&&count>series.total)||(count&&count>1&&series.total<=1);
+        const shouldUpdate=(count&&count>series.total)||(count&&count>0&&series.total===0);
         if(shouldUpdate){
           series.total=count;
           series.jikanPublishing=stillPub||false;
@@ -1641,7 +1641,7 @@ if(viewMode==="catalog"){const cat=h("div","catalog");filtered.forEach(s=>{const
 const sl=h("div","slist");
 let displayList=[...filtered];
 if(pinnedId){const pi=displayList.findIndex(x=>x.id===pinnedId);if(pi>0){const item=displayList.splice(pi,1)[0];displayList.unshift(item);}}
-displayList.forEach(s=>{const pct=s.total>0?(s.completed.length/s.total)*100:0;const isExp=expanded[s.id];const st=SM[s.status];const sc=h("div","scard");sc.setAttribute("data-id",s.id);const sh=h("div","shdr");sh.onclick=()=>{expanded[s.id]=!expanded[s.id];render();};sh.innerHTML=`${s.cover?`<img class="cthm" src="${s.cover}">`:`<div class="cph">${icon}</div>`}<div class="sinf"><div class="stit">${s.favorite?`<span class="fav-star">★</span>`:""}${s.title}</div><div class="smeta"><span class="sprg">${s.completed.length}/${s.total}</span>${st?`<span class="sbadge ${s.status}">${st.key==="reading"&&tab==="anime"?"👁️":st.icon}</span>`:""}${s.rewatch?`<span class="sbadge rewatch">🔄</span>`:""}${s.score?`<span class="sscore" style="color:${scoreColor(s.score)}">${s.score}</span>`:""}<span class="slast">${s.lastUpdated?timeAgo(s.lastUpdated):""}</span>${s.characters?.length?`<span class="slast">👤${s.characters.length}</span>`:""}</div><div class="pbar"><div class="pfill" style="width:${pct}%;background:${ac}"></div></div></div>`;
+displayList.forEach(s=>{const pct=s.total>0?(s.completed.length/s.total)*100:0;const isExp=expanded[s.id];const st=SM[s.status];const sc=h("div","scard");sc.setAttribute("data-id",s.id);const sh=h("div","shdr");sh.onclick=()=>{expanded[s.id]=!expanded[s.id];render();};sh.innerHTML=`${s.cover?`<img class="cthm" src="${s.cover}">`:`<div class="cph">${icon}</div>`}<div class="sinf"><div class="stit">${s.favorite?`<span class="fav-star">★</span>`:""}${s.title}</div><div class="smeta"><span class="sprg">${s.completed.length}/${s.total>0?s.total:(s.jikanPublishing?"?":"?")}</span>${st?`<span class="sbadge ${s.status}">${st.key==="reading"&&tab==="anime"?"👁️":st.icon}</span>`:""}${s.rewatch?`<span class="sbadge rewatch">🔄</span>`:""}${s.score?`<span class="sscore" style="color:${scoreColor(s.score)}">${s.score}</span>`:""}<span class="slast">${s.lastUpdated?timeAgo(s.lastUpdated):""}</span>${s.characters?.length?`<span class="slast">👤${s.characters.length}</span>`:""}</div>${s.total>0?`<div class="pbar"><div class="pfill" style="width:${pct}%;background:${ac}"></div></div>`:`<div style="font-size:9px;color:var(--am);margin-top:4px;font-family:monospace">${s.jikanPublishing?"⏳ caps actualizándose...":""}</div>`}</div>`;
 const sa=h("div","sact");const nxt=nextChapter(s);if(nxt){const qbCls=["qnext",theme.qnextStyle==="colored"?"qn-colored":"",theme.qnextStyle==="large"?"qn-large":"",theme.qnextStyle==="colored-large"?"qn-colored qn-large":""].join(" ").trim();const qb=h("button",qbCls,"+1");if(theme.qnextStyle==="colored"||theme.qnextStyle==="colored-large")qb.style.background=ac;qb.onclick=e=>{e.stopPropagation();const x=data[tab].find(z=>z.id===s.id);if(!x)return;x.completed.push(nxt);x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();const wasCompleted=x.completed.length===x.total;if(wasCompleted)x.status="completed";else if(x.status==="plan")x.status="reading";p28TouchStreak();const streak=p28GetStreak();p29PlayTick();save();if(wasCompleted){p28ShowPlusAnim(tab,x.title,streak);setTimeout(()=>p29ShowConfetti(ac),300);}else{p28ShowPlusAnim(tab,x.title,streak);}setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxt} ✓${wasCompleted?" · 🎉 ¡Serie completada!":""}`);},200);};sa.appendChild(qb);}sa.appendChild(h("button","ib dng",svg.trash,{onclick:e=>{e.stopPropagation();showModal("Eliminar",`¿Eliminar <b>${s.title}</b>?`,"🗑",()=>{data[tab]=data[tab].filter(x=>x.id!==s.id);save();render();showToast(`"${s.title}" eliminado`);});}}));sa.appendChild(h("div","ib",isExp?svg.chu:svg.chd));sh.appendChild(sa);sc.appendChild(sh);
 // ── Expanded panel ──
 if(isExp){const cp=h("div","cpnl");
@@ -1899,29 +1899,51 @@ function p28RenderContinueRow(root){
 const P28_EXAMPLES={
   manga:[
     {title:"Jujutsu Kaisen",type:"manga",jikanId:113138,chapters:265,tags:["Shōnen","Acción","Sobrenatural"],color:"rgba(99,179,237,.14)",textColor:"#63b3ed",icon:"呪"},
+    {title:"Berserk",type:"manga",jikanId:2,chapters:364,tags:["Seinen","Acción","Horror","Fantasy"],color:"rgba(231,76,76,.12)",textColor:"#e74c4c",icon:"⚔"},
     {title:"One Piece",type:"manga",jikanId:13,chapters:1,tags:["Shōnen","Acción","Fantasy"],publishing:true,color:"rgba(104,211,145,.12)",textColor:"#68d391",icon:"⚓"},
+    {title:"Chainsaw Man",type:"manga",jikanId:116778,chapters:97,tags:["Shōnen","Acción","Horror"],color:"rgba(251,191,36,.12)",textColor:"#fbbf24",icon:"🔥"},
   ],
   anime:[
-    {title:"Naruto",type:"anime",jikanId:20,episodes:220,tags:["Shōnen","Acción"],color:"rgba(249,115,22,.12)",textColor:"#f97316",icon:"忍"},
+    {title:"Fullmetal Alchemist: Brotherhood",type:"anime",jikanId:5114,episodes:64,tags:["Shōnen","Acción","Fantasy"],color:"rgba(249,115,22,.12)",textColor:"#f97316",icon:"⚗"},
     {title:"Mob Psycho 100",type:"anime",jikanId:32182,episodes:12,tags:["Shōnen","Sobrenatural","Comedia"],color:"rgba(155,125,255,.12)",textColor:"#9b7dff",icon:"霊"},
+    {title:"Attack on Titan",type:"anime",jikanId:16498,episodes:25,tags:["Shōnen","Acción","Horror"],color:"rgba(231,76,76,.12)",textColor:"#e74c4c",icon:"⚔"},
+    {title:"Demon Slayer",type:"anime",jikanId:38000,episodes:26,tags:["Shōnen","Acción","Sobrenatural"],color:"rgba(99,179,237,.14)",textColor:"#63b3ed",icon:"🗡"},
   ]
 };
 function p28RenderOnboardingExamples(root,type){
   const examples=P28_EXAMPLES[type]||[];
   const sec=document.createElement("div");
   sec.className="onb-examples";
-  sec.innerHTML=`<div class="onb-ex-hdr">💡 Ejemplos para empezar</div>`;
+  sec.innerHTML=`<div class="onb-ex-hdr">🚀 Empieza con estos clásicos</div><div style="font-size:11px;color:var(--t3);margin-bottom:10px;line-height:1.5">Haz clic para agregar a tu lista. La portada se carga automáticamente desde MyAnimeList.</div>`;
   const grid=document.createElement("div");
-  grid.className="onb-ex-grid";
+  grid.className="onb-ex-grid";grid.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:220px;overflow-y:auto;scrollbar-width:none;";
   examples.forEach(ex=>{
     const card=document.createElement("div");
     card.className="onb-ex-card";
-    card.innerHTML=`<div class="onb-ex-ico" style="background:${ex.color};color:${ex.textColor}">${ex.icon}</div><div class="onb-ex-info"><div class="onb-ex-name">${ex.title}</div><div class="onb-ex-type">${ex.type==="manga"?"MANGA":"ANIME"}</div><div class="onb-ex-add">+ Agregar</div></div>`;
-    card.addEventListener("click",()=>{
+    const totalLabel=ex.chapters?`${ex.chapters} caps`:ex.episodes?`${ex.episodes} eps`:"En curso";
+    card.innerHTML=`<div class="onb-ex-ico" style="background:${ex.color};color:${ex.textColor};font-size:20px">${ex.icon}</div><div class="onb-ex-info"><div class="onb-ex-name">${ex.title}</div><div class="onb-ex-type">${ex.type==="manga"?"📚 MANGA":"🎬 ANIME"} · ${totalLabel}</div><div class="onb-ex-add" style="color:var(--am);font-weight:600">＋ Agregar</div></div>`;
+    card.addEventListener("click",async()=>{
       const now=Date.now();
       const total=ex.chapters||ex.episodes||1;
-      data[ex.type].push(migrate({id:now.toString(),title:ex.title,total:total,completed:[],cover:"",coverIsUrl:false,status:"reading",tags:ex.tags||[],notes:"",score:0,favorite:false,lastUpdated:now,createdAt:now,startDate:"",endDate:"",seasons:[],characters:[],jikanId:ex.jikanId||null,jikanPublishing:ex.publishing||false}));
+      const newId=now.toString();
+      data[ex.type].push(migrate({id:newId,title:ex.title,total:total,completed:[],cover:"",coverIsUrl:true,status:"reading",tags:ex.tags||[],notes:"",score:0,favorite:false,lastUpdated:now,createdAt:now,startDate:"",endDate:"",seasons:[],characters:[],jikanId:ex.jikanId||null,jikanPublishing:ex.publishing||false}));
       save();render();showToast(`"${ex.title}" agregado ✓`);
+      // FIX: Fetch portada desde Jikan en background y actualizar
+      if(ex.jikanId){
+        const ep=ex.type==="manga"?"manga":"anime";
+        try{
+          const res=await fetch(`https://api.jikan.moe/v4/${ep}/${ex.jikanId}`);
+          const json=await res.json();
+          const imgUrl=json.data?.images?.jpg?.large_image_url||json.data?.images?.jpg?.image_url||"";
+          const chapCount=ex.type==="manga"?(json.data?.chapters||0):(json.data?.episodes||0);
+          const series=data[ex.type].find(s=>s.id===newId);
+          if(series){
+            if(imgUrl){series.cover=imgUrl;series.coverIsUrl=true;}
+            if(chapCount>0&&chapCount>series.total){series.total=chapCount;}
+            save();render();
+          }
+        }catch(e){}
+      }
     });
     grid.appendChild(card);
   });
@@ -2210,7 +2232,9 @@ function markChapter(sid,n,cellEl,ac){const x=data[tab].find(z=>z.id===sid);if(!
     });
   }
   if(cellEl){if(wasRead){cellEl.classList.remove("rd");cellEl.style.background="";cellEl.style.borderColor="";}else{cellEl.classList.add("rd");cellEl.style.background=ac;cellEl.style.borderColor=ac;}}const card=cellEl?.closest(".scard");if(card){const prg=card.querySelector(".sprg");if(prg)prg.textContent=`${x.completed.length}/${x.total}`;const pfill=card.querySelector(".pfill");if(pfill)pfill.style.width=`${x.total>0?(x.completed.length/x.total)*100:0}%`;}}
-function doAdd(){const t=document.getElementById("add-title")?.value.trim();if(!t)return;const ni=document.getElementById("add-total");const totalVal=parseInt(ni?.value);if(!totalVal||totalVal<1){if(ni){ni.style.borderColor="var(--dng)";ni.style.boxShadow="0 0 0 3px rgba(231,76,76,.2)";}showToast("⚠️ Ingresa el número de capítulos");return;}if(ni){ni.style.borderColor="";ni.style.boxShadow="";}const now=Date.now();data[tab].push(migrate({id:now.toString(),title:t,total:totalVal,completed:[],cover:newCover||"",coverIsUrl:newCoverIsUrl||false,status:newStatus||"reading",tags:[...newTags],notes:"",score:0,favorite:false,lastUpdated:now,createdAt:now,startDate:"",endDate:"",seasons:[],characters:[],jikanId:window._pendingJikanId||null,jikanPublishing:window._pendingJikanPublishing||false}));newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";newTitle="";newTotal="";window._pendingJikanId=null;window._pendingJikanPublishing=false;save();render();showToast(`"${t}" agregado ✓`);}
+function doAdd(){const t=document.getElementById("add-title")?.value.trim();if(!t)return;const ni=document.getElementById("add-total");const rawVal=ni?.value;const totalVal=parseInt(rawVal)||0;const isPublishing=window._pendingJikanPublishing||false;// FIX: obras en publicación pueden tener total=0 temporalmente
+if(!isPublishing&&(!totalVal||totalVal<1)){if(ni){ni.style.borderColor="var(--dng)";ni.style.boxShadow="0 0 0 3px rgba(231,76,76,.2)";}showToast("⚠️ Ingresa el número de capítulos");return;}if(ni){ni.style.borderColor="";ni.style.boxShadow="";}const now=Date.now();const newId=now.toString();data[tab].push(migrate({id:newId,title:t,total:Math.max(totalVal,0),completed:[],cover:newCover||"",coverIsUrl:newCoverIsUrl||false,status:newStatus||"reading",tags:[...newTags],notes:"",score:0,favorite:false,lastUpdated:now,createdAt:now,startDate:"",endDate:"",seasons:[],characters:[],jikanId:window._pendingJikanId||null,jikanPublishing:isPublishing}));const _jId=window._pendingJikanId;const _jPub=isPublishing;newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";newTitle="";newTotal="";window._pendingJikanId=null;window._pendingJikanPublishing=false;save();render();showToast(`"${t}" agregado ✓`);// FIX: Si obra en publicación con total=0, fetchear caps reales ahora
+if(_jPub&&_jId&&totalVal<1){const ep=tab==="manga"?"manga":"anime";fetch(`https://api.jikan.moe/v4/${ep}/${_jId}`).then(r=>r.json()).then(d=>{const cnt=tab==="manga"?(d.data?.chapters||0):(d.data?.episodes||0);if(cnt>0){const s=data[tab].find(x=>x.id===newId);if(s){s.total=cnt;save();render();showToast(`📖 ${cnt} ${tab==="manga"?"caps":"eps"} cargados`);}}}).catch(()=>{});}}
 function doUpdTotal(sid){const v=parseInt(editTotalVal);if(!v||v<1)return;const x=data[tab].find(z=>z.id===sid);if(x){x.total=v;x.completed=x.completed.filter(c=>c<=v);x.lastUpdated=Date.now();}editTotal=null;save();render();}
 // ═══ INIT ═══
 applyTheme();
@@ -2239,9 +2263,10 @@ render();
 (function(){
   if(localStorage.getItem("mat-onboarding-done"))return;
   const steps=[
-    {icon:"📚",title:"Bienvenido a Mangu",desc:"Tu tracker personal de manga y anime. Agrega series, lleva el progreso por capítulos y personaliza tu experiencia."},
-    {icon:"🔍",title:"Busca en MyAnimeList",desc:"Escribe el título en el campo de agregar y selecciona del autocompletado — la portada, género y capítulos se rellenan solos desde Jikan/MAL."},
-    {icon:"📊",title:"Estadísticas y progreso",desc:"Usa el botón 📊 para ver tu dashboard. Marca capítulos leídos tocando las celdas del panel expandido."}
+    {icon:"🎌",title:"¡Bienvenido a Mangu!",desc:"Tu tracker personal de manga y anime, 100% gratis y sin anuncios. Lleva el progreso de todo lo que lees o ves en un solo lugar."},
+    {icon:"🔍",title:"Portadas automáticas desde MAL",desc:"Escribe cualquier título en el campo de agregar — las portadas, géneros y número de capítulos se rellenan solos desde MyAnimeList. Sin publicidad, sin límites."},
+    {icon:"⚡",title:"Dopamina garantizada",desc:"Marca capítulos con +1, acumula rachas diarias 🔥, completa series y desbloquea confetti 🎉. Usa el botón ⚡ para acceso rápido desde cualquier pantalla."},
+    {icon:"📊",title:"Tu progreso, tu historia",desc:"El dashboard muestra tiempo invertido, géneros favoritos y más. Sincroniza con Google para acceder desde cualquier dispositivo."}
   ];
   let step=0;
   function showStep(){
@@ -2253,7 +2278,7 @@ render();
     const s=steps[step];
     const dotsHtml=steps.map((_,i)=>`<div class="onb-dot${i===step?" active":i<step?" done":""}"></div>`).join("");
     const ac=theme?.accentManga||"#e74c6f";
-    ov.innerHTML=`<div class="onb-box"><div class="onb-steps">${dotsHtml}</div><div class="onb-icon">${s.icon}</div><div class="onb-title">${s.title}</div><div class="onb-desc">${s.desc}</div><div class="onb-btns"><button class="onb-btn-skip" id="onb-skip">Saltar</button><button class="onb-btn-next" id="onb-next" style="background:${ac}">${step===steps.length-1?"¡Listo!":"Siguiente →"}</button></div></div>`;
+    ov.innerHTML=`<div class="onb-box"><div class="onb-steps">${dotsHtml}</div><div class="onb-icon">${s.icon}</div><div class="onb-title">${s.title}</div><div class="onb-desc">${s.desc}</div><div class="onb-btns"><button class="onb-btn-skip" id="onb-skip">Saltar</button><button class="onb-btn-next" id="onb-next" style="background:${ac}">${step===steps.length-1?"🚀 ¡Empezar!":"Siguiente →"}</button></div></div>`;
     document.body.appendChild(ov);
     ov.querySelector("#onb-skip").onclick=()=>{ov.remove();localStorage.setItem("mat-onboarding-done","1");};
     ov.querySelector("#onb-next").onclick=()=>{
