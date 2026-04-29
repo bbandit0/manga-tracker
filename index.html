@@ -1406,6 +1406,88 @@ function h(tag,cls,html,attrs){const el=document.createElement(tag);if(cls)el.cl
 
 
 // ═══ JIKAN API ═══
+// ═══ JIKAN HELPERS ═══
+// Función central para obtener el número del último capítulo/episodio publicado.
+// Intenta múltiples endpoints y nunca pide al usuario si puede evitarlo.
+async function jikanGetLatestCount(malId, type){
+  const ep = type==="manga"?"manga":"anime";
+  let cnt = 0;
+  
+  // Paso 1: endpoint individual (a veces tiene chapters/episodes)
+  try{
+    const r1 = await fetch(`https://api.jikan.moe/v4/${ep}/${malId}`);
+    const d1 = await r1.json();
+    const det = d1.data;
+    if(det){
+      cnt = type==="manga" ? (det.chapters||0) : (det.episodes||0);
+    }
+  }catch(e1){}
+  
+  if(cnt > 0) return cnt;
+  
+  // Paso 2: endpoint de lista de capítulos/episodios
+  // Jikan ordena de MÁS RECIENTE a más antiguo → data[0] = último publicado
+  try{
+    await new Promise(r=>setTimeout(r,250));
+    const listUrl = type==="manga"
+      ? `https://api.jikan.moe/v4/manga/${malId}/chapters?page=1`
+      : `https://api.jikan.moe/v4/anime/${malId}/episodes?page=1`;
+    const r2 = await fetch(listUrl);
+    const d2 = await r2.json();
+    const items = d2.data || [];
+    const tot = d2.pagination?.items?.total || 0;
+    const lp = d2.pagination?.last_visible_page || 1;
+    
+    if(tot > 0){
+      // MAL reporta total exacto en la paginación
+      return tot;
+    }
+    
+    if(items.length > 0){
+      // Leer el número del primer item (el más reciente)
+      // Para manga: items[0].chapter es un string como "374" o "374.5"
+      // Para anime: items[0].episode_id es un número
+      let latestStr = type==="manga"
+        ? (items[0]?.chapter ?? items[0]?.title ?? "")
+        : String(items[0]?.episode_id ?? items[0]?.mal_id ?? 0);
+      
+      // Extraer número del string (puede ser "374" o "374.5" o "Chapter 374")
+      const numMatch = String(latestStr).match(/\d+(\.\d+)?/);
+      const latestNum = numMatch ? Math.floor(parseFloat(numMatch[0])) : 0;
+      
+      if(latestNum > 0){
+        cnt = latestNum;
+      } else if(lp > 1){
+        // Si hay múltiples páginas y no pudimos leer el número,
+        // ir a la última página para contar los items restantes
+        try{
+          await new Promise(r=>setTimeout(r,250));
+          const lastUrl = type==="manga"
+            ? `https://api.jikan.moe/v4/manga/${malId}/chapters?page=${lp}`
+            : `https://api.jikan.moe/v4/anime/${malId}/episodes?page=${lp}`;
+          const rL = await fetch(lastUrl);
+          const dL = await rL.json();
+          const lastItems = dL.data || [];
+          if(lastItems.length > 0){
+            // Intentar leer el número del ÚLTIMO item de la última página (el más antiguo = cap 1 aprox)
+            // Si la ordenación es desc, el último item de la última página es el cap 1.
+            // Pero queremos el MAYOR, que está en la primera página.
+            // Usamos: (lp-1)*100 + primer item de primera página si tiene número
+            cnt = (lp-1)*100 + items.length;
+          } else {
+            cnt = (lp-1)*100;
+          }
+        }catch(e3){cnt = (lp-1)*100;}
+      } else {
+        // Solo una página → la cantidad de items es el total
+        cnt = items.length;
+      }
+    }
+  }catch(e2){}
+  
+  return cnt;
+}
+
 async function searchJikan(query,tabType){
   if(!query||query.length<2){jikanResults=[];removeJikanDrop();return;}
   const ep=tabType==="manga"?"manga":"anime";
@@ -1414,50 +1496,34 @@ async function searchJikan(query,tabType){
     const json=await res.json();
     jikanResults=(json.data||[]).slice(0,6);
   }catch(e){jikanResults=[];}
-  // Mostrar dropdown inicial
+  // Mostrar dropdown inmediatamente con lo que tenemos
   renderJikanDrop(tabType);
-  // Enriquecer en background: para items con chapters/episodes=null, obtener el último publicado
-  const needsEnrich=jikanResults.filter(item=>{
-    const cnt=tabType==="manga"?(item.chapters||0):(item.episodes||0);
-    const pub=tabType==="manga"?item.publishing:item.airing;
-    return !cnt&&pub&&item.mal_id;
-  });
-  if(needsEnrich.length>0){
-    for(const item of needsEnrich){
-      if(!jikanResults.includes(item))break;// si el usuario ya cambió la búsqueda, parar
+  // Enriquecer en background: para items sin chapters/episodes, obtener el último cap publicado
+  for(const item of jikanResults){
+    const rawCnt = tabType==="manga"?(item.chapters||0):(item.episodes||0);
+    if(!rawCnt && item.mal_id){
       try{
-        await new Promise(r=>setTimeout(r,200));
-        const listUrl=tabType==="manga"
-          ?`https://api.jikan.moe/v4/manga/${item.mal_id}/chapters?page=1`
-          :`https://api.jikan.moe/v4/anime/${item.mal_id}/episodes?page=1`;
-        const r2=await fetch(listUrl);
-        const d2=await r2.json();
-        const items=d2.data||[];
-        const tot=d2.pagination?.items?.total||0;
-        if(tot>0){item._latestChapter=tot;}
-        else if(items.length>0){
-          const n=tabType==="manga"
-            ?parseInt(items[0]?.chapter||items[0]?.mal_id||0)
-            :parseInt(items[0]?.episode_id||items[0]?.mal_id||0);
-          if(n>0)item._latestChapter=n;
-        }
+        // Verificar que el usuario no haya cambiado la búsqueda
+        if(!jikanResults.includes(item)) break;
+        item._latestChapter = await jikanGetLatestCount(item.mal_id, tabType);
+        // Re-renderizar tras cada item enriquecido
+        if(jikanResults.length>0) renderJikanDrop(tabType);
       }catch(e2){}
     }
-    // Re-renderizar el dropdown con los datos enriquecidos
-    if(jikanResults.length>0)renderJikanDrop(tabType);
   }
 }
+
 function removeJikanDrop(){
   const old=document.getElementById("jikan-drop");
   if(old)old.remove();
 }
+
 function renderJikanDrop(tabType){
   const wrap=document.querySelector(".jikan-wrap");
   if(!wrap)return;
   removeJikanDrop();
   if(!jikanResults.length)return;
   const tab_=tabType||tab;
-  const ac_=tab_==="manga"?theme.accentManga:theme.accentAnime;
   const drop=document.createElement("div");
   drop.className="jikan-drop";
   drop.id="jikan-drop";
@@ -1465,29 +1531,32 @@ function renderJikanDrop(tabType){
     const row=document.createElement("div");
     row.className="jikan-item";
     const thumb=item.images?.jpg?.image_url||"";
-    const rawCount=tab_==="manga"?(item.chapters||null):(item.episodes||null);
+    const rawCount=tab_==="manga"?(item.chapters||0):(item.episodes||0);
     const pub=tab_==="manga"?item.publishing:item.airing;
     const chapLabel=tab_==="manga"?"Cap.":"Ep.";
-    // Año de publicación — Jikan v4 entrega prop.from.year y también from como ISO string
+    // Año de publicación
     const _getYear=str=>str?new Date(str).getFullYear()||null:null;
     const yearStart=(item.published?.prop?.from?.year)||(item.aired?.prop?.from?.year)||_getYear(item.published?.from)||_getYear(item.aired?.from)||null;
     const yearEnd=(item.published?.prop?.to?.year)||(item.aired?.prop?.to?.year)||_getYear(item.published?.to)||_getYear(item.aired?.to)||null;
     let yearHTML="";
     if(yearStart){
-      yearHTML=pub?`<span style="font-size:9px;color:var(--t3);margin-left:4px">${yearStart}–</span>`
-        :yearEnd&&yearEnd!==yearStart?`<span style="font-size:9px;color:var(--t3);margin-left:4px">${yearStart}–${yearEnd}</span>`
-        :`<span style="font-size:9px;color:var(--t3);margin-left:4px">${yearStart}</span>`;
+      yearHTML=pub
+        ?`<span style="font-size:9px;color:var(--t3);margin-left:4px">${yearStart}–</span>`
+        :yearEnd&&yearEnd!==yearStart
+          ?`<span style="font-size:9px;color:var(--t3);margin-left:4px">${yearStart}–${yearEnd}</span>`
+          :`<span style="font-size:9px;color:var(--t3);margin-left:4px">${yearStart}</span>`;
     }
-    // Conteo de capítulos: usar rawCount, o _latestChapter (enriquecido en background)
-    const displayCount=rawCount||(item._latestChapter||0);
+    // Conteo: rawCount del endpoint búsqueda, o _latestChapter enriquecido en background
+    const displayCount = rawCount || (item._latestChapter||0);
     let countHTML;
     if(displayCount){
-      const suffix=pub&&!rawCount?" (últ.)":"";
-      countHTML=`<span class="jikan-chapters-count">${chapLabel} ${displayCount}${suffix}</span>`;
+      // Si viene del enriquecimiento, mostrar con indicador de "último cap"
+      const label = (pub && !rawCount) ? `${chapLabel} ${displayCount} <span style="opacity:.6;font-size:8px">últ.</span>` : `${chapLabel} ${displayCount}`;
+      countHTML = `<span class="jikan-chapters-count">${label}</span>`;
     }else if(pub){
-      countHTML=`<span style="font-size:9px;color:var(--t2);font-family:Space Mono,monospace;opacity:.7">buscando...</span>`;
+      countHTML = `<span style="font-size:9px;color:var(--t2);font-family:Space Mono,monospace;opacity:.7">buscando...</span>`;
     }else{
-      countHTML=`<span style="font-size:9px;color:var(--t3)">caps desconocidos</span>`;
+      countHTML = `<span style="font-size:9px;color:var(--t3)">caps desconocidos</span>`;
     }
     const badgeHTML=pub
       ?`<span class="jikan-badge pub"><span class="jikan-dot"></span>En publicación</span>`
@@ -1498,17 +1567,18 @@ function renderJikanDrop(tabType){
   });
   wrap.appendChild(drop);
 }
+
 function selectJikanResult(item,tabType){
   const title=item.title_english||item.title;
   const cover=item.images?.jpg?.large_image_url||item.images?.jpg?.image_url||"";
-  // rawCount puede ser null tanto para series en emisión como finalizadas en la búsqueda general
   const rawCount=tabType==="manga"?(item.chapters||0):(item.episodes||0);
   const publishing=tabType==="manga"?item.publishing:item.airing;
   newTitle=title;
   newCover=cover;
   newCoverIsUrl=true;
-  // Si hay rawCount lo usamos; si no, dejamos vacío temporalmente (se carga en background)
-  newTotal=rawCount?String(rawCount):"";
+  // Usar rawCount o _latestChapter (ya enriquecido en el dropdown)
+  const knownCount = rawCount || (item._latestChapter||0);
+  newTotal = knownCount ? String(knownCount) : "";
   const JIKAN_MAP={"Shounen":"Shōnen","Shoujo":"Shōjo","Seinen":"Seinen","Josei":"Josei","Action":"Acción","Adventure":"Acción","Comedy":"Comedia","Horror":"Horror","Romance":"Romance","Sci-Fi":"Sci-Fi","Fantasy":"Fantasy","Mecha":"Mecha","Slice of Life":"Slice of Life","Sports":"Deportes","Supernatural":"Sobrenatural","Thriller":"Thriller","Mystery":"Thriller","Isekai":"Isekai","Drama":"Drama","Ecchi":"Ecchi","Psychological":"Psicológico","Historical":"Histórico","Military":"Militar","Music":"Música","School":"Escolar"};
   const apiGenres=[...(item.genres||[]),...(item.themes||[]),...(item.demographics||[])];
   const resolvedTags=[];
@@ -1528,88 +1598,54 @@ function selectJikanResult(item,tabType){
   if(inp)inp.value=title;
   const inp2=document.getElementById("add-total");
   if(inp2)inp2.value=newTotal;
-  // Fetch siempre del endpoint individual para obtener el conteo más actualizado
-  // Esto cubre: series en emisión con chapters=null, finalizadas con chapters=null en búsqueda, etc.
+  
+  // Si ya tenemos el conteo del dropdown, mostrar toast y listo
+  if(knownCount>0){
+    showToast(`📖 ${knownCount} ${tabType==="manga"?"caps":"eps"}${publishing?" · en emisión":""}`);
+    // Aun así, verificar en background si hay actualización más reciente
+    if(item.mal_id){
+      (async()=>{
+        try{
+          const fresh = await jikanGetLatestCount(item.mal_id, tabType);
+          if(fresh > knownCount){
+            newTotal = String(fresh);
+            const fEl = document.getElementById("add-total");
+            if(fEl){fEl.value=newTotal;fEl.style.borderColor="rgba(99,179,237,.5)";setTimeout(()=>{const f2=document.getElementById("add-total");if(f2)f2.style.borderColor="";},1200);}
+            showToast(`📖 ${fresh} ${tabType==="manga"?"caps":"eps"}${publishing?" · en emisión":""}`);
+          }
+        }catch(e){}
+      })();
+    }
+    return;
+  }
+  
+  // Si NO tenemos conteo aún, hacer fetch ahora (caso raro: el background no terminó)
   if(item.mal_id){
-    const ep=tabType==="manga"?"manga":"anime";
     const fEl=()=>document.getElementById("add-total");
-    // Mostrar "buscando..." solo si no tenemos rawCount
-    if(!rawCount){const fe=fEl();if(fe)fe.placeholder="Buscando...";}
+    const fe=fEl(); if(fe)fe.placeholder="Buscando...";
     (async()=>{
       try{
-        // 1. Fetch del endpoint individual
-        const r1=await fetch(`https://api.jikan.moe/v4/${ep}/${item.mal_id}`);
-        const d1=await r1.json();
-        const det=d1.data;
-        if(!det)return;
-        const stillPub=tabType==="manga"?det.publishing:det.airing;
-        window._pendingJikanPublishing=stillPub||false;
-        let cnt=tabType==="manga"?(det.chapters||0):(det.episodes||0);
-
-        // 2. Si no hay cnt (obra en emisión o dato faltante) → endpoint de lista de caps/eps
-        // La primera página viene ordenada de MÁS RECIENTE a más antiguo:
-        // data[0].chapter (manga) o data[0].episode_id (anime) = el último publicado
-        if(!cnt){
-          await new Promise(r=>setTimeout(r,300));
-          try{
-            const listEp=tabType==="manga"
-              ?`https://api.jikan.moe/v4/manga/${item.mal_id}/chapters?page=1`
-              :`https://api.jikan.moe/v4/anime/${item.mal_id}/episodes?page=1`;
-            const r2=await fetch(listEp);
-            const d2=await r2.json();
-            const items=d2.data||[];
-            const tot=d2.pagination?.items?.total||0;
-            const lp=d2.pagination?.last_visible_page||1;
-
-            if(tot>0){
-              // MAL reporta el total exacto
-              cnt=tot;
-            }else if(items.length>0){
-              // El primer item es el más reciente — su número ES el último cap publicado
-              const latestNum=tabType==="manga"
-                ?parseInt(items[0]?.chapter||items[0]?.mal_id||0)
-                :parseInt(items[0]?.episode_id||items[0]?.mal_id||0);
-              if(latestNum>0){
-                cnt=latestNum;
-              }else if(lp>1){
-                // Fallback: estimar desde páginas (100 items por página)
-                // Ir a la última página para contar los restantes
-                try{
-                  const lastEp=tabType==="manga"
-                    ?`https://api.jikan.moe/v4/manga/${item.mal_id}/chapters?page=${lp}`
-                    :`https://api.jikan.moe/v4/anime/${item.mal_id}/episodes?page=${lp}`;
-                  const rL=await fetch(lastEp);
-                  const dL=await rL.json();
-                  cnt=(lp-1)*100+(dL.data?.length||0);
-                }catch(e3){cnt=(lp-1)*100;}
-              }else{
-                cnt=items.length;
-              }
-            }
-          }catch(e2){}
-        }
-
+        const cnt = await jikanGetLatestCount(item.mal_id, tabType);
         const f=fEl();
         if(cnt>0){
           newTotal=String(cnt);
-          if(f){
-            f.value=newTotal;
-            f.placeholder=tabType==="manga"?"Total de capitulos *":"Total de ep. *";
-            f.style.borderColor="rgba(99,179,237,.5)";
-            setTimeout(()=>{if(fEl())fEl().style.borderColor="";},1200);
-          }
-          showToast(`📖 ${cnt} ${tabType==="manga"?"caps":"eps"}${stillPub?" · en emisión":""}`);
+          if(f){f.value=newTotal;f.placeholder=tabType==="manga"?"Total de capitulos *":"Total de ep. *";f.style.borderColor="rgba(99,179,237,.5)";setTimeout(()=>{const f2=fEl();if(f2)f2.style.borderColor="";},1200);}
+          showToast(`📖 ${cnt} ${tabType==="manga"?"caps":"eps"}${publishing?" · en emisión":""}`);
         }else{
-          if(f)f.placeholder=stillPub?"Ingresa el total (en emisión)":"Ingresa el total";
-          if(stillPub)showToast("⚠️ Sin conteo disponible — ingresa el total manualmente");
+          // Último recurso: si absolutamente no hay dato, poner 1 para que no bloquee al usuario
+          // y marcar como publishing para que el polling lo actualice
+          newTotal="1";
+          if(f){f.value="1";f.placeholder=tabType==="manga"?"Total (en emisión)":"Eps (en emisión)";}
+          showToast("⚠️ No se pudo obtener el total — se actualizará automáticamente");
         }
       }catch(e){
         const f=fEl();
-        if(f)f.placeholder="Ingresa el total";
+        if(f){f.value="1";f.placeholder="En emisión";}
       }
     })();
   }
 }
+
 async function checkJikanUpdates(){
   for(const tabKey of ["manga","anime"]){
     const ep=tabKey==="manga"?"manga":"anime";
@@ -1620,27 +1656,12 @@ async function checkJikanUpdates(){
         const json=await res.json();
         let count=tabKey==="manga"?json.data?.chapters:json.data?.episodes;
         const stillPub=tabKey==="manga"?json.data?.publishing:json.data?.airing;
-        // Si la API no entrega chapters/episodes, intentar endpoint de lista
-        if(!count&&stillPub){
-          try{
-            const listUrl=tabKey==="manga"
-              ?`https://api.jikan.moe/v4/manga/${series.jikanId}/chapters?page=1`
-              :`https://api.jikan.moe/v4/anime/${series.jikanId}/episodes?page=1`;
-            const lr=await fetch(listUrl);
-            const ld=await lr.json();
-            const litems=ld.data||[];
-            const ltot=ld.pagination?.items?.total||0;
-            if(ltot>0){count=ltot;}
-            else if(litems.length>0){
-              const latestN=tabKey==="manga"
-                ?parseInt(litems[0]?.chapter||litems[0]?.mal_id||0)
-                :parseInt(litems[0]?.episode_id||litems[0]?.mal_id||0);
-              if(latestN>0)count=latestN;
-            }
-          }catch(eL){}
+        // Si la API no entrega chapters/episodes, usar jikanGetLatestCount
+        if(!count){
+          try{ count=await jikanGetLatestCount(series.jikanId,tabKey); }catch(eL){}
         }
-        // Actualizar si: hay cap nuevo, o si el total guardado es solo 1 (placeholder) y la API da más
-        const shouldUpdate=(count&&count>series.total)||(count&&count>0&&series.total===0);
+        // Actualizar si: hay cap nuevo, o si el total guardado es 0/1 y la API da más
+        const shouldUpdate=(count&&count>series.total)||(count&&count>0&&series.total<=1);
         if(shouldUpdate){
           series.total=count;
           series.jikanPublishing=stillPub||false;
