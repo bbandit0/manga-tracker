@@ -43,32 +43,56 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Space+Mono:wght@400;700&display=swap');
 :root{--bg1:#07090f;--bg2:#0e1220;--bg3:#121c2e;--bg4:#1a2a40;--bgi:#0a1018;--am:#63b3ed;--amd:rgba(99,179,237,.12);--aa:#68d391;--aad:rgba(104,211,145,.1);--t1:#c8d4e8;--t2:#5a6a82;--t3:#2e3d52;--bd:rgba(255,255,255,.06);--bdl:rgba(255,255,255,.1);--dng:#e74c4c;--suc:#34d399;--wrn:#fbbf24;--inf:#06b6d4;--fav:#f59e0b;--r:8px;--rm:14px;--purple:#9b7dff}.stit{font-size:1em!important}.sprg,.slast{font-size:.8em!important}.tab{font-size:.93em!important}.tag,.fchip{font-size:.73em!important}.catt,.fn-series-title{font-size:.87em!important}.catp,.stl{font-size:.73em!important}.fn-fc-name{font-size:.87em!important}.fn-profile-name{font-size:1.13em!important}.dash-cl{font-size:.67em!important}.tab-c{font-size:.67em!important}.add-m input,.add-m-title input,.add-m-actions input{font-size:.93em!important}.srt,.status-sel{font-size:.8em!important}
 *{margin:0;padding:0;box-sizing:border-box}#app:empty{visibility:hidden;}body{
-  background:
-    radial-gradient(1200px at 15% 20%, rgba(99,179,237,0.12), transparent 60%),
-    radial-gradient(1000px at 85% 25%, rgba(34,197,94,0.10), transparent 60%),
-    radial-gradient(900px at 50% 90%, rgba(155,125,255,0.10), transparent 60%),
-    #07090f;
-  background-attachment:fixed;
+  background-color:#05070d;
   color:var(--t1);
   font-family:'Outfit',sans-serif;
   -webkit-tap-highlight-color:transparent;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior:none;
 }
+/* CAPA 1: iluminación global (profundidad real) */
 body::before{
   content:'';
   position:fixed;
   inset:0;
-  background:radial-gradient(circle at 70% 20%,rgba(0,255,150,.12),transparent 50%);
+  background:
+    radial-gradient(900px at 15% 20%, rgba(56,189,248,0.10), transparent 60%),
+    radial-gradient(700px at 85% 25%, rgba(34,197,94,0.08), transparent 60%),
+    radial-gradient(600px at 50% 90%, rgba(168,85,247,0.08), transparent 70%);
   pointer-events:none;
   z-index:0;
 }
+/* CAPA 2: foco central */
 body::after{
+  content:'';
+  position:fixed;
+  inset:0;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(255,255,255,0.03), transparent 60%),
+    radial-gradient(circle at 50% 40%, rgba(59,130,246,0.06), transparent 70%);
+  pointer-events:none;
+  z-index:0;
+}
+/* CAPA 3: textura + patrón técnico sutil */
+html::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size:120px 120px;
+  opacity:0.4;
+  pointer-events:none;
+  z-index:0;
+}
+/* CAPA 4: noise fino */
+html::after{
   content:"";
   position:fixed;
   inset:0;
   background-image:url("https://grainy-gradients.vercel.app/noise.svg");
-  opacity:0.05;
+  opacity:0.035;
   pointer-events:none;
   z-index:0;
 }.app{max-width:720px;margin:0 auto;padding:0 0 100px;min-height:100vh}.app>*:not(.hdr){padding-left:18px;padding-right:18px}
