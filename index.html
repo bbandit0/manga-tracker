@@ -1492,10 +1492,17 @@ async function jikanFetchJSON(url,retries=3){
   return null;
 }
 
-// fetch simple sin cola — cada llamada es independiente
+// fetch simple con 1 retry en 429 (rate limit Jikan)
 async function jikanFetchFast(url){
   try{
     const res=await fetch(url);
+    if(res.status===429){
+      // Esperar 1.2s y reintentar una vez
+      await new Promise(r=>setTimeout(r,1200));
+      const res2=await fetch(url);
+      if(!res2.ok) return null;
+      return await res2.json();
+    }
     if(!res.ok) return null;
     return await res.json();
   }catch(e){return null;}
@@ -1539,20 +1546,16 @@ async function _srcJikanPaged(malId, type){
 }
 
 // ── Fuente 3: AniList GraphQL ─────────────────────────────────────────────────
-// Para manga en PUBLICACIÓN: AniList devuelve null en `chapters` pero tiene
-// `nextAiringEpisode` y `chapters` solo cuando está completo.
-// Para ANIME en emisión: AniList tiene `nextAiringEpisode.episode - 1` = episodios emitidos.
 async function _srcAniList(malId, type){
   try{
     const mediaType=type==="manga"?"MANGA":"ANIME";
-    // Para anime pedimos también nextAiringEpisode para obtener eps emitidos
     const fields=type==="manga"
-      ?"chapters status"
+      ?"chapters volumes status"
       :"episodes status nextAiringEpisode{episode}";
     const query=`{Media(idMal:${malId},type:${mediaType}){${fields}}}`;
     const res=await fetch("https://graphql.anilist.co",{
       method:"POST",
-      headers:{"Content-Type":"application/json"},
+      headers:{"Content-Type":"application/json","Accept":"application/json"},
       body:JSON.stringify({query})
     });
     if(!res.ok) return 0;
@@ -1560,7 +1563,6 @@ async function _srcAniList(malId, type){
     const media=json?.data?.Media;
     if(!media) return 0;
     if(type==="manga") return media.chapters||0;
-    // Anime: si está en emisión, nextAiringEpisode.episode es el PRÓXIMO → emitidos = episode-1
     if(media.nextAiringEpisode?.episode>0) return media.nextAiringEpisode.episode-1;
     return media.episodes||0;
   }catch(e){return 0;}
@@ -1614,21 +1616,26 @@ async function _srcMangaDex(malId, title){
   }catch(e){return 0;}
 }
 
-// ── Fuente 5: MangaDex búsqueda directa por MAL ID (más precisa que por título) ──
+// ── Fuente 5: MangaDex búsqueda directa por MAL ID ──────────────────────────
 async function _srcMangaDexByMalId(malId){
   try{
-    // MangaDex soporta filtro por link externo MAL ID directamente
-    const url=`https://api.mangadex.org/manga?links[mal]=${malId}&limit=5&includes[]=none`
-      +`&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic`;
+    // Usar encodeURIComponent para brackets — más compatible con proxies/CDN
+    const url="https://api.mangadex.org/manga?"+
+      "links%5Bmal%5D="+encodeURIComponent(String(malId))+"&limit=5&includes%5B%5D=none"+
+      "&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive"+
+      "&contentRating%5B%5D=erotica&contentRating%5B%5D=pornographic";
     const res=await fetch(url,{headers:{"Accept":"application/json"}});
     if(!res.ok) return 0;
     const items=(await res.json())?.data||[];
     if(!items.length) return 0;
     const it=items[0];
-    // Intentar lastChapter primero
+    // lastChapter es null para obras japonesas activas en MangaDex
+    // (scanlations no = no hay lastChapter). Ir directo al aggregate.
     const lc=it.attributes?.lastChapter;
-    if(lc&&lc!=="none"&&lc!==""){const n=Math.floor(parseFloat(lc));if(n>0)return n;}
-    // Fallback: aggregate
+    if(lc&&lc!=="none"&&lc!==""&&lc!==null){
+      const n=Math.floor(parseFloat(lc));
+      if(n>0)return n;
+    }
     const aggRes=await fetch(`https://api.mangadex.org/manga/${it.id}/aggregate`,
       {headers:{"Accept":"application/json"}});
     if(!aggRes.ok) return 0;
@@ -1645,20 +1652,26 @@ async function _srcMangaDexByMalId(malId){
   }catch(e){return 0;}
 }
 
-// ── Orquestador: lanza las fuentes en paralelo real, timeout 8s ───────────
+// ── Orquestador: fuentes en paralelo, timeout 12s ────────────────────────
+// DISEÑO: Jikan rate limit = 3 req/seg. searchJikan ya usó 1 req.
+// Por eso getBestCount usa SOLO 1 fuente Jikan (paged) + AniList + 2x MangaDex.
+// _srcJikanIndividual se reserva como fallback secuencial si todo falla.
 async function getBestCount(malId, type, rawCount, title){
-  const T=8000;
+  const T=12000;
   const t=ms=>new Promise(r=>setTimeout(()=>r(0),ms));
   if(type==="manga"){
-    // Fuente 5 (mdx2): búsqueda directa por MAL ID en MangaDex — más precisa para series en emisión
-    const [j1,j2,al,mdx,mdx2]=await Promise.all([
-      Promise.race([_srcJikanIndividual(malId,"manga"),t(T)]),
+    // Solo 1 request Jikan (paged), 1 AniList, 2 MangaDex — evita rate limit
+    const [j2,al,mdx,mdx2]=await Promise.all([
       Promise.race([_srcJikanPaged(malId,"manga"),t(T)]),
       Promise.race([_srcAniList(malId,"manga"),t(T)]),
       Promise.race([_srcMangaDex(malId,title),t(T)]),
       Promise.race([_srcMangaDexByMalId(malId),t(T)])
     ]);
-    return Math.max(rawCount||0,j1||0,j2||0,al||0,mdx||0,mdx2||0);
+    const best=Math.max(rawCount||0,j2||0,al||0,mdx||0,mdx2||0);
+    // Si todavía 0, intentar Jikan individual como último recurso
+    if(best>0) return best;
+    const j1=await Promise.race([_srcJikanIndividual(malId,"manga"),t(4000)]);
+    return Math.max(best,j1||0);
   }else{
     const [j1,j2,al]=await Promise.all([
       Promise.race([_srcJikanIndividual(malId,"anime"),t(T)]),
