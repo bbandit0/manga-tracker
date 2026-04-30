@@ -1703,9 +1703,8 @@ function renderJikanDrop(tabType){
           :`<span style="font-size:9px;color:var(--t3);margin-left:4px">${yearStart}</span>`;
     }
     // Conteo: _latestChapter tiene el mejor dato (AniList + Jikan combinados)
-    // rawCount es solo lo que vino del search de Jikan (puede ser null)
     const displayCount = (item._latestChapter > 0) ? item._latestChapter : (rawCount || 0);
-    const enriched = item._latestChapter !== undefined; // ya se intentó enriquecer
+    const enriched = item._latestChapter !== undefined; // ya terminó el enriquecimiento
     let countHTML;
     if(displayCount > 0){
       const label = pub
@@ -1713,13 +1712,10 @@ function renderJikanDrop(tabType){
         : `${chapLabel} ${displayCount}`;
       countHTML = `<span class="jikan-chapters-count">${label}</span>`;
     }else if(!enriched){
-      // Aún no se enriqueció: mostrar spinner
       countHTML = `<span style="font-size:9px;color:var(--t2);font-family:Space Mono,monospace;opacity:.7">buscando...</span>`;
-    }else if(pub){
-      // Ya se enriqueció pero sin dato: en publicación sin info en ninguna API
-      countHTML = `<span style="font-size:9px;color:var(--t3);font-family:Space Mono,monospace">caps: sin dato</span>`;
     }else{
-      countHTML = `<span style="font-size:9px;color:var(--t3)">caps desconocidos</span>`;
+      // Sin dato en ninguna API — el usuario deberá ingresarlo al seleccionar
+      countHTML = `<span style="font-size:9px;color:var(--wrn);font-family:Space Mono,monospace;opacity:.85">✏️ ingresa tú el número</span>`;
     }
     const badgeHTML=pub
       ?`<span class="jikan-badge pub"><span class="jikan-dot"></span>En publicación</span>`
@@ -1762,11 +1758,11 @@ function selectJikanResult(item,tabType){
   const inp2=document.getElementById("add-total");
   if(inp2)inp2.value=newTotal;
   
-  // Siempre buscar el mejor conteo disponible (AniList + Jikan en paralelo)
+  // Buscar el mejor conteo: AniList + Jikan en paralelo
   if(item.mal_id){
     const fEl=()=>document.getElementById("add-total");
     const fe=fEl();
-    if(fe&&!knownCount){fe.value="";fe.placeholder="Buscando caps...";}
+    if(fe&&!knownCount){fe.value="";fe.placeholder="Buscando...";}
     (async()=>{
       try{
         const best=await getBestCount(item.mal_id,tabType,knownCount);
@@ -1779,16 +1775,31 @@ function selectJikanResult(item,tabType){
             f.style.borderColor="rgba(99,179,237,.5)";
             setTimeout(()=>{const f2=fEl();if(f2)f2.style.borderColor="";},1200);
           }
-          const label=publishing?" · en emisión":"";
-          showToast(`📖 ${best} ${tabType==="manga"?"caps":"eps"}${label}`);
+          showToast(`📖 ${best} ${tabType==="manga"?"caps":"eps"}${publishing?" · en emisión":""}`);
         }else{
+          // La API no tiene el dato: pedir al usuario que lo ingrese
           newTotal="0";
-          if(f){f.value="";f.placeholder=publishing?(tabType==="manga"?"Caps: en emisión":"Eps: en emisión"):(tabType==="manga"?"Caps desconocidos":"Eps desconocidos");}
-          if(publishing)showToast("⚠️ No se pudo obtener el total — se actualizará automáticamente");
+          if(f){
+            f.value="";
+            f.style.borderColor="rgba(251,191,36,.5)";
+            f.style.boxShadow="0 0 0 3px rgba(251,191,36,.12)";
+            f.placeholder=publishing
+              ?(tabType==="manga"?"¿Cuántos caps llevan? Escribe el número":"¿Cuántos eps llevan? Escribe el número")
+              :(tabType==="manga"?"¿Cuántos caps tiene? Escribe el número":"¿Cuántos eps tiene? Escribe el número");
+            setTimeout(()=>{ const ff=fEl(); if(ff)ff.focus(); }, 300);
+            f.oninput=e=>{
+              newTotal=e.target.value;
+              f.style.borderColor="";
+              f.style.boxShadow="";
+            };
+          }
+          showToast(publishing
+            ?"✏️ La API no tiene el dato — ingresa cuántos caps van"
+            :"✏️ Ingresa el total de caps manualmente", 3500);
         }
       }catch(e){
         const f=fEl();
-        if(f)f.placeholder="Sin dato";
+        if(f){f.placeholder="Ingresa el número manualmente";f.focus();}
       }
     })();
   }
@@ -2825,7 +2836,7 @@ function markChapter(sid,n,cellEl,ac){const x=data[tab].find(z=>z.id===sid);if(!
   }
   if(cellEl){if(wasRead){cellEl.classList.remove("rd");cellEl.style.background="";cellEl.style.borderColor="";}else{cellEl.classList.add("rd");cellEl.style.background=ac;cellEl.style.borderColor=ac;}}const card=cellEl?.closest(".scard");if(card){const prg=card.querySelector(".sprg");if(prg)prg.textContent=`${x.completed.length}/${x.total}`;const pfill=card.querySelector(".pfill");if(pfill)pfill.style.width=`${x.total>0?(x.completed.length/x.total)*100:0}%`;}}
 function doAdd(){const t=document.getElementById("add-title")?.value.trim();if(!t)return;const ni=document.getElementById("add-total");const rawVal=ni?.value;const totalVal=parseInt(rawVal)||0;const isPublishing=window._pendingJikanPublishing||false;// FIX: obras en publicación pueden tener total=0 temporalmente
-if(!isPublishing&&(!totalVal||totalVal<1)){if(ni){ni.style.borderColor="var(--dng)";ni.style.boxShadow="0 0 0 3px rgba(231,76,76,.2)";}showToast("⚠️ Ingresa el número de capítulos");return;}if(ni){ni.style.borderColor="";ni.style.boxShadow="";}const now=Date.now();const newId=now.toString();data[tab].push(migrate({id:newId,title:t,total:Math.max(totalVal,0),completed:[],cover:newCover||"",coverIsUrl:newCoverIsUrl||false,status:newStatus||"reading",tags:[...newTags],notes:"",score:0,favorite:false,lastUpdated:now,createdAt:now,startDate:"",endDate:"",seasons:[],characters:[],jikanId:window._pendingJikanId||null,jikanPublishing:isPublishing}));const _jId=window._pendingJikanId;const _jPub=isPublishing;newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";newTitle="";newTotal="";window._pendingJikanId=null;window._pendingJikanPublishing=false;save();render();showToast(`"${t}" agregado ✓`);// FIX: Si obra en publicación con total=0, fetchear caps reales ahora
+if(!isPublishing&&(!totalVal||totalVal<1)){if(ni){ni.style.borderColor="var(--dng)";ni.style.boxShadow="0 0 0 3px rgba(231,76,76,.2)";ni.focus();}showToast("⚠️ Ingresa el número de capítulos");return;}if(isPublishing&&(!totalVal||totalVal<1)){showToast("📌 Agregado en publicación — ingresa los caps desde el panel");}if(ni){ni.style.borderColor="";ni.style.boxShadow="";}const now=Date.now();const newId=now.toString();data[tab].push(migrate({id:newId,title:t,total:Math.max(totalVal,0),completed:[],cover:newCover||"",coverIsUrl:newCoverIsUrl||false,status:newStatus||"reading",tags:[...newTags],notes:"",score:0,favorite:false,lastUpdated:now,createdAt:now,startDate:"",endDate:"",seasons:[],characters:[],jikanId:window._pendingJikanId||null,jikanPublishing:isPublishing}));const _jId=window._pendingJikanId;const _jPub=isPublishing;newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";newTitle="";newTotal="";window._pendingJikanId=null;window._pendingJikanPublishing=false;save();render();showToast(`"${t}" agregado ✓`);// FIX: Si obra en publicación con total=0, fetchear caps reales ahora
 if(_jPub&&_jId&&totalVal<1){const ep=tab==="manga"?"manga":"anime";fetch(`https://api.jikan.moe/v4/${ep}/${_jId}`).then(r=>r.json()).then(d=>{const cnt=tab==="manga"?(d.data?.chapters||0):(d.data?.episodes||0);if(cnt>0){const s=data[tab].find(x=>x.id===newId);if(s){s.total=cnt;save();render();showToast(`📖 ${cnt} ${tab==="manga"?"caps":"eps"} cargados`);}}}).catch(()=>{});}}
 function doUpdTotal(sid){const v=parseInt(editTotalVal);if(!v||v<1)return;const x=data[tab].find(z=>z.id===sid);if(x){x.total=v;x.completed=x.completed.filter(c=>c<=v);x.lastUpdated=Date.now();}editTotal=null;save();render();}
 // ═══ INIT ═══
