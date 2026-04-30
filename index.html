@@ -1670,6 +1670,7 @@ async function searchJikan(query,tabType){
   const ep=tabType==="manga"?"manga":"anime";
   try{
     const res=await fetch(`https://api.jikan.moe/v4/${ep}?q=${encodeURIComponent(query)}&limit=6`);
+    if(!res.ok){jikanResults=[];return;}
     const json=await res.json();
     jikanResults=(json.data||[]).slice(0,6);
   }catch(e){jikanResults=[];}
@@ -1872,9 +1873,9 @@ async function checkJikanUpdates(){
           stillPub=tabKey==="manga"?(json.data?.publishing!==false):(json.data?.airing!==false);
           count=jkCnt||0;
         }catch(e1){}
-        // Si Jikan no trajo número, usar AniList
+        // Si Jikan no trajo número, usar AniList (_srcAniList es la función correcta)
         if(!count || count<1){
-          const alCnt=await anilistGetCount(series.jikanId,tabKey);
+          const alCnt=await _srcAniList(series.jikanId,tabKey);
           if(alCnt>0)count=alCnt;
         }
         const shouldUpdate=count>0&&(count>series.total||series.total<=1);
@@ -1905,6 +1906,7 @@ async function checkUpToDateNewChapters(){
       if(nextCh!==null)continue;
       try{
         const res=await fetch("https://api.jikan.moe/v4/"+ep+"/"+series.jikanId);
+        if(!res.ok)continue;
         const json=await res.json();
         const count=tabKey==="manga"?json.data?.chapters:json.data?.episodes;
         if(count&&count>series.total){
@@ -2559,6 +2561,7 @@ function p28RenderOnboardingExamples(root,type){
         const ep=ex.type==="manga"?"manga":"anime";
         try{
           const res=await fetch(`https://api.jikan.moe/v4/${ep}/${ex.jikanId}`);
+          if(!res.ok)throw new Error(`HTTP ${res.status}`);
           const json=await res.json();
           const imgUrl=json.data?.images?.jpg?.large_image_url||json.data?.images?.jpg?.image_url||"";
           const chapCount=ex.type==="manga"?(json.data?.chapters||0):(json.data?.episodes||0);
