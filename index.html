@@ -1498,13 +1498,51 @@ async function jikanFetchJSON(url,retries=4){
   return null;
 }
 
-// Versión rápida para el dropdown: 1 intento, sin esperas
+// ── Rate-limit queue para Jikan (máx 3 req/seg) ──────────────────────────────
+// Todas las consultas a Jikan pasan por aquí para evitar 429 masivos
+const _jikanQueue={
+  _queue:[],
+  _running:0,
+  _maxConcurrent:2,   // Máximo 2 peticiones simultáneas a Jikan
+  _minInterval:380,   // ms entre peticiones (3 req/seg = 333ms, usamos 380 con margen)
+  _lastCall:0,
+  async fetch(url){
+    return new Promise((resolve)=>{
+      this._queue.push({url,resolve});
+      this._drain();
+    });
+  },
+  async _drain(){
+    if(this._running>=this._maxConcurrent||!this._queue.length)return;
+    const now=Date.now();
+    const elapsed=now-this._lastCall;
+    if(elapsed<this._minInterval){
+      setTimeout(()=>this._drain(),this._minInterval-elapsed);
+      return;
+    }
+    const {url,resolve}=this._queue.shift();
+    this._running++;
+    this._lastCall=Date.now();
+    try{
+      const res=await fetch(url);
+      if(res.status===429){
+        // Reinsertar al frente con delay
+        this._queue.unshift({url,resolve});
+        this._running--;
+        setTimeout(()=>this._drain(),1200);
+        return;
+      }
+      const data=res.ok?await res.json():null;
+      resolve(data);
+    }catch(e){resolve(null);}
+    this._running--;
+    setTimeout(()=>this._drain(),this._minInterval);
+  }
+};
+
+// Versión rápida para el dropdown: usa la cola rate-limited
 async function jikanFetchFast(url){
-  try{
-    const res = await fetch(url);
-    if(!res.ok) return null;
-    return await res.json();
-  }catch(e){ return null; }
+  try{return await _jikanQueue.fetch(url);}catch(e){return null;}
 }
 
 function jikanExtractPublishedNumber(entry,type){
@@ -1558,6 +1596,7 @@ async function jikanGetLatestCount(malId, type, fast=false){
         const pag = d2.pagination || {};
         const lp  = pag.last_visible_page || 1;
         const tot = pag.items?.total || 0;
+        // items.total es el más confiable — Jikan lo calcula del total de registros
         if(tot > 0) return tot;
         if(lp <= 1){
           const last = d2.data[d2.data.length - 1];
@@ -1565,13 +1604,22 @@ async function jikanGetLatestCount(malId, type, fast=false){
           if(n > 0) return n;
           return d2.data.length;
         } else {
+          // Hay más páginas — ir a la última para el capítulo más reciente
           const dL = await fetchFn(`https://api.jikan.moe/v4/manga/${malId}/chapters?page=${lp}`);
           if(dL && Array.isArray(dL.data) && dL.data.length > 0){
+            // Revisar items.total en la última página también
+            const totL = dL.pagination?.items?.total||0;
+            if(totL>0) return totL;
             const last = dL.data[dL.data.length - 1];
             const n = jikanExtractPublishedNumber(last, "manga");
             if(n > 0) return n;
             return (lp - 1) * 100 + dL.data.length;
           }
+          // Fallback con datos de página 1
+          const last1 = d2.data[d2.data.length-1];
+          const n1 = jikanExtractPublishedNumber(last1,"manga");
+          if(n1>0) return (lp-1)*100+n1; // estimación conservadora
+          return (lp - 1) * 100 + d2.data.length;
         }
       }
     }catch(e){}
@@ -1594,6 +1642,8 @@ async function jikanGetLatestCount(malId, type, fast=false){
         } else {
           const dL = await fetchFn(`https://api.jikan.moe/v4/anime/${malId}/episodes?page=${lp}`);
           if(dL && Array.isArray(dL.data) && dL.data.length > 0){
+            const totL=dL.pagination?.items?.total||0;
+            if(totL>0) return totL;
             const last = dL.data[dL.data.length - 1];
             const n = jikanExtractPublishedNumber(last, "anime");
             if(n > 0) return n;
@@ -1611,11 +1661,40 @@ async function jikanGetLatestCount(malId, type, fast=false){
 // Busca por título en MangaDex y cruza verificando links.mal === malId.
 // Si no hay match exacto por MAL ID, usa el resultado más relevante con lastChapter.
 // También intenta el endpoint /statistics/manga/{mdxId} como fallback.
+// ── Extrae el número más alto de capítulos del JSON aggregate de MangaDex ──────
+function _mdxAggregateMax(aggJson){
+  let maxChap=0;
+  const vols=aggJson?.volumes||{};
+  for(const vol of Object.values(vols)){
+    const chaps=vol?.chapters||{};
+    for(const chapKey of Object.keys(chaps)){
+      // chapKeys pueden ser "1","1.5","none" — filtrar "none"
+      if(chapKey==="none"||chapKey==="")continue;
+      const n=parseFloat(chapKey);
+      if(!isNaN(n)&&n>maxChap) maxChap=n;
+    }
+  }
+  return maxChap>0?Math.floor(maxChap):0;
+}
+
+// ── Obtiene aggregate de MangaDex SIN filtrar por idioma (máximo capítulo en cualquier idioma) ──
+async function _mdxAggregate(mdxId){
+  // Sin parámetro translatedLanguage = todos los idiomas (japonés incluido)
+  const res=await fetch(`https://api.mangadex.org/manga/${mdxId}/aggregate`,{headers:{"Accept":"application/json"}});
+  if(!res.ok) return 0;
+  return _mdxAggregateMax(await res.json());
+}
+
+// ── MangaDex: tiene lastChapter para manga en publicación ───────────────────
+// Estrategia en cascada:
+//   1. Buscar por título → match por MAL ID → usar lastChapter
+//   2. Buscar por título → match por MAL ID → usar aggregate sin filtro de idioma
+//   3. Buscar por título → primer resultado con lastChapter válido
+//   4. Buscar por título → primer resultado → aggregate sin filtro de idioma
 async function mangadexGetChapters(malId, title){
   try{
     const q=encodeURIComponent((title||"").slice(0,100));
     if(!q) return 0;
-    // Buscar por título, todos los content ratings para no filtrar nada
     const url=`https://api.mangadex.org/manga?title=${q}&limit=10&includes[]=none`
       +`&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic`
       +`&order[relevance]=desc`;
@@ -1624,73 +1703,50 @@ async function mangadexGetChapters(malId, title){
     const json=await res.json();
     const items=json?.data||[];
     const malStr=String(malId);
-    let bestMdxId=null;
-    let bestCount=0;
-    // 1er intento: match exacto por MAL ID en links.mal
+
+    // Paso 1 & 2: match exacto por MAL ID
+    let exactMdxId=null;
     for(const item of items){
       const attr=item?.attributes||{};
       const links=attr.links||{};
       if(String(links.mal||"")===malStr){
+        // Paso 1: lastChapter directo
         const lc=attr.lastChapter;
-        if(lc&&lc!==""){const n=parseFloat(lc);if(n>0)return Math.floor(n);}
-        // Guardamos el ID para intentar /statistics si lastChapter está vacío
-        if(!bestMdxId) bestMdxId=item.id;
+        if(lc&&lc!=="none"&&lc!==""){
+          const n=parseFloat(lc);
+          if(n>0) return Math.floor(n);
+        }
+        // Guardar para aggregate
+        if(!exactMdxId) exactMdxId=item.id;
       }
     }
-    // 2do intento: primer resultado que tenga lastChapter (el más relevante)
-    for(const item of items){
-      const lc=item?.attributes?.lastChapter;
-      if(lc&&lc!==""){const n=parseFloat(lc);if(n>0){bestCount=Math.floor(n);break;}}
-      if(!bestMdxId) bestMdxId=item.id;
+    // Paso 2: aggregate sin filtro de idioma para el match exacto
+    if(exactMdxId){
+      try{const n=await _mdxAggregate(exactMdxId);if(n>0)return n;}catch(e){}
     }
-    if(bestCount>0) return bestCount;
-    // 3er intento: si tenemos un MDX ID, usar /manga/{id}/aggregate para contar capítulos reales
-    if(bestMdxId){
-      try{
-        const aggRes=await fetch(
-          `https://api.mangadex.org/manga/${bestMdxId}/aggregate?translatedLanguage[]=en&translatedLanguage[]=es`,
-          {headers:{"Accept":"application/json"}}
-        );
-        if(aggRes.ok){
-          const aggJson=await aggRes.json();
-          // aggregate devuelve volumes con chapters; contar el número más alto
-          let maxChap=0;
-          const vols=aggJson?.volumes||{};
-          for(const vol of Object.values(vols)){
-            const chaps=vol?.chapters||{};
-            for(const chapKey of Object.keys(chaps)){
-              const n=parseFloat(chapKey);
-              if(!isNaN(n)&&n>maxChap) maxChap=n;
-            }
-          }
-          if(maxChap>0) return Math.floor(maxChap);
-        }
-      }catch(e){}
+
+    // Paso 3: primer resultado con lastChapter válido
+    let firstMdxId=null;
+    for(const item of items){
+      if(!firstMdxId) firstMdxId=item.id;
+      const lc=item?.attributes?.lastChapter;
+      if(lc&&lc!=="none"&&lc!==""){
+        const n=parseFloat(lc);
+        if(n>0) return Math.floor(n);
+      }
+    }
+
+    // Paso 4: aggregate del primer resultado
+    if(firstMdxId&&firstMdxId!==exactMdxId){
+      try{const n=await _mdxAggregate(firstMdxId);if(n>0)return n;}catch(e){}
     }
     return 0;
   }catch(e){return 0;}
 }
 
-// ── MangaDex aggregate: obtiene el capítulo más reciente por MDX UUID directo ──
+// ── MangaDex aggregate por UUID directo ──────────────────────────────────────
 async function mangadexGetChaptersByUUID(mdxId){
-  try{
-    const aggRes=await fetch(
-      `https://api.mangadex.org/manga/${mdxId}/aggregate?translatedLanguage[]=en&translatedLanguage[]=es`,
-      {headers:{"Accept":"application/json"}}
-    );
-    if(!aggRes.ok) return 0;
-    const aggJson=await aggRes.json();
-    let maxChap=0;
-    const vols=aggJson?.volumes||{};
-    for(const vol of Object.values(vols)){
-      const chaps=vol?.chapters||{};
-      for(const chapKey of Object.keys(chaps)){
-        const n=parseFloat(chapKey);
-        if(!isNaN(n)&&n>maxChap) maxChap=n;
-      }
-    }
-    return maxChap>0?Math.floor(maxChap):0;
-  }catch(e){return 0;}
+  try{return await _mdxAggregate(mdxId);}catch(e){return 0;}
 }
 
 // ── AniList GraphQL ──────────────────────────────────────────────────────────
@@ -1776,23 +1832,38 @@ async function searchJikan(query,tabType){
   // Mostrar dropdown inmediatamente con lo que tiene Jikan (caps para finalizados conocidos)
   renderJikanDrop(tabType);
 
-  // Enriquecer TODOS los items en paralelo con AniList + Jikan individual
-  // Se enriquecen SIEMPRE (publicados Y finalizados sin dato)
+  // Enriquecer items con MangaDex+AniList+Jikan
+  // Prioridad: primero los en publicación (son los que fallan más), luego finalizados
+  // Concurrencia limitada a 2 para no saturar las APIs (Jikan tiene rate limit de 3 req/seg)
   const snap=[...jikanResults]; // snapshot para evitar race con nueva búsqueda
-  const enrichPromises=snap.map(async(item)=>{
-    if(!item.mal_id)return;
-    const rawCnt=tabType==="manga"?(item.chapters||0):(item.episodes||0);
-    try{
-      const title=item.title_english||item.title||'';
-      const best=await getBestCount(item.mal_id,tabType,rawCnt,title);
-      // Solo actualizar si el item sigue en la lista actual
-      const live=jikanResults.find(x=>x.mal_id===item.mal_id);
-      if(!live)return;
-      live._latestChapter=best;
-      renderJikanDrop(tabType);
-    }catch(e){}
-  });
-  await Promise.all(enrichPromises);
+  const sorted=[
+    ...snap.filter(x=>tabType==="manga"?x.publishing:x.airing),
+    ...snap.filter(x=>!(tabType==="manga"?x.publishing:x.airing))
+  ];
+  const concurrency=2;
+  for(let i=0;i<sorted.length;i+=concurrency){
+    const batch=sorted.slice(i,i+concurrency);
+    await Promise.all(batch.map(async(item)=>{
+      if(!item.mal_id)return;
+      const rawCnt=tabType==="manga"?(item.chapters||0):(item.episodes||0);
+      try{
+        const title=item.title_english||item.title||'';
+        let best=await getBestCount(item.mal_id,tabType,rawCnt,title);
+        // Si todas las fuentes devuelven 0, intentar Jikan /chapters como último recurso (con retry)
+        if(!best){
+          try{best=await jikanGetLatestCount(item.mal_id,tabType,false);}catch(e){}
+        }
+        // Solo actualizar si el item sigue en la lista actual
+        const live=jikanResults.find(x=>x.mal_id===item.mal_id);
+        if(!live)return;
+        live._latestChapter=best; // 0=sin dato confirmado, >0=encontrado
+        renderJikanDrop(tabType);
+      }catch(e){
+        const live=jikanResults.find(x=>x.mal_id===item.mal_id);
+        if(live){live._latestChapter=0;renderJikanDrop(tabType);}
+      }
+    }));
+  }
 }
 
 function removeJikanDrop(){
