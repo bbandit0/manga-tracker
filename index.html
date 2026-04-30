@@ -1608,24 +1608,34 @@ async function jikanGetLatestCount(malId, type, fast=false){
 }
 
 // ── MangaDex: tiene lastChapter para manga en publicación ───────────────────
-// MangaDex trackea el último capítulo publicado incluso para obras en curso.
-// Cruza por links.mal (MAL ID) para identificar el manga exacto.
-async function mangadexGetChapters(malId){
+// Busca por título en MangaDex y cruza verificando links.mal === malId.
+// Si no hay match exacto por MAL ID, usa el resultado más relevante con lastChapter.
+async function mangadexGetChapters(malId, title){
   try{
-    // Buscar en MangaDex por el MAL ID directamente en los links
-    const url=`https://api.mangadex.org/manga?limit=10&includes[]=none&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic`;
-    // MangaDex permite filtrar por link de MAL
-    const malUrl=`https://api.mangadex.org/manga?limit=5&includes[]=none&links[mal]=${malId}`;
-    const res=await fetch(malUrl,{headers:{"Accept":"application/json"}});
+    const q=encodeURIComponent((title||"").slice(0,100));
+    if(!q) return 0;
+    // Buscar por título, todos los content ratings para no filtrar nada
+    const url=`https://api.mangadex.org/manga?title=${q}&limit=10&includes[]=none`
+      +`&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic`
+      +`&order[relevance]=desc`;
+    const res=await fetch(url,{headers:{"Accept":"application/json"}});
     if(!res.ok) return 0;
     const json=await res.json();
     const items=json?.data||[];
+    // 1er intento: match exacto por MAL ID en links.mal
+    const malStr=String(malId);
+    for(const item of items){
+      const attr=item?.attributes||{};
+      const links=attr.links||{};
+      if(String(links.mal||"")===malStr){
+        const lc=attr.lastChapter;
+        if(lc&&lc!==""){const n=parseFloat(lc);if(n>0)return Math.floor(n);}
+      }
+    }
+    // 2do intento: primer resultado que tenga lastChapter (el más relevante)
     for(const item of items){
       const lc=item?.attributes?.lastChapter;
-      if(lc&&lc!==""){
-        const n=parseFloat(lc);
-        if(n>0) return Math.floor(n);
-      }
+      if(lc&&lc!==""){const n=parseFloat(lc);if(n>0)return Math.floor(n);}
     }
     return 0;
   }catch(e){return 0;}
@@ -1652,11 +1662,11 @@ async function anilistGetCount(malId, type){
 // Para manga en publicación: MangaDex es la fuente más confiable.
 // Para anime: AniList + Jikan episodes.
 // Timeout global de 6s para no bloquear la UI.
-async function getBestCount(malId, type, rawCount){
+async function getBestCount(malId, type, rawCount, title){
   const timeout=new Promise(r=>setTimeout(()=>r(0),6000));
   if(type==="manga"){
     // MangaDex tiene lastChapter actualizado para manga en publicación
-    const mdx   =Promise.race([mangadexGetChapters(malId), timeout]);
+    const mdx   =Promise.race([mangadexGetChapters(malId,title), timeout]);
     const al    =Promise.race([anilistGetCount(malId,"manga"), timeout]);
     const jk    =Promise.race([jikanFetchFast(`https://api.jikan.moe/v4/manga/${malId}`)
       .then(d=>d?.data?.chapters||0).catch(()=>0), timeout]);
@@ -1704,7 +1714,8 @@ async function searchJikan(query,tabType){
     if(!item.mal_id)return;
     const rawCnt=tabType==="manga"?(item.chapters||0):(item.episodes||0);
     try{
-      const best=await getBestCount(item.mal_id,tabType,rawCnt);
+      const title=item.title_english||item.title||'';
+      const best=await getBestCount(item.mal_id,tabType,rawCnt,title);
       // Solo actualizar si el item sigue en la lista actual
       const live=jikanResults.find(x=>x.mal_id===item.mal_id);
       if(!live)return;
@@ -1812,7 +1823,8 @@ function selectJikanResult(item,tabType){
     if(fe&&!knownCount){fe.value="";fe.placeholder="Buscando...";}
     (async()=>{
       try{
-        const best=await getBestCount(item.mal_id,tabType,knownCount);
+        const title=item.title_english||item.title||'';
+        const best=await getBestCount(item.mal_id,tabType,knownCount,title);
         const f=fEl();
         if(best>0){
           newTotal=String(best);
