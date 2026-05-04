@@ -2091,20 +2091,41 @@ async function _srcJikanPaged(malId, type){
     const field=type==="manga"?"chapters":"episodes";
     const d=await jikanFetchFast(`https://api.jikan.moe/v4/${ep}/${malId}/${field}?page=1`);
     if(!d||!Array.isArray(d.data)||!d.data.length) return 0;
-    const tot=d.pagination?.items?.total||0;
-    if(tot>0) return tot;
+
+    const itemsTotal=d.pagination?.items?.total||0;
+    if(itemsTotal>0) return itemsTotal;
+
     const lp=d.pagination?.last_visible_page||1;
+
+    // Extraer numero real del cap/ep desde un item del endpoint /chapters o /episodes
+    // Jikan v4: el campo es "chapter" (string) en /chapters, "episode" en /episodes
+    function _extractNum(item){
+      if(!item) return 0;
+      const fields=type==="manga"
+        ?["chapter","vol","number"]
+        :["episode","number"];
+      for(const f of fields){
+        const n=Math.floor(parseFloat(String(item[f]||"")));
+        if(n>0&&n<100000) return n;
+      }
+      // Fallback: extraer del titulo
+      const txt=String(item.title||item.name||"");
+      const m=txt.match(/(\d+(?:\.\d+)?)/);
+      return m?Math.floor(parseFloat(m[1]))||0:0;
+    }
+
     if(lp<=1){
       const last=d.data[d.data.length-1];
-      return jikanExtractPublishedNumber(last,type)||d.data.length;
+      const n=_extractNum(last);
+      return n>0?n:d.data.length;
     }
-    // Ir a la última página
+
     const dL=await jikanFetchFast(`https://api.jikan.moe/v4/${ep}/${malId}/${field}?page=${lp}`);
     if(dL?.data?.length){
       const totL=dL.pagination?.items?.total||0;
       if(totL>0) return totL;
       const last=dL.data[dL.data.length-1];
-      const n=jikanExtractPublishedNumber(last,type);
+      const n=_extractNum(last);
       return n>0?n:(lp-1)*100+dL.data.length;
     }
     return (lp-1)*100+d.data.length;
@@ -2116,7 +2137,7 @@ async function _srcAniList(malId, type){
   try{
     const mediaType=type==="manga"?"MANGA":"ANIME";
     const fields=type==="manga"
-      ?"chapters volumes status lastChapterPublished"
+      ?"chapters volumes status"
       :"episodes status nextAiringEpisode{episode}";
     const query=`{Media(idMal:${malId},type:${mediaType}){${fields}}}`;
     const res=await fetch("https://graphql.anilist.co",{
@@ -2128,7 +2149,7 @@ async function _srcAniList(malId, type){
     const json=await res.json();
     const media=json?.data?.Media;
     if(!media) return 0;
-    if(type==="manga") return Math.max(media.chapters||0, media.lastChapterPublished||0);
+    if(type==="manga") return media.chapters||0;
     if(media.nextAiringEpisode?.episode>0) return media.nextAiringEpisode.episode-1;
     return media.episodes||0;
   }catch(e){return 0;}
@@ -2565,20 +2586,14 @@ async function checkJikanUpdates(){
           }catch(e1){}
           if(!count){const a=await _srcAniList(series.jikanId,"anime").catch(()=>0);if(a>0)count=a;}
         }else{
-          // Manga en emision: Jikan.chapters=null -> usar AniList+MangaDex+JikanPaged
-          const [al,mdx,jkp]=await Promise.all([
-            _srcAniList(series.jikanId,"manga").catch(()=>0),
-            _srcMangaDexByMalId(series.jikanId).catch(()=>0),
-            _srcJikanPaged(series.jikanId,"manga").catch(()=>0)
+          const [jkp,mdx]=await Promise.all([
+            _srcJikanPaged(series.jikanId,"manga").catch(()=>0),
+            _srcMangaDexByMalId(series.jikanId).catch(()=>0)
           ]);
-          count=Math.max(al||0,mdx||0,jkp||0);
+          count=Math.max(jkp||0,mdx||0);
           try{
             const res=await fetch(`https://api.jikan.moe/v4/${ep}/${series.jikanId}`);
-            if(res.ok){
-              const json=await res.json();
-              stillPub=json.data?.publishing!==false;
-              if(json.data?.chapters>0)count=Math.max(count,json.data.chapters);
-            }
+            if(res.ok){const json=await res.json();stillPub=json.data?.publishing!==false;if(json.data?.chapters>0)count=Math.max(count,json.data.chapters);}
           }catch(e1){}
         }
         if(count>0&&count!==series.total){
@@ -2588,13 +2603,8 @@ async function checkJikanUpdates(){
           series.lastUpdated=Date.now();
           anyUpdated=true;
           const lbl=tabKey==="manga"?"cap.":"ep.";
-          showToast(count>prev&&prev>0
-            ?`🆕 ${series.title}: ${lbl} ${count} disponible`
-            :`🔄 ${series.title}: actualizado a ${count} ${lbl}`,4000);
-        }else if(!stillPub&&series.jikanPublishing){
-          series.jikanPublishing=false;
-          anyUpdated=true;
-        }
+          showToast(count>prev&&prev>0?`🆕 ${series.title}: cap. ${count} disponible`:`🔄 ${series.title}: actualizado a ${count} ${lbl}`,4000);
+        }else if(!stillPub&&series.jikanPublishing){series.jikanPublishing=false;anyUpdated=true;}
       }catch(e){}
       await new Promise(r=>setTimeout(r,800));
     }
@@ -2615,11 +2625,11 @@ async function checkUpToDateNewChapters(){
           const res=await fetch("https://api.jikan.moe/v4/"+ep+"/"+series.jikanId);
           if(res.ok){const json=await res.json();count=json.data?.episodes||0;}
         }else{
-          const [al,mdx]=await Promise.all([
-            _srcAniList(series.jikanId,"manga").catch(()=>0),
+          const [jkp,mdx]=await Promise.all([
+            _srcJikanPaged(series.jikanId,"manga").catch(()=>0),
             _srcMangaDexByMalId(series.jikanId).catch(()=>0)
           ]);
-          count=Math.max(al||0,mdx||0);
+          count=Math.max(jkp||0,mdx||0);
         }
         if(count>0&&count>series.total){
           const lbl=tabKey==="manga"?"cap.":"ep.";
@@ -2630,9 +2640,7 @@ async function checkUpToDateNewChapters(){
     }
   }
   if(notifications.length>0){
-    const msg=notifications.length===1
-      ?"\uD83D\uDECE "+notifications[0]
-      :"\uD83D\uDECE "+notifications.length+" series con cap. nuevo!";
+    const msg=notifications.length===1?"\uD83D\uDECE "+notifications[0]:"\uD83D\uDECE "+notifications.length+" series con cap. nuevo!";
     showToast(msg,5000);
   }
 }
