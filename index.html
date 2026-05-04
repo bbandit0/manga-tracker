@@ -2290,11 +2290,10 @@ async function searchJikan(query,tabType){
     const res=await fetch(`https://api.jikan.moe/v4/${ep}?q=${encodeURIComponent(query)}&limit=20`);
     if(!res.ok){jikanResults=[];return;}
     const json=await res.json();
-    const raw=(json.data||[]);
-    // Normalizar titulo base: quitar indicadores de temporada
+    const rawItems=(json.data||[]);
     function _baseTitle(t){
       return (t||"")
-        .replace(/[:\u00b7]\s*(season|part|cour|arc)\s*\d+.*/i,"")
+        .replace(/[:]\s*(season|part|cour|arc)\s*\d+.*/i,"")
         .replace(/\s+(2nd|3rd|\d+th|second|third|fourth|fifth|sixth)\s+(season|cour|part)/i,"")
         .replace(/\s+season\s*\d+/i,"")
         .replace(/\s+\d+(st|nd|rd|th)\s+season/i,"")
@@ -2305,15 +2304,12 @@ async function searchJikan(query,tabType){
         .replace(/[-\s]+$/,"")
         .trim().toLowerCase();
     }
-    // Agrupar temporadas del mismo anime/manga
-    const seen=new Map(); // base -> index en grouped
+    const seen=new Map();
     const grouped=[];
-    for(const item of raw){
+    for(const item of rawItems){
       const titleEn=(item.title_english||"").trim();
       const titleJa=(item.title||"").trim();
-      const baseEn=_baseTitle(titleEn);
-      const baseJa=_baseTitle(titleJa);
-      const base=(titleEn?baseEn:null)||baseJa||baseEn;
+      const base=(titleEn?_baseTitle(titleEn):null)||_baseTitle(titleJa)||_baseTitle(titleEn);
       if(!base)continue;
       if(!seen.has(base)){
         seen.set(base,grouped.length);
@@ -2327,12 +2323,12 @@ async function searchJikan(query,tabType){
         if(!master._allMalIds)master._allMalIds=[master.mal_id];
         master._allMalIds.push(item.mal_id);
         if(tabType==="manga"){
-          if((item.chapters||0)>0&&(master.chapters||0)>0)master.chapters=(master.chapters||0)+(item.chapters||0);
-          else if((item.chapters||0)>0)master.chapters=item.chapters;
+          const prev=master.chapters||0,add=item.chapters||0;
+          if(prev>0&&add>0)master.chapters=prev+add;else if(add>0)master.chapters=add;
           if(item.publishing)master.publishing=true;
         }else{
-          if((item.episodes||0)>0&&(master.episodes||0)>0)master.episodes=(master.episodes||0)+(item.episodes||0);
-          else if((item.episodes||0)>0)master.episodes=item.episodes;
+          const prev=master.episodes||0,add=item.episodes||0;
+          if(prev>0&&add>0)master.episodes=prev+add;else if(add>0)master.episodes=add;
           if(item.airing)master.airing=true;
         }
       }
@@ -2360,17 +2356,15 @@ async function searchJikan(query,tabType){
         const allIds=item._allMalIds&&item._allMalIds.length?item._allMalIds:[item.mal_id];
         const counts=await Promise.all(allIds.map(async(mid,i)=>{
           const rawC=i===0?(tabType==="manga"?(item.chapters||0):(item.episodes||0)):0;
-          let c=await getBestCount(mid,tabType,rawC,i===0?title:'');
+          let c=await getBestCount(mid,tabType,rawC,i===0?title:"");
           if(!c){try{c=await jikanGetLatestCount(mid,tabType,false);}catch(e){}}
           return c||0;
         }));
-        const validCounts=counts.filter(c=>c>0);
-        const totalBest=validCounts.length===allIds.length
-          ?validCounts.reduce((a,b)=>a+b,0)
-          :Math.max(...counts,0);
+        const valid=counts.filter(c=>c>0);
+        const total=valid.length===allIds.length?valid.reduce((a,b)=>a+b,0):Math.max(...counts,0);
         const live=jikanResults.find(x=>x.mal_id===item.mal_id);
         if(!live)return;
-        live._latestChapter=totalBest;
+        live._latestChapter=total;
         renderJikanDrop(tabType);
       }catch(e){
         const live=jikanResults.find(x=>x.mal_id===item.mal_id);
@@ -2502,7 +2496,7 @@ function selectJikanResult(item,tabType){
   const inp2=document.getElementById("add-total");
   if(inp2)inp2.value=newTotal;
   
-  // Buscar el mejor conteo: todas las temporadas en paralelo
+  // Buscar mejor conteo: todas las temporadas en paralelo
   if(item.mal_id){
     const fEl=()=>document.getElementById("add-total");
     const fe=fEl();
@@ -2513,12 +2507,10 @@ function selectJikanResult(item,tabType){
         const allIds=item._allMalIds&&item._allMalIds.length?item._allMalIds:[item.mal_id];
         const counts=await Promise.all(allIds.map(async(mid,i)=>{
           const rawC=i===0?knownCount:0;
-          return getBestCount(mid,tabType,rawC,i===0?title:'').catch(()=>0);
+          return getBestCount(mid,tabType,rawC,i===0?title:"").catch(()=>0);
         }));
-        const validCounts=counts.filter(c=>c>0);
-        const best=validCounts.length===allIds.length
-          ?validCounts.reduce((a,b)=>a+b,0)
-          :Math.max(...counts,0);
+        const valid=counts.filter(c=>c>0);
+        const best=valid.length===allIds.length?valid.reduce((a,b)=>a+b,0):Math.max(...counts,0);
         const f=fEl();
         if(best>0){
           newTotal=String(best);
@@ -2559,43 +2551,55 @@ function selectJikanResult(item,tabType){
 }
 
 async function checkJikanUpdates(){
-  let anyUpdated = false;
+  let anyUpdated=false;
   for(const tabKey of ["manga","anime"]){
     const ep=tabKey==="manga"?"manga":"anime";
     const publishing=data[tabKey].filter(s=>s.jikanId&&s.jikanPublishing);
     for(const series of publishing){
       try{
-        // Obtener mejor conteo con AniList + Jikan en paralelo
-        let stillPub = true;
-        let count = 0;
-        try{
-          const res=await fetch(`https://api.jikan.moe/v4/${ep}/${series.jikanId}`);
-          const json=await res.json();
-          const jkCnt=tabKey==="manga"?json.data?.chapters:json.data?.episodes;
-          stillPub=tabKey==="manga"?(json.data?.publishing!==false):(json.data?.airing!==false);
-          count=jkCnt||0;
-        }catch(e1){}
-        // Si Jikan no trajo número, usar AniList (_srcAniList es la función correcta)
-        if(!count || count<1){
-          const alCnt=await _srcAniList(series.jikanId,tabKey);
-          if(alCnt>0)count=alCnt;
+        let stillPub=true,count=0;
+        if(tabKey==="anime"){
+          try{
+            const res=await fetch(`https://api.jikan.moe/v4/${ep}/${series.jikanId}`);
+            if(res.ok){const json=await res.json();count=json.data?.episodes||0;stillPub=json.data?.airing!==false;}
+          }catch(e1){}
+          if(!count){const a=await _srcAniList(series.jikanId,"anime").catch(()=>0);if(a>0)count=a;}
+        }else{
+          // Manga en emision: Jikan.chapters=null -> usar AniList+MangaDex+JikanPaged
+          const [al,mdx,jkp]=await Promise.all([
+            _srcAniList(series.jikanId,"manga").catch(()=>0),
+            _srcMangaDexByMalId(series.jikanId).catch(()=>0),
+            _srcJikanPaged(series.jikanId,"manga").catch(()=>0)
+          ]);
+          count=Math.max(al||0,mdx||0,jkp||0);
+          try{
+            const res=await fetch(`https://api.jikan.moe/v4/${ep}/${series.jikanId}`);
+            if(res.ok){
+              const json=await res.json();
+              stillPub=json.data?.publishing!==false;
+              if(json.data?.chapters>0)count=Math.max(count,json.data.chapters);
+            }
+          }catch(e1){}
         }
-        const shouldUpdate=count>0&&(count>series.total||series.total<=1);
-        if(shouldUpdate){
+        if(count>0&&count!==series.total){
+          const prev=series.total;
           series.total=count;
           series.jikanPublishing=stillPub;
           series.lastUpdated=Date.now();
           anyUpdated=true;
-          showToast(`🆕 ${series.title}: ${count} ${tabKey==="manga"?"cap.":"ep."} disponibles`,4000);
+          const lbl=tabKey==="manga"?"cap.":"ep.";
+          showToast(count>prev&&prev>0
+            ?`🆕 ${series.title}: ${lbl} ${count} disponible`
+            :`🔄 ${series.title}: actualizado a ${count} ${lbl}`,4000);
         }else if(!stillPub&&series.jikanPublishing){
           series.jikanPublishing=false;
           anyUpdated=true;
         }
       }catch(e){}
-      await new Promise(r=>setTimeout(r,700));
+      await new Promise(r=>setTimeout(r,800));
     }
   }
-  if(anyUpdated){ save(); render(); }
+  if(anyUpdated){save();render();}
 }
 // ── AVISO: NUEVO CAPÍTULO EN SERIES AL DÍA ──
 async function checkUpToDateNewChapters(){
@@ -2604,18 +2608,25 @@ async function checkUpToDateNewChapters(){
     const ep=tabKey==="manga"?"manga":"anime";
     const pubSeries=data[tabKey].filter(s=>s.jikanId&&s.jikanPublishing);
     for(const series of pubSeries){
-      const nextCh=nextChapter(series);
-      if(nextCh!==null)continue;
+      if(nextChapter(series)!==null)continue;
       try{
-        const res=await fetch("https://api.jikan.moe/v4/"+ep+"/"+series.jikanId);
-        if(!res.ok)continue;
-        const json=await res.json();
-        const count=tabKey==="manga"?json.data?.chapters:json.data?.episodes;
-        if(count&&count>series.total){
-          notifications.push(series.title+" — cap. "+count+" disponible");
+        let count=0;
+        if(tabKey==="anime"){
+          const res=await fetch("https://api.jikan.moe/v4/"+ep+"/"+series.jikanId);
+          if(res.ok){const json=await res.json();count=json.data?.episodes||0;}
+        }else{
+          const [al,mdx]=await Promise.all([
+            _srcAniList(series.jikanId,"manga").catch(()=>0),
+            _srcMangaDexByMalId(series.jikanId).catch(()=>0)
+          ]);
+          count=Math.max(al||0,mdx||0);
+        }
+        if(count>0&&count>series.total){
+          const lbl=tabKey==="manga"?"cap.":"ep.";
+          notifications.push(`${series.title} — ${lbl} ${count} disponible`);
         }
       }catch(e){}
-      await new Promise(r=>setTimeout(r,500));
+      await new Promise(r=>setTimeout(r,600));
     }
   }
   if(notifications.length>0){
