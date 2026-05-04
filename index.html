@@ -2116,7 +2116,7 @@ async function _srcAniList(malId, type){
   try{
     const mediaType=type==="manga"?"MANGA":"ANIME";
     const fields=type==="manga"
-      ?"chapters volumes status"
+      ?"chapters volumes status lastChapterPublished"
       :"episodes status nextAiringEpisode{episode}";
     const query=`{Media(idMal:${malId},type:${mediaType}){${fields}}}`;
     const res=await fetch("https://graphql.anilist.co",{
@@ -2128,7 +2128,7 @@ async function _srcAniList(malId, type){
     const json=await res.json();
     const media=json?.data?.Media;
     if(!media) return 0;
-    if(type==="manga") return media.chapters||0;
+    if(type==="manga") return Math.max(media.chapters||0, media.lastChapterPublished||0);
     if(media.nextAiringEpisode?.episode>0) return media.nextAiringEpisode.episode-1;
     return media.episodes||0;
   }catch(e){return 0;}
@@ -2305,18 +2305,36 @@ async function searchJikan(query,tabType){
         .replace(/\s+[IVX]{1,4}$/, "") // Roman numerals at end
         .trim().toLowerCase();
     }
-    const seen=new Map();
+    const seen=new Map(); // base -> index en deduped
     const deduped=[];
     for(const item of raw){
       const titleEn=(item.title_english||"").trim();
       const titleJa=(item.title||"").trim();
-      // Use English title if available, otherwise Japanese
       const displayTitle=titleEn||titleJa;
       const base=_baseTitle(displayTitle)||_baseTitle(titleJa);
       if(!seen.has(base)){
-        seen.set(base,true);
-        deduped.push(item);
+        seen.set(base,deduped.length);
+        deduped.push(Object.assign({},item));
         if(deduped.length>=6)break;
+      }else{
+        // Acumular episodios/caps de temporadas extras en la entrada principal
+        const idx=seen.get(base);
+        const master=deduped[idx];
+        if(tabType==="manga"){
+          const prevCh=master.chapters||0;
+          const thisCh=item.chapters||0;
+          if(prevCh>0&&thisCh>0) master.chapters=prevCh+thisCh;
+          else if(thisCh>0) master.chapters=thisCh;
+        }else{
+          const prevEp=master.episodes||0;
+          const thisEp=item.episodes||0;
+          if(prevEp>0&&thisEp>0) master.episodes=prevEp+thisEp;
+          else if(thisEp>0) master.episodes=thisEp;
+        }
+        if(tabType==="manga"){if(item.publishing)master.publishing=true;}
+        else{if(item.airing)master.airing=true;}
+        if(!master._extraMalIds)master._extraMalIds=[];
+        master._extraMalIds.push(item.mal_id);
       }
     }
     jikanResults=deduped;
@@ -2489,7 +2507,13 @@ function selectJikanResult(item,tabType){
     (async()=>{
       try{
         const title=item.title_english||item.title||'';
-        const best=await getBestCount(item.mal_id,tabType,knownCount,title);
+        let best=await getBestCount(item.mal_id,tabType,knownCount,title);
+        // Si hay temporadas extra acumuladas, obtener sus conteos y sumar
+        if(tabType!=="manga"&&item._extraMalIds&&item._extraMalIds.length){
+          const extraCounts=await Promise.all(item._extraMalIds.map(eid=>getBestCount(eid,tabType,0,"").catch(()=>0)));
+          const extraSum=extraCounts.reduce((a,b)=>a+(b||0),0);
+          if(extraSum>0) best=Math.max(best,(best||0)+extraSum);
+        }
         const f=fEl();
         if(best>0){
           newTotal=String(best);
