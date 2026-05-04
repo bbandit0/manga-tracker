@@ -447,11 +447,10 @@ html::after{
 .pubprof-cover::before{content:"";position:absolute;inset:0;z-index:1;background:radial-gradient(ellipse 120% 80% at 15% 50%,rgba(99,179,237,.32) 0%,transparent 55%),radial-gradient(ellipse 80% 100% at 88% 25%,rgba(155,125,255,.28) 0%,transparent 55%),repeating-linear-gradient(135deg,rgba(255,255,255,.02) 0,rgba(255,255,255,.02) 1px,transparent 1px,transparent 22px)}
 .pubprof-cover::after{content:"";position:absolute;bottom:0;left:0;right:0;height:80px;z-index:2;background:linear-gradient(transparent,rgba(10,16,28,.98))}
 /* Avatar — correct overlap positioning */
-.pubprof-av-wrap{position:absolute;bottom:-38px;left:20px;z-index:4}
-.pubprof-av{width:76px;height:76px;border-radius:50%;border:4px solid rgba(10,16,28,.98);background:linear-gradient(135deg,var(--am),var(--aa));display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#fff;overflow:hidden;box-shadow:0 0 0 2px rgba(99,179,237,.45),0 8px 24px rgba(0,0,0,.6)}
-.pubprof-av img{width:100%;height:100%;object-fit:cover;border-radius:50%}
-/* Body padding accounts for avatar height correctly */
-.pubprof-body{padding:48px 20px 0}
+.pubprof-av-wrap{position:absolute;bottom:-40px;left:20px;z-index:4}
+.pubprof-av{width:80px;height:80px;border-radius:50%;border:4px solid rgba(10,16,28,.98);background:linear-gradient(135deg,var(--am),var(--aa));display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700;color:#fff;overflow:hidden;box-shadow:0 0 0 2px rgba(99,179,237,.45),0 8px 24px rgba(0,0,0,.6)}
+.pubprof-av img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
+.pubprof-body{padding:54px 20px 0}
 /* Nombre + badges en la misma línea */
 .pubprof-name{font-size:22px;font-weight:800;color:#fff;font-family:"Space Mono",monospace;letter-spacing:-1px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .pubprof-name-badge{font-size:9px;font-weight:700;padding:3px 10px;border-radius:20px;background:linear-gradient(135deg,rgba(99,179,237,.22),rgba(155,125,255,.18));border:1px solid rgba(99,179,237,.35);color:var(--am);letter-spacing:.4px}
@@ -562,11 +561,11 @@ html::after{
 .fn-fc-stat-l{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
 /* Friend profile view */
 .fn-profile{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rm);padding:20px;margin-bottom:20px;animation:slideDown .2s}
-.fn-profile-banner{height:60px;border-radius:var(--rm) var(--rm) 0 0;margin:-20px -20px 0 -20px;position:relative;overflow:hidden}
-.fn-profile-banner::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,var(--bg3) 100%)}
+.fn-profile-banner{height:140px;border-radius:var(--rm) var(--rm) 0 0;position:relative;overflow:hidden}
+.fn-profile-banner::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,transparent 30%,rgba(10,16,28,.95) 100%);z-index:2}
 .fn-profile-header{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--bd)}
-.fn-profile-avatar{width:52px;height:52px;border-radius:50%;border:2px solid var(--am);object-fit:cover}
-.fn-profile-avatar-ph{width:52px;height:52px;border-radius:50%;background:var(--amd);border:2px solid var(--am);display:flex;align-items:center;justify-content:center;font-size:24px}
+.fn-profile-avatar{width:64px;height:64px;border-radius:50%;border:4px solid rgba(10,16,28,.98);object-fit:cover;box-shadow:0 0 0 2px rgba(99,179,237,.4),0 4px 16px rgba(0,0,0,.6)}
+.fn-profile-avatar-ph{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--am),var(--aa));border:4px solid rgba(10,16,28,.98);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;box-shadow:0 0 0 2px rgba(99,179,237,.4),0 4px 16px rgba(0,0,0,.6)}
 .fn-profile-info{flex:1}
 .fn-profile-name{font-size:17px;font-weight:700;color:var(--t1)}
 .fn-profile-uname{font-size:11px;color:var(--t2);font-family:'Space Mono',monospace;margin-top:2px}
@@ -1398,39 +1397,40 @@ async function _renderFriendsPanelInner(container){
     // banner color hash desde username
     const _uh=_pUsername;let _hv=0;for(let i=0;i<_uh.length;i++){_hv=(_hv*31+_uh.charCodeAt(i))&0xFFFFFF;}_hv=_hv%360;
     const _b1=`hsl(${_hv},65%,30%)`,_b2=`hsl(${(_hv+55)%360},60%,22%)`,_b3=`hsl(${(_hv+115)%360},55%,17%)`;
-    // Serie más activa — solo URL HTTP para el banner (las Base64 son miniaturas 40x57 que se ven mal)
     const _topS=reading[0]||null;
     const _topSWithUrl=reading.find(s=>s.cover&&typeof s.cover==="string"&&s.cover.startsWith("http"))||null;
     let _topCoverUrl=_topSWithUrl?.cover||"";
-    if(!_topCoverUrl&&_topS?.title){
+    if(!_topCoverUrl&&_topS){
       const _ck=((_topS.type==="A"?"anime":"manga")+":"+_topS.title).toLowerCase().trim();
       const _cv=_coverUrlCache.get(_ck);
       if(_cv&&_cv!=="pending") _topCoverUrl=_cv;
-      else if(!_cv) fnFetchCoverUrl(_topS.title,_topS.type==="A"?"anime":"manga").then(url=>{
-        if(url){
-          // Actualización quirúrgica del banner del perfil expandido
-          const bannerEl=document.getElementById("fp-banner-img");
-          if(bannerEl){
-            bannerEl.src=url;
-            bannerEl.style.display="block";
+      else if(!_cv){
+        const _fjid=_topS.jikanId||null;
+        const _ftype=_topS.type==="A"?"anime":"manga";
+        const _ftitle=_topS.title;
+        (async()=>{
+          let url="";
+          if(_fjid){try{const ep=_ftype==="manga"?"manga":"anime";const r=await fetch(`https://api.jikan.moe/v4/${ep}/${_fjid}`);if(r.ok){const j=await r.json();url=j.data?.images?.jpg?.large_image_url||j.data?.images?.jpg?.image_url||"";}}catch(e){}}
+          if(!url) url=await fnFetchCoverUrl(_ftitle,_ftype);
+          if(url){
+            _coverUrlCache.set(_ftype+":"+_ftitle.toLowerCase().trim(),url);
+            const el=document.getElementById("fp-banner-img");
+            if(el){el.src=url;el.style.display="block";el.style.opacity="1";}
             const lbl=document.getElementById("fp-banner-lbl");
             if(lbl) lbl.style.display="flex";
-          } else {
-            friendsState.viewingData=null;
-            renderFriendsPanel();
           }
-        }
-      });
+        })();
+      }
     }
     const _topPct=_topS&&_topS.total>0?Math.round((_topS.completed||0)/_topS.total*100):0;
     // Banner mejorado — pre-calcular estilos para evitar template literals anidados
     const _profBannerFallbackBg=`linear-gradient(135deg,${_b1} 0%,${_b2} 55%,${_b3} 100%)`;
     const _profBannerLblDisplay=_topCoverUrl?"flex":"none";
-    const _profileBannerHtml=`<div class="fn-profile-banner-v5" style="position:relative;overflow:hidden;background:${_profBannerFallbackBg}">
-      <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.02) 0,rgba(255,255,255,.02) 1px,transparent 1px,transparent 18px),radial-gradient(ellipse 90% 90% at 15% 60%,rgba(104,211,145,.15) 0%,transparent 55%),radial-gradient(ellipse 70% 90% at 88% 20%,rgba(99,179,237,.12) 0%,transparent 55%);z-index:0"></div>
-      <img id="fp-banner-img" src="${_topCoverUrl||''}" onerror="this.style.display='none'" style="position:absolute;inset:-20px;width:calc(100% + 40px);height:calc(100% + 40px);object-fit:cover;object-position:center 25%;filter:blur(18px) brightness(.35) saturate(1.8);z-index:1;transition:opacity .7s ease;display:${_topCoverUrl?'block':'none'}">
-      <div style="position:absolute;inset:0;z-index:2;background:linear-gradient(180deg,rgba(0,0,0,.05) 0%,rgba(0,0,0,.75) 100%)"></div>
-      ${_topS?`<div id="fp-banner-lbl" style="position:absolute;bottom:10px;left:20px;right:20px;display:${_profBannerLblDisplay};align-items:center;gap:8px;z-index:3"><span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.85);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 8px rgba(0,0,0,.95)">&#9654; ${_topS.title}</span><span style="font-size:9px;font-family:Space Mono,monospace;color:rgba(255,255,255,.55);background:rgba(0,0,0,.55);padding:1px 6px;border-radius:4px;flex-shrink:0">${_topPct}%</span></div>`:""}
+    const _profileBannerHtml=`<div style="position:relative;overflow:hidden;height:160px;background:${_profBannerFallbackBg}">
+      <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.025) 0,rgba(255,255,255,.025) 1px,transparent 1px,transparent 22px);pointer-events:none;z-index:0"></div>
+      <img id="fp-banner-img" src="${_topCoverUrl||''}" onerror="this.style.display='none'" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:140%;height:140%;object-fit:cover;object-position:center center;filter:blur(14px) brightness(.3) saturate(1.8);z-index:1;transition:opacity .6s ease;display:${_topCoverUrl?'block':'none'};opacity:${_topCoverUrl?1:0}">
+      <div style="position:absolute;inset:0;z-index:2;background:linear-gradient(180deg,rgba(0,0,0,.08) 0%,rgba(0,0,0,.7) 100%);pointer-events:none"></div>
+      ${_topS?`<div id="fp-banner-lbl" style="position:absolute;bottom:12px;left:18px;right:18px;display:${_profBannerLblDisplay};align-items:center;gap:8px;z-index:3"><span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.9);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 8px rgba(0,0,0,.95)">&#9654; ${_topS.title}</span><span style="font-size:9px;font-family:Space Mono,monospace;color:rgba(255,255,255,.6);background:rgba(0,0,0,.55);padding:2px 8px;border-radius:6px;flex-shrink:0">${_topPct}%</span></div>`:""}
     </div>`;
     // series en común
     const myMangaTitles=new Set(data.manga.map(s=>s.title.toLowerCase().trim()));
@@ -1483,7 +1483,7 @@ async function _renderFriendsPanelInner(container){
           <button style="padding:6px 12px;border:1px solid rgba(231,76,76,.3);background:rgba(231,76,76,.07);color:var(--t3);font-size:10px;border-radius:10px;cursor:pointer;font-weight:600;font-family:'Outfit',sans-serif;transition:.15s" onmouseover="this.style.color='var(--dng)';this.style.borderColor='var(--dng)'" onmouseout="this.style.color='var(--t3)';this.style.borderColor='rgba(231,76,76,.3)'" onclick="if(confirm('¿Eliminar a @${_pUsername} de amigos?'))fnRemoveFriend('${vuid}')">✕ Eliminar</button>
         </div>
         ${_profileBannerHtml}
-        <div style="display:flex;align-items:flex-end;gap:14px;padding:0 20px 16px;margin-top:-32px;position:relative;z-index:1;border-bottom:1px solid rgba(255,255,255,.06)">
+        <div style="display:flex;align-items:flex-end;gap:14px;padding:0 18px 16px;margin-top:-36px;position:relative;z-index:3;border-bottom:1px solid rgba(255,255,255,.06)">
           ${_pAv}
           <div style="flex:1;min-width:0;padding-bottom:2px">
             <div class="fn-profile-name">@${_pUsername}</div>
@@ -1789,27 +1789,20 @@ async function _renderFriendsPanelInner(container){
       const readingF=allF.filter(s=>s.status==="reading").sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0));
       const readingCount=readingF.length;
       const topS=readingF.find(s=>s.cover&&typeof s.cover==="string"&&s.cover.startsWith("http"))||readingF[0]||null;
-      let bannerUrl="";
-      if(topS){
-        const _tc=topS.cover||"";
-        if(_tc&&(_tc.startsWith("http")||_tc.startsWith("data:"))) bannerUrl=_tc;
-        else{
-          const _ck=((topS._t==="A"?"anime":"manga")+":"+topS.title).toLowerCase();
-          const _cc=_coverUrlCache.get(_ck);
-          if(_cc&&_cc!=="pending") bannerUrl=_cc;
-          else if(!_cc){
-            const _fuid=f.uid,_fjid=topS.jikanId||null,_ftype=topS._t==="A"?"anime":"manga",_ftitle=topS.title;
-            (async()=>{
-              let url="";
-              if(_fjid){try{const ep=_ftype==="manga"?"manga":"anime";const r=await fetch(`https://api.jikan.moe/v4/${ep}/${_fjid}`);if(r.ok){const j=await r.json();url=j.data?.images?.jpg?.large_image_url||j.data?.images?.jpg?.image_url||"";}}catch(e){}}
-              if(!url) url=await fnFetchCoverUrl(_ftitle,_ftype);
-              if(url){
-                _coverUrlCache.set(_ftype+":"+_ftitle.toLowerCase(),url);
-                const el=document.querySelector(`[data-fc-uid="${_fuid}"] .friend-card-banner-img`);
-                if(el){el.src=url;el.style.opacity="1";}
-              }
-            })();
-          }
+      let bannerUrl=topS?.cover&&typeof topS.cover==="string"&&topS.cover.startsWith("http")?topS.cover:"";
+
+      // Si no hay URL directa, buscar en cache o fetchear Jikan
+      if(!bannerUrl&&topS?.title){
+        const _ck=((topS._t==="A"?"anime":"manga")+":"+topS.title).toLowerCase();
+        const _cc=_coverUrlCache.get(_ck);
+        if(_cc&&_cc!=="pending") bannerUrl=_cc;
+        else if(!_cc){
+          fnFetchCoverUrl(topS.title,topS._t==="A"?"anime":"manga").then(url=>{
+            if(url){
+              const el=document.querySelector(`[data-fc-uid="${f.uid}"] .friend-card-banner-img`);
+              if(el){el.src=url;el.style.opacity="1";}
+            }
+          });
         }
       }
 
@@ -2906,10 +2899,13 @@ if(tab==="dashboard"){
 function transitionRender(fn){fn();}
 // ═══ MAIN ═══
 const tabs=h("div","tabs");tabs.appendChild(h("button",`tab ${tab==="manga"?"am":""}`,`${svg.book} Manga <span class="tab-c">(${data.manga.length})</span>`,{onclick:()=>{tab="manga";filterStatus="all";filterTag="all";showFavsOnly=false;jikanResults=[];newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;transitionRender(render);}}));tabs.appendChild(h("button",`tab ${tab==="anime"?"aa":""}`,`${svg.tv} Anime <span class="tab-c">(${data.anime.length})</span>`,{onclick:()=>{tab="anime";filterStatus="all";filterTag="all";showFavsOnly=false;jikanResults=[];newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;transitionRender(render);}}));
-const profBtn=h("button",`tab ${tab==="profile"?"am":""}`,`👤 Perfil`,{onclick:()=>{tab="profile";showSettings=false;showPatch=false;transitionRender(render);}});
-tabs.appendChild(profBtn);
+// P2.8: Tab Descubrir
 const discBtn=h("button",`tab ${tab==="discover"?"am":""}`,`✨ Descubrir`,{onclick:()=>{tab="discover";showSettings=false;showPatch=false;transitionRender(render);}});
 tabs.appendChild(discBtn);
+// P2.8: Tab Perfil
+const profBtn=h("button",`tab ${tab==="profile"?"am":""}`,`👤 Perfil`,{onclick:()=>{tab="profile";showSettings=false;showPatch=false;transitionRender(render);}});
+tabs.appendChild(profBtn);
+// v4.0: Tab Historial
 const histBtn=h("button",`tab ${tab==="history"?"am":""}`,`📋 Historial`,{onclick:()=>{tab="history";showSettings=false;showPatch=false;transitionRender(render);}});
 tabs.appendChild(histBtn);
 root.appendChild(tabs);
@@ -3411,14 +3407,13 @@ async function p28RenderRecoSection(root){
     </div>`;
     if(mangaWrap)mangaWrap.innerHTML=_skeleton;
     if(animeWrap)animeWrap.innerHTML=_skeleton;
-    const _rt=ms=>new Promise(r=>setTimeout(()=>r([]),ms));
     const [mangaReco,animeReco]=await Promise.all([
-      Promise.race([p28FetchReco(allTags,"manga"),_rt(10000)]),
-      Promise.race([p28FetchReco(allTags,"anime"),_rt(10000)])
+      p28FetchReco(allTags,"manga"),
+      p28FetchReco(allTags,"anime")
     ]);
-    p28RecoCache={manga:mangaReco||[],anime:animeReco||[],tagsKey};
-    await renderRecoList("reco-manga-wrap","manga",mangaReco||[]);
-    await renderRecoList("reco-anime-wrap","anime",animeReco||[]);
+    p28RecoCache={manga:mangaReco,anime:animeReco,tagsKey};
+    await renderRecoList("reco-manga-wrap","manga",mangaReco);
+    await renderRecoList("reco-anime-wrap","anime",animeReco);
   }
 }
 
@@ -3448,28 +3443,22 @@ async function p28RenderPublicProfile(root){
   const _bannerSeries=allSeries[0]||null;
   let _bannerUrl="";
   if(_bannerSeries){
-    const _bCover=_bannerSeries.cover||"";
-    if(_bCover&&(_bCover.startsWith("http")||_bCover.startsWith("data:"))){ _bannerUrl=_bCover; }
-    else{
+    if(_bannerSeries.cover&&typeof _bannerSeries.cover==="string"&&_bannerSeries.cover.startsWith("http")){
+      _bannerUrl=_bannerSeries.cover;
+    } else {
       const _bk=((_bannerSeries._type||"manga")+":"+_bannerSeries.title).toLowerCase().trim();
       const _bcached=_coverUrlCache.get(_bk);
       if(_bcached&&_bcached!=="pending") _bannerUrl=_bcached;
       else if(!_bcached){
-        const _bsJid=_bannerSeries.jikanId;
-        const _bsType=_bannerSeries._type||"manga";
-        const _bsTitle=_bannerSeries.title;
-        (async()=>{
-          let url="";
-          if(_bsJid){try{const ep=_bsType==="manga"?"manga":"anime";const r=await fetch(`https://api.jikan.moe/v4/${ep}/${_bsJid}`);if(r.ok){const j=await r.json();url=j.data?.images?.jpg?.large_image_url||j.data?.images?.jpg?.image_url||"";}}catch(e){}}
-          if(!url) url=await fnFetchCoverUrl(_bsTitle,_bsType);
+        // Fetch en background — actualiza solo el elemento del banner sin re-render completo
+        fnFetchCoverUrl(_bannerSeries.title,_bannerSeries._type||"manga").then(url=>{
           if(url){
-            _coverUrlCache.set(_bsType+":"+_bsTitle.toLowerCase().trim(),url);
             const el=document.getElementById("pubprof-banner-img");
-            if(el){el.src=url;el.style.opacity="1";}
+            if(el){el.src=url;el.style.opacity="1";el.style.display="block";}
             const lbl=document.getElementById("pubprof-banner-lbl");
             if(lbl) lbl.style.display="flex";
           }
-        })();
+        });
       }
     }
   }
@@ -3479,7 +3468,7 @@ async function p28RenderPublicProfile(root){
   wrap.className="pubprof-wrap";
   const _profCustomPhoto=(()=>{try{return localStorage.getItem("fn-custom-photo-"+(fbUser?.uid||""))||"";}catch(e){return "";}})();
   const _profPhotoSrc=_profCustomPhoto||friendsState.customPhotoUrl||photoURL||"";
-  const avContent=_profPhotoSrc?`<img src="${_profPhotoSrc}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'">`:`<span>${(username||displayName||"?").charAt(0).toUpperCase()}</span>`;
+  const avContent=_profPhotoSrc?`<img src="${_profPhotoSrc}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;flex-shrink:0" onerror="this.style.display='none'">`:`<span>${(username||displayName||"?").charAt(0).toUpperCase()}</span>`;
 
   const genreChips=genres.length>0
     ?`<div class="pubprof-genres">${genres.map(([g])=>`<span class="pubprof-genre-chip">${g}</span>`).join("")}</div>`
@@ -3732,11 +3721,11 @@ function renderHistoryTab(root){
   const stMe=document.createElement("button");
   stMe.className="hist-subtab"+(histSubTab==="me"?" active":"");
   stMe.textContent="📋 Mi actividad";
-  stMe.onclick=()=>{window._histSubTab="me";render()};
+  stMe.onclick=()=>{window._histSubTab="me";renderHistoryTab(root.parentNode||document.getElementById("app"));};
   const stFr=document.createElement("button");
   stFr.className="hist-subtab"+(histSubTab==="friends"?" active":"");
   stFr.textContent="👥 Mis amigos";
-  stFr.onclick=()=>{window._histSubTab="friends";render()};
+  stFr.onclick=()=>{window._histSubTab="friends";renderHistoryTab(root.parentNode||document.getElementById("app"));};
   stBar.append(stMe,stFr);
   wrap.appendChild(stBar);
 
