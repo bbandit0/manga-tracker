@@ -2287,60 +2287,59 @@ async function searchJikan(query,tabType){
   if(!query||query.length<2){jikanResults=[];removeJikanDrop();return;}
   const ep=tabType==="manga"?"manga":"anime";
   try{
-    const res=await fetch(`https://api.jikan.moe/v4/${ep}?q=${encodeURIComponent(query)}&limit=12`);
+    const res=await fetch(`https://api.jikan.moe/v4/${ep}?q=${encodeURIComponent(query)}&limit=20`);
     if(!res.ok){jikanResults=[];return;}
     const json=await res.json();
     const raw=(json.data||[]);
-    // ── Deduplicar por título base para evitar mostrar cada temporada por separado ──
-    // Estrategia: normalizar título quitando patrones de temporada ("Season 2", "2nd Season",
-    // "Part 2", "Cour 2", números romanos al final, etc.) y agrupar.
-    // Se conserva solo la primera entrada de cada grupo (la más relevante según el score de Jikan).
+    // Normalizar titulo base: quitar indicadores de temporada
     function _baseTitle(t){
       return (t||"")
-        .replace(/\s*[:·]\s*(season|part|cour)\s*\d+.*/i,"")
-        .replace(/\s*(2nd|3rd|\d+th|second|third|fourth|fifth)\s+(season|cour|part).*/i,"")
-        .replace(/\s*season\s*\d+.*/i,"")
-        .replace(/\s*\d+(st|nd|rd|th)\s*season.*/i,"")
-        .replace(/\s*\(?season\)?.*/i,"")
-        .replace(/\s+[IVX]{1,4}$/, "") // Roman numerals at end
+        .replace(/[:\u00b7]\s*(season|part|cour|arc)\s*\d+.*/i,"")
+        .replace(/\s+(2nd|3rd|\d+th|second|third|fourth|fifth|sixth)\s+(season|cour|part)/i,"")
+        .replace(/\s+season\s*\d+/i,"")
+        .replace(/\s+\d+(st|nd|rd|th)\s+season/i,"")
+        .replace(/\s+part\s*\d+$/i,"")
+        .replace(/\s+cour\s*\d+$/i,"")
+        .replace(/\s+[IVX]{2,4}$/,"")
+        .replace(/\s+\d+$/,"")
+        .replace(/[-\s]+$/,"")
         .trim().toLowerCase();
     }
-    const seen=new Map(); // base -> index en deduped
-    const deduped=[];
+    // Agrupar temporadas del mismo anime/manga
+    const seen=new Map(); // base -> index en grouped
+    const grouped=[];
     for(const item of raw){
       const titleEn=(item.title_english||"").trim();
       const titleJa=(item.title||"").trim();
-      const displayTitle=titleEn||titleJa;
-      const base=_baseTitle(displayTitle)||_baseTitle(titleJa);
+      const baseEn=_baseTitle(titleEn);
+      const baseJa=_baseTitle(titleJa);
+      const base=(titleEn?baseEn:null)||baseJa||baseEn;
+      if(!base)continue;
       if(!seen.has(base)){
-        seen.set(base,deduped.length);
-        deduped.push(Object.assign({},item));
-        if(deduped.length>=6)break;
+        seen.set(base,grouped.length);
+        const clone=Object.assign({},item);
+        clone._allMalIds=[item.mal_id];
+        grouped.push(clone);
+        if(grouped.length>=6)break;
       }else{
-        // Acumular episodios/caps de temporadas extras en la entrada principal
         const idx=seen.get(base);
-        const master=deduped[idx];
+        const master=grouped[idx];
+        if(!master._allMalIds)master._allMalIds=[master.mal_id];
+        master._allMalIds.push(item.mal_id);
         if(tabType==="manga"){
-          const prevCh=master.chapters||0;
-          const thisCh=item.chapters||0;
-          if(prevCh>0&&thisCh>0) master.chapters=prevCh+thisCh;
-          else if(thisCh>0) master.chapters=thisCh;
+          if((item.chapters||0)>0&&(master.chapters||0)>0)master.chapters=(master.chapters||0)+(item.chapters||0);
+          else if((item.chapters||0)>0)master.chapters=item.chapters;
+          if(item.publishing)master.publishing=true;
         }else{
-          const prevEp=master.episodes||0;
-          const thisEp=item.episodes||0;
-          if(prevEp>0&&thisEp>0) master.episodes=prevEp+thisEp;
-          else if(thisEp>0) master.episodes=thisEp;
+          if((item.episodes||0)>0&&(master.episodes||0)>0)master.episodes=(master.episodes||0)+(item.episodes||0);
+          else if((item.episodes||0)>0)master.episodes=item.episodes;
+          if(item.airing)master.airing=true;
         }
-        if(tabType==="manga"){if(item.publishing)master.publishing=true;}
-        else{if(item.airing)master.airing=true;}
-        if(!master._extraMalIds)master._extraMalIds=[];
-        master._extraMalIds.push(item.mal_id);
       }
     }
-    jikanResults=deduped;
+    jikanResults=grouped;
   }catch(e){jikanResults=[];}
-
-  // Mostrar dropdown inmediatamente con lo que tiene Jikan (caps para finalizados conocidos)
+    // Mostrar dropdown inmediatamente con lo que tiene Jikan (caps para finalizados conocidos)
   renderJikanDrop(tabType);
 
   // Enriquecer items con MangaDex+AniList+Jikan
@@ -2356,18 +2355,22 @@ async function searchJikan(query,tabType){
     const batch=sorted.slice(i,i+concurrency);
     await Promise.all(batch.map(async(item)=>{
       if(!item.mal_id)return;
-      const rawCnt=tabType==="manga"?(item.chapters||0):(item.episodes||0);
       try{
         const title=item.title_english||item.title||'';
-        let best=await getBestCount(item.mal_id,tabType,rawCnt,title);
-        // Si todas las fuentes devuelven 0, intentar Jikan /chapters como último recurso (con retry)
-        if(!best){
-          try{best=await jikanGetLatestCount(item.mal_id,tabType,false);}catch(e){}
-        }
-        // Solo actualizar si el item sigue en la lista actual
+        const allIds=item._allMalIds&&item._allMalIds.length?item._allMalIds:[item.mal_id];
+        const counts=await Promise.all(allIds.map(async(mid,i)=>{
+          const rawC=i===0?(tabType==="manga"?(item.chapters||0):(item.episodes||0)):0;
+          let c=await getBestCount(mid,tabType,rawC,i===0?title:'');
+          if(!c){try{c=await jikanGetLatestCount(mid,tabType,false);}catch(e){}}
+          return c||0;
+        }));
+        const validCounts=counts.filter(c=>c>0);
+        const totalBest=validCounts.length===allIds.length
+          ?validCounts.reduce((a,b)=>a+b,0)
+          :Math.max(...counts,0);
         const live=jikanResults.find(x=>x.mal_id===item.mal_id);
         if(!live)return;
-        live._latestChapter=best; // 0=sin dato confirmado, >0=encontrado
+        live._latestChapter=totalBest;
         renderJikanDrop(tabType);
       }catch(e){
         const live=jikanResults.find(x=>x.mal_id===item.mal_id);
@@ -2499,7 +2502,7 @@ function selectJikanResult(item,tabType){
   const inp2=document.getElementById("add-total");
   if(inp2)inp2.value=newTotal;
   
-  // Buscar el mejor conteo: AniList + Jikan en paralelo
+  // Buscar el mejor conteo: todas las temporadas en paralelo
   if(item.mal_id){
     const fEl=()=>document.getElementById("add-total");
     const fe=fEl();
@@ -2507,13 +2510,15 @@ function selectJikanResult(item,tabType){
     (async()=>{
       try{
         const title=item.title_english||item.title||'';
-        let best=await getBestCount(item.mal_id,tabType,knownCount,title);
-        // Si hay temporadas extra acumuladas, obtener sus conteos y sumar
-        if(tabType!=="manga"&&item._extraMalIds&&item._extraMalIds.length){
-          const extraCounts=await Promise.all(item._extraMalIds.map(eid=>getBestCount(eid,tabType,0,"").catch(()=>0)));
-          const extraSum=extraCounts.reduce((a,b)=>a+(b||0),0);
-          if(extraSum>0) best=Math.max(best,(best||0)+extraSum);
-        }
+        const allIds=item._allMalIds&&item._allMalIds.length?item._allMalIds:[item.mal_id];
+        const counts=await Promise.all(allIds.map(async(mid,i)=>{
+          const rawC=i===0?knownCount:0;
+          return getBestCount(mid,tabType,rawC,i===0?title:'').catch(()=>0);
+        }));
+        const validCounts=counts.filter(c=>c>0);
+        const best=validCounts.length===allIds.length
+          ?validCounts.reduce((a,b)=>a+b,0)
+          :Math.max(...counts,0);
         const f=fEl();
         if(best>0){
           newTotal=String(best);
