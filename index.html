@@ -439,19 +439,19 @@ html::after{
 
 
 /* ── PERFIL PÚBLICO v6.0 ── */
-.pubprof-wrap{background:rgba(10,16,28,.95);border:1px solid rgba(99,179,237,.15);border-radius:22px;margin-top:16px;box-shadow:0 16px 60px rgba(0,0,0,.5);overflow:visible}
-.pubprof-cover{height:160px;position:relative;overflow:hidden;background:linear-gradient(135deg,#0d1b35 0%,#1a1040 40%,#0d2535 100%);border-radius:22px 22px 0 0}
+.pubprof-wrap{background:rgba(10,16,28,.95);border:1px solid rgba(99,179,237,.15);border-radius:22px;margin-top:16px;box-shadow:0 16px 60px rgba(0,0,0,.5);overflow:hidden}
+.pubprof-cover{height:185px;position:relative;overflow:hidden;background:linear-gradient(135deg,#0d1b35 0%,#1a1040 40%,#0d2535 100%)}
 .pubprof-cover-inner{position:absolute;inset:0;overflow:hidden}
 /* Banner image — same technique as community cards (proven to work) */
-.pubprof-cover-img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:140%;height:140%;object-fit:cover;object-position:center center;filter:blur(16px) brightness(.3) saturate(1.7);pointer-events:none}
+.pubprof-cover-img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:140%;height:140%;object-fit:cover;object-position:center center;filter:blur(16px) brightness(.3) saturate(1.7);pointer-events:none;transition:opacity .6s ease}
 .pubprof-cover::before{content:"";position:absolute;inset:0;z-index:1;background:radial-gradient(ellipse 120% 80% at 15% 50%,rgba(99,179,237,.32) 0%,transparent 55%),radial-gradient(ellipse 80% 100% at 88% 25%,rgba(155,125,255,.28) 0%,transparent 55%),repeating-linear-gradient(135deg,rgba(255,255,255,.02) 0,rgba(255,255,255,.02) 1px,transparent 1px,transparent 22px)}
-.pubprof-cover::after{content:"";position:absolute;bottom:0;left:0;right:0;height:50px;z-index:2;background:linear-gradient(transparent,rgba(10,16,28,.9))}
+.pubprof-cover::after{content:"";position:absolute;bottom:0;left:0;right:0;height:80px;z-index:2;background:linear-gradient(transparent,rgba(10,16,28,.98))}
 /* Avatar — correct overlap positioning */
-.pubprof-av-row{display:flex;align-items:flex-end;padding:0 20px;margin-top:-44px;position:relative;z-index:10}
-.pubprof-av-wrap{flex-shrink:0}
-.pubprof-av{width:88px;height:88px;border-radius:50%;border:4px solid rgba(10,16,28,.98);background:linear-gradient(135deg,var(--am),var(--aa));display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#fff;overflow:hidden;box-shadow:0 0 0 2px rgba(99,179,237,.45),0 8px 24px rgba(0,0,0,.6)}
-.pubprof-av img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
-.pubprof-body{padding:14px 20px 0}
+.pubprof-av-wrap{position:absolute;bottom:-38px;left:20px;z-index:4}
+.pubprof-av{width:76px;height:76px;border-radius:50%;border:4px solid rgba(10,16,28,.98);background:linear-gradient(135deg,var(--am),var(--aa));display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#fff;overflow:hidden;box-shadow:0 0 0 2px rgba(99,179,237,.45),0 8px 24px rgba(0,0,0,.6)}
+.pubprof-av img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+/* Body padding accounts for avatar height correctly */
+.pubprof-body{padding:48px 20px 0}
 /* Nombre + badges en la misma línea */
 .pubprof-name{font-size:22px;font-weight:800;color:#fff;font-family:"Space Mono",monospace;letter-spacing:-1px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .pubprof-name-badge{font-size:9px;font-weight:700;padding:3px 10px;border-radius:20px;background:linear-gradient(135deg,rgba(99,179,237,.22),rgba(155,125,255,.18));border:1px solid rgba(99,179,237,.35);color:var(--am);letter-spacing:.4px}
@@ -2899,13 +2899,10 @@ if(tab==="dashboard"){
 function transitionRender(fn){fn();}
 // ═══ MAIN ═══
 const tabs=h("div","tabs");tabs.appendChild(h("button",`tab ${tab==="manga"?"am":""}`,`${svg.book} Manga <span class="tab-c">(${data.manga.length})</span>`,{onclick:()=>{tab="manga";filterStatus="all";filterTag="all";showFavsOnly=false;jikanResults=[];newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;transitionRender(render);}}));tabs.appendChild(h("button",`tab ${tab==="anime"?"aa":""}`,`${svg.tv} Anime <span class="tab-c">(${data.anime.length})</span>`,{onclick:()=>{tab="anime";filterStatus="all";filterTag="all";showFavsOnly=false;jikanResults=[];newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;transitionRender(render);}}));
-// P2.8: Tab Descubrir
-const discBtn=h("button",`tab ${tab==="discover"?"am":""}`,`✨ Descubrir`,{onclick:()=>{tab="discover";showSettings=false;showPatch=false;transitionRender(render);}});
-tabs.appendChild(discBtn);
-// P2.8: Tab Perfil
 const profBtn=h("button",`tab ${tab==="profile"?"am":""}`,`👤 Perfil`,{onclick:()=>{tab="profile";showSettings=false;showPatch=false;transitionRender(render);}});
 tabs.appendChild(profBtn);
-// v4.0: Tab Historial
+const discBtn=h("button",`tab ${tab==="discover"?"am":""}`,`✨ Descubrir`,{onclick:()=>{tab="discover";showSettings=false;showPatch=false;transitionRender(render);}});
+tabs.appendChild(discBtn);
 const histBtn=h("button",`tab ${tab==="history"?"am":""}`,`📋 Historial`,{onclick:()=>{tab="history";showSettings=false;showPatch=false;transitionRender(render);}});
 tabs.appendChild(histBtn);
 root.appendChild(tabs);
@@ -3443,22 +3440,49 @@ async function p28RenderPublicProfile(root){
   const _bannerSeries=allSeries[0]||null;
   let _bannerUrl="";
   if(_bannerSeries){
-    if(_bannerSeries.cover&&typeof _bannerSeries.cover==="string"&&_bannerSeries.cover.startsWith("http")){
-      _bannerUrl=_bannerSeries.cover;
+    const _bCover=_bannerSeries.cover||"";
+    // Prioridad 1: cover HTTP o data: ya disponible
+    if(_bCover.startsWith("http")||_bCover.startsWith("data:")){
+      _bannerUrl=_bCover;
     } else {
-      const _bk=((_bannerSeries._type||"manga")+":"+_bannerSeries.title).toLowerCase().trim();
+      // Prioridad 2: cache en memoria
+      const _bk=(_bannerSeries._type||"manga")+":"+_bannerSeries.title.toLowerCase().trim();
       const _bcached=_coverUrlCache.get(_bk);
       if(_bcached&&_bcached!=="pending") _bannerUrl=_bcached;
       else if(!_bcached){
-        // Fetch en background — actualiza solo el elemento del banner sin re-render completo
-        fnFetchCoverUrl(_bannerSeries.title,_bannerSeries._type||"manga").then(url=>{
-          if(url){
-            const el=document.getElementById("pubprof-banner-img");
-            if(el){el.src=url;el.style.opacity="1";el.style.display="block";}
-            const lbl=document.getElementById("pubprof-banner-lbl");
-            if(lbl) lbl.style.display="flex";
+        // Prioridad 3: Jikan por ID (mas preciso que buscar por titulo)
+        const _bsJid=_bannerSeries.jikanId;
+        const _bsType=_bannerSeries._type||"manga";
+        const _bsTitle=_bannerSeries.title;
+        const _bsKey=_bsType+":"+_bsTitle.toLowerCase().trim();
+        _coverUrlCache.set(_bsKey,"pending");
+        (async()=>{
+          let url="";
+          // Intentar con jikanId primero
+          if(_bsJid){
+            try{
+              const ep=_bsType==="manga"?"manga":"anime";
+              const r=await fetch(`https://api.jikan.moe/v4/${ep}/${_bsJid}`);
+              if(r.ok){
+                const j=await r.json();
+                url=j.data?.images?.jpg?.large_image_url||j.data?.images?.jpg?.image_url||"";
+              }
+            }catch(e){}
           }
-        });
+          // Fallback: fnFetchCoverUrl por titulo
+          if(!url){
+            try{url=await fnFetchCoverUrl(_bsTitle,_bsType);}catch(e){}
+          }
+          if(url){
+            _coverUrlCache.set(_bsKey,url);
+            const el=document.getElementById("pubprof-banner-img");
+            if(el){el.src=url;el.style.opacity="1";}
+            const lbl=document.getElementById("pubprof-banner-lbl");
+            if(lbl)lbl.style.display="flex";
+          }else{
+            _coverUrlCache.delete(_bsKey);
+          }
+        })();
       }
     }
   }
@@ -3468,7 +3492,7 @@ async function p28RenderPublicProfile(root){
   wrap.className="pubprof-wrap";
   const _profCustomPhoto=(()=>{try{return localStorage.getItem("fn-custom-photo-"+(fbUser?.uid||""))||"";}catch(e){return "";}})();
   const _profPhotoSrc=_profCustomPhoto||friendsState.customPhotoUrl||photoURL||"";
-  const avContent=_profPhotoSrc?`<img src="${_profPhotoSrc}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="this.style.display='none'">`:`<span>${(username||displayName||"?").charAt(0).toUpperCase()}</span>`;
+  const avContent=_profPhotoSrc?`<img src="${_profPhotoSrc}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'">`:`<span>${(username||displayName||"?").charAt(0).toUpperCase()}</span>`;
 
   const genreChips=genres.length>0
     ?`<div class="pubprof-genres">${genres.map(([g])=>`<span class="pubprof-genre-chip">${g}</span>`).join("")}</div>`
@@ -3480,7 +3504,7 @@ async function p28RenderPublicProfile(root){
 
   // Banner label
   const _bannerLblHtml=_bannerSeries
-    ?`<div id="pubprof-banner-lbl" style="position:absolute;bottom:10px;left:16px;right:16px;z-index:3;display:flex;align-items:center;gap:8px"><span style="font-size:10px;font-weight:600;color:rgba(255,255,255,.85);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 6px rgba(0,0,0,.95)">&#9654; ${_bannerSeries.title}</span>${_bannerSeries.total>0?'<span style="font-size:9px;font-family:Space Mono,monospace;color:rgba(255,255,255,.65);background:rgba(0,0,0,.55);padding:2px 8px;border-radius:6px;flex-shrink:0">'+ _bannerPct +'%</span>':""}</div>`
+    ?`<div id="pubprof-banner-lbl" style="position:absolute;bottom:9px;left:14px;right:14px;z-index:3;display:flex;align-items:center;gap:7px"><span style="font-size:9px;font-weight:600;color:rgba(255,255,255,.7);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 4px rgba(0,0,0,.9)">&#9654; ${_bannerSeries.title}</span>${_bannerSeries.total>0?'<span style="font-size:9px;font-family:Space Mono,monospace;color:rgba(255,255,255,.5);background:rgba(0,0,0,.5);padding:1px 6px;border-radius:4px;flex-shrink:0">'+ _bannerPct +'%</span>':""}</div>`
     :"";
 
   wrap.innerHTML=`
@@ -3489,8 +3513,6 @@ async function p28RenderPublicProfile(root){
         <img id="pubprof-banner-img" class="pubprof-cover-img" src="${_bannerUrl||''}" style="opacity:${_bannerUrl?1:0}" onerror="this.style.opacity=0" alt="">
       </div>
       ${_bannerLblHtml}
-    </div>
-    <div class="pubprof-av-row">
       <div class="pubprof-av-wrap"><div class="pubprof-av">${avContent}</div></div>
     </div>
     <div class="pubprof-body">
