@@ -439,19 +439,19 @@ html::after{
 
 
 /* ── PERFIL PÚBLICO v6.0 ── */
-.pubprof-wrap{background:rgba(10,16,28,.95);border:1px solid rgba(99,179,237,.15);border-radius:22px;margin-top:16px;box-shadow:0 16px 60px rgba(0,0,0,.5);overflow:hidden}
-.pubprof-cover{height:185px;position:relative;overflow:hidden;background:linear-gradient(135deg,#0d1b35 0%,#1a1040 40%,#0d2535 100%)}
+.pubprof-wrap{background:rgba(10,16,28,.95);border:1px solid rgba(99,179,237,.15);border-radius:22px;margin-top:16px;box-shadow:0 16px 60px rgba(0,0,0,.5);overflow:visible}
+.pubprof-cover{height:185px;position:relative;overflow:hidden;background:linear-gradient(135deg,#0d1b35 0%,#1a1040 40%,#0d2535 100%);border-radius:22px 22px 0 0}
 .pubprof-cover-inner{position:absolute;inset:0;overflow:hidden}
 /* Banner image — same technique as community cards (proven to work) */
-.pubprof-cover-img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:140%;height:140%;object-fit:cover;object-position:center center;filter:blur(16px) brightness(.3) saturate(1.7);pointer-events:none;transition:opacity .6s ease}
+.pubprof-cover-img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:140%;height:140%;object-fit:cover;object-position:center center;filter:blur(16px) brightness(.3) saturate(1.7);pointer-events:none}
 .pubprof-cover::before{content:"";position:absolute;inset:0;z-index:1;background:radial-gradient(ellipse 120% 80% at 15% 50%,rgba(99,179,237,.32) 0%,transparent 55%),radial-gradient(ellipse 80% 100% at 88% 25%,rgba(155,125,255,.28) 0%,transparent 55%),repeating-linear-gradient(135deg,rgba(255,255,255,.02) 0,rgba(255,255,255,.02) 1px,transparent 1px,transparent 22px)}
 .pubprof-cover::after{content:"";position:absolute;bottom:0;left:0;right:0;height:80px;z-index:2;background:linear-gradient(transparent,rgba(10,16,28,.98))}
 /* Avatar — correct overlap positioning */
-.pubprof-av-wrap{position:absolute;bottom:-38px;left:20px;z-index:4}
-.pubprof-av{width:76px;height:76px;border-radius:50%;border:4px solid rgba(10,16,28,.98);background:linear-gradient(135deg,var(--am),var(--aa));display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#fff;overflow:hidden;box-shadow:0 0 0 2px rgba(99,179,237,.45),0 8px 24px rgba(0,0,0,.6)}
-.pubprof-av img{width:100%;height:100%;object-fit:cover;border-radius:50%}
-/* Body padding accounts for avatar height correctly */
-.pubprof-body{padding:48px 20px 0}
+.pubprof-av-row{padding:0 20px;margin-top:-40px;position:relative;z-index:10}
+.pubprof-av-wrap{display:inline-block}
+.pubprof-av{width:80px;height:80px;border-radius:50%;border:4px solid rgba(10,16,28,.98);background:linear-gradient(135deg,var(--am),var(--aa));display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#fff;overflow:hidden;box-shadow:0 0 0 2px rgba(99,179,237,.45),0 8px 24px rgba(0,0,0,.6)}
+.pubprof-av img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
+.pubprof-body{padding:12px 20px 0}
 /* Nombre + badges en la misma línea */
 .pubprof-name{font-size:22px;font-weight:800;color:#fff;font-family:"Space Mono",monospace;letter-spacing:-1px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .pubprof-name-badge{font-size:9px;font-weight:700;padding:3px 10px;border-radius:20px;background:linear-gradient(135deg,rgba(99,179,237,.22),rgba(155,125,255,.18));border:1px solid rgba(99,179,237,.35);color:var(--am);letter-spacing:.4px}
@@ -3436,51 +3436,32 @@ async function p28RenderPublicProfile(root){
   const compM=completionRate(data.manga);
   const genres=topGenres([...data.manga,...data.anime],5);
 
-  // ── BANNER: serie más recientemente actualizada ──
+  // Banner: serie mas reciente
   const _bannerSeries=allSeries[0]||null;
   let _bannerUrl="";
   if(_bannerSeries){
-    const _bCover=_bannerSeries.cover||"";
-    // Prioridad 1: cover HTTP o data: ya disponible
-    if(_bCover.startsWith("http")||_bCover.startsWith("data:")){
-      _bannerUrl=_bCover;
-    } else {
-      // Prioridad 2: cache en memoria
-      const _bk=(_bannerSeries._type||"manga")+":"+_bannerSeries.title.toLowerCase().trim();
-      const _bcached=_coverUrlCache.get(_bk);
-      if(_bcached&&_bcached!=="pending") _bannerUrl=_bcached;
-      else if(!_bcached){
-        // Prioridad 3: Jikan por ID (mas preciso que buscar por titulo)
-        const _bsJid=_bannerSeries.jikanId;
-        const _bsType=_bannerSeries._type||"manga";
-        const _bsTitle=_bannerSeries.title;
-        const _bsKey=_bsType+":"+_bsTitle.toLowerCase().trim();
-        _coverUrlCache.set(_bsKey,"pending");
+    const _bc=_bannerSeries.cover||"";
+    if(_bc.startsWith("http")||_bc.startsWith("data:")){
+      _bannerUrl=_bc;
+    }else{
+      const _bkey=(_bannerSeries._type||"manga")+":"+_bannerSeries.title.toLowerCase().trim();
+      const _bcc=_coverUrlCache.get(_bkey);
+      if(_bcc&&_bcc!=="pending") _bannerUrl=_bcc;
+      else if(!_bcc){
+        _coverUrlCache.set(_bkey,"pending");
+        const _bjid=_bannerSeries.jikanId;
+        const _btype=(_bannerSeries._type||"manga")==="manga"?"manga":"anime";
+        const _btitle=_bannerSeries.title;
         (async()=>{
           let url="";
-          // Intentar con jikanId primero
-          if(_bsJid){
-            try{
-              const ep=_bsType==="manga"?"manga":"anime";
-              const r=await fetch(`https://api.jikan.moe/v4/${ep}/${_bsJid}`);
-              if(r.ok){
-                const j=await r.json();
-                url=j.data?.images?.jpg?.large_image_url||j.data?.images?.jpg?.image_url||"";
-              }
-            }catch(e){}
-          }
-          // Fallback: fnFetchCoverUrl por titulo
-          if(!url){
-            try{url=await fnFetchCoverUrl(_bsTitle,_bsType);}catch(e){}
-          }
+          if(_bjid){try{const r=await fetch("https://api.jikan.moe/v4/"+_btype+"/"+_bjid);if(r.ok){const j=await r.json();url=j.data?.images?.jpg?.large_image_url||j.data?.images?.jpg?.image_url||"";};}catch(e){}}
+          if(!url){try{url=await fnFetchCoverUrl(_btitle,_btype);}catch(e){}}
+          _coverUrlCache.set(_bkey,url||"");
           if(url){
-            _coverUrlCache.set(_bsKey,url);
             const el=document.getElementById("pubprof-banner-img");
             if(el){el.src=url;el.style.opacity="1";}
             const lbl=document.getElementById("pubprof-banner-lbl");
             if(lbl)lbl.style.display="flex";
-          }else{
-            _coverUrlCache.delete(_bsKey);
           }
         })();
       }
@@ -3510,11 +3491,11 @@ async function p28RenderPublicProfile(root){
   wrap.innerHTML=`
     <div class="pubprof-cover">
       <div class="pubprof-cover-inner">
-        <img id="pubprof-banner-img" class="pubprof-cover-img" src="${_bannerUrl||''}" style="opacity:${_bannerUrl?1:0}" onerror="this.style.opacity=0" alt="">
+        <img id="pubprof-banner-img" class="pubprof-cover-img" src="${_bannerUrl||''}" style="opacity:${_bannerUrl?1:0};transition:opacity .6s ease" onerror="this.style.opacity=0" alt="">
       </div>
       ${_bannerLblHtml}
-      <div class="pubprof-av-wrap"><div class="pubprof-av">${avContent}</div></div>
     </div>
+    <div class="pubprof-av-row"><div class="pubprof-av-wrap"><div class="pubprof-av">${avContent}</div></div></div>
     <div class="pubprof-body">
       <div class="pubprof-name">${username?"@"+username:displayName}<span class="pubprof-name-badge">${username?"mangu":"no @username"}</span></div>
       <div class="pubprof-handle">${username?"mangu.app/@"+username:"Regístralo en Amigos →"}</div>
