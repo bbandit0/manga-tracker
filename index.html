@@ -409,6 +409,18 @@ html::after{
 .hist-subtab:hover{color:var(--t1);background:rgba(255,255,255,.06)}
 .hist-subtab.active{background:rgba(99,179,237,.12);border-color:rgba(99,179,237,.28);color:#7ec8f4}
 .fn-feed-day-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--t3);margin:14px 0 8px 2px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.05)}
+.fn-feed-item{display:flex;gap:10px;padding:9px 10px;align-items:flex-start;border-radius:10px;transition:background .12s}
+.fn-feed-item:hover{background:rgba(255,255,255,.04)}
+.fn-feed-body{flex:1;min-width:0}
+.fn-feed-user{font-size:10px;font-weight:700;color:#7ec8f4;font-family:'Space Mono',monospace;margin-bottom:2px}
+.fn-feed-action{color:var(--t2);line-height:1.45}
+.fn-feed-time{font-size:9px;color:var(--t3);white-space:nowrap;flex-shrink:0;padding-top:1px;font-family:'Space Mono',monospace}
+.hist-meta{display:inline-block;font-size:9px;color:var(--t3);margin-left:5px}
+/* ── Tab fade transition ── */
+@keyframes tabFadeIn{from{opacity:.7;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.tab-content-fade{animation:tabFadeIn .18s ease-out}
+/* ── Confetti particle (uses inline styles, base only) ── */
+.p29-confetti-particle{pointer-events:none}
 
 /* Perfil amigo — compat badge grande */
 
