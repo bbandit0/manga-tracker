@@ -439,18 +439,19 @@ html::after{
 
 
 /* ── PERFIL PÚBLICO v6.0 ── */
-.pubprof-wrap{background:rgba(10,16,28,.95);border:1px solid rgba(99,179,237,.15);border-radius:22px;margin-top:16px;box-shadow:0 16px 60px rgba(0,0,0,.5);overflow:hidden}
-.pubprof-cover{height:185px;position:relative;overflow:hidden;background:linear-gradient(135deg,#0d1b35 0%,#1a1040 40%,#0d2535 100%)}
+.pubprof-wrap{background:rgba(10,16,28,.95);border:1px solid rgba(99,179,237,.15);border-radius:22px;margin-top:16px;box-shadow:0 16px 60px rgba(0,0,0,.5);overflow:visible}
+.pubprof-cover{height:160px;position:relative;overflow:hidden;background:linear-gradient(135deg,#0d1b35 0%,#1a1040 40%,#0d2535 100%);border-radius:22px 22px 0 0}
 .pubprof-cover-inner{position:absolute;inset:0;overflow:hidden}
 /* Banner image — same technique as community cards (proven to work) */
 .pubprof-cover-img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:140%;height:140%;object-fit:cover;object-position:center center;filter:blur(16px) brightness(.3) saturate(1.7);pointer-events:none}
 .pubprof-cover::before{content:"";position:absolute;inset:0;z-index:1;background:radial-gradient(ellipse 120% 80% at 15% 50%,rgba(99,179,237,.32) 0%,transparent 55%),radial-gradient(ellipse 80% 100% at 88% 25%,rgba(155,125,255,.28) 0%,transparent 55%),repeating-linear-gradient(135deg,rgba(255,255,255,.02) 0,rgba(255,255,255,.02) 1px,transparent 1px,transparent 22px)}
-.pubprof-cover::after{content:"";position:absolute;bottom:0;left:0;right:0;height:80px;z-index:2;background:linear-gradient(transparent,rgba(10,16,28,.98))}
+.pubprof-cover::after{content:"";position:absolute;bottom:0;left:0;right:0;height:50px;z-index:2;background:linear-gradient(transparent,rgba(10,16,28,.9))}
 /* Avatar — correct overlap positioning */
-.pubprof-av-wrap{position:absolute;bottom:-40px;left:20px;z-index:4}
-.pubprof-av{width:80px;height:80px;border-radius:50%;border:4px solid rgba(10,16,28,.98);background:linear-gradient(135deg,var(--am),var(--aa));display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700;color:#fff;overflow:hidden;box-shadow:0 0 0 2px rgba(99,179,237,.45),0 8px 24px rgba(0,0,0,.6)}
+.pubprof-av-row{display:flex;align-items:flex-end;padding:0 20px;margin-top:-44px;position:relative;z-index:10}
+.pubprof-av-wrap{flex-shrink:0}
+.pubprof-av{width:88px;height:88px;border-radius:50%;border:4px solid rgba(10,16,28,.98);background:linear-gradient(135deg,var(--am),var(--aa));display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#fff;overflow:hidden;box-shadow:0 0 0 2px rgba(99,179,237,.45),0 8px 24px rgba(0,0,0,.6)}
 .pubprof-av img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
-.pubprof-body{padding:54px 20px 0}
+.pubprof-body{padding:14px 20px 0}
 /* Nombre + badges en la misma línea */
 .pubprof-name{font-size:22px;font-weight:800;color:#fff;font-family:"Space Mono",monospace;letter-spacing:-1px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .pubprof-name-badge{font-size:9px;font-weight:700;padding:3px 10px;border-radius:20px;background:linear-gradient(135deg,rgba(99,179,237,.22),rgba(155,125,255,.18));border:1px solid rgba(99,179,237,.35);color:var(--am);letter-spacing:.4px}
@@ -561,11 +562,11 @@ html::after{
 .fn-fc-stat-l{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
 /* Friend profile view */
 .fn-profile{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rm);padding:20px;margin-bottom:20px;animation:slideDown .2s}
-.fn-profile-banner{height:140px;border-radius:var(--rm) var(--rm) 0 0;position:relative;overflow:hidden}
-.fn-profile-banner::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,transparent 30%,rgba(10,16,28,.95) 100%);z-index:2}
+.fn-profile-banner{height:60px;border-radius:var(--rm) var(--rm) 0 0;margin:-20px -20px 0 -20px;position:relative;overflow:hidden}
+.fn-profile-banner::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,var(--bg3) 100%)}
 .fn-profile-header{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--bd)}
-.fn-profile-avatar{width:64px;height:64px;border-radius:50%;border:4px solid rgba(10,16,28,.98);object-fit:cover;box-shadow:0 0 0 2px rgba(99,179,237,.4),0 4px 16px rgba(0,0,0,.6)}
-.fn-profile-avatar-ph{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--am),var(--aa));border:4px solid rgba(10,16,28,.98);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;box-shadow:0 0 0 2px rgba(99,179,237,.4),0 4px 16px rgba(0,0,0,.6)}
+.fn-profile-avatar{width:52px;height:52px;border-radius:50%;border:2px solid var(--am);object-fit:cover}
+.fn-profile-avatar-ph{width:52px;height:52px;border-radius:50%;background:var(--amd);border:2px solid var(--am);display:flex;align-items:center;justify-content:center;font-size:24px}
 .fn-profile-info{flex:1}
 .fn-profile-name{font-size:17px;font-weight:700;color:var(--t1)}
 .fn-profile-uname{font-size:11px;color:var(--t2);font-family:'Space Mono',monospace;margin-top:2px}
@@ -1397,40 +1398,39 @@ async function _renderFriendsPanelInner(container){
     // banner color hash desde username
     const _uh=_pUsername;let _hv=0;for(let i=0;i<_uh.length;i++){_hv=(_hv*31+_uh.charCodeAt(i))&0xFFFFFF;}_hv=_hv%360;
     const _b1=`hsl(${_hv},65%,30%)`,_b2=`hsl(${(_hv+55)%360},60%,22%)`,_b3=`hsl(${(_hv+115)%360},55%,17%)`;
+    // Serie más activa — solo URL HTTP para el banner (las Base64 son miniaturas 40x57 que se ven mal)
     const _topS=reading[0]||null;
     const _topSWithUrl=reading.find(s=>s.cover&&typeof s.cover==="string"&&s.cover.startsWith("http"))||null;
     let _topCoverUrl=_topSWithUrl?.cover||"";
-    if(!_topCoverUrl&&_topS){
+    if(!_topCoverUrl&&_topS?.title){
       const _ck=((_topS.type==="A"?"anime":"manga")+":"+_topS.title).toLowerCase().trim();
       const _cv=_coverUrlCache.get(_ck);
       if(_cv&&_cv!=="pending") _topCoverUrl=_cv;
-      else if(!_cv){
-        const _fjid=_topS.jikanId||null;
-        const _ftype=_topS.type==="A"?"anime":"manga";
-        const _ftitle=_topS.title;
-        (async()=>{
-          let url="";
-          if(_fjid){try{const ep=_ftype==="manga"?"manga":"anime";const r=await fetch(`https://api.jikan.moe/v4/${ep}/${_fjid}`);if(r.ok){const j=await r.json();url=j.data?.images?.jpg?.large_image_url||j.data?.images?.jpg?.image_url||"";}}catch(e){}}
-          if(!url) url=await fnFetchCoverUrl(_ftitle,_ftype);
-          if(url){
-            _coverUrlCache.set(_ftype+":"+_ftitle.toLowerCase().trim(),url);
-            const el=document.getElementById("fp-banner-img");
-            if(el){el.src=url;el.style.display="block";el.style.opacity="1";}
+      else if(!_cv) fnFetchCoverUrl(_topS.title,_topS.type==="A"?"anime":"manga").then(url=>{
+        if(url){
+          // Actualización quirúrgica del banner del perfil expandido
+          const bannerEl=document.getElementById("fp-banner-img");
+          if(bannerEl){
+            bannerEl.src=url;
+            bannerEl.style.display="block";
             const lbl=document.getElementById("fp-banner-lbl");
             if(lbl) lbl.style.display="flex";
+          } else {
+            friendsState.viewingData=null;
+            renderFriendsPanel();
           }
-        })();
-      }
+        }
+      });
     }
     const _topPct=_topS&&_topS.total>0?Math.round((_topS.completed||0)/_topS.total*100):0;
     // Banner mejorado — pre-calcular estilos para evitar template literals anidados
     const _profBannerFallbackBg=`linear-gradient(135deg,${_b1} 0%,${_b2} 55%,${_b3} 100%)`;
     const _profBannerLblDisplay=_topCoverUrl?"flex":"none";
-    const _profileBannerHtml=`<div style="position:relative;overflow:hidden;height:160px;background:${_profBannerFallbackBg}">
-      <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.025) 0,rgba(255,255,255,.025) 1px,transparent 1px,transparent 22px);pointer-events:none;z-index:0"></div>
-      <img id="fp-banner-img" src="${_topCoverUrl||''}" onerror="this.style.display='none'" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:140%;height:140%;object-fit:cover;object-position:center center;filter:blur(14px) brightness(.3) saturate(1.8);z-index:1;transition:opacity .6s ease;display:${_topCoverUrl?'block':'none'};opacity:${_topCoverUrl?1:0}">
-      <div style="position:absolute;inset:0;z-index:2;background:linear-gradient(180deg,rgba(0,0,0,.08) 0%,rgba(0,0,0,.7) 100%);pointer-events:none"></div>
-      ${_topS?`<div id="fp-banner-lbl" style="position:absolute;bottom:12px;left:18px;right:18px;display:${_profBannerLblDisplay};align-items:center;gap:8px;z-index:3"><span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.9);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 8px rgba(0,0,0,.95)">&#9654; ${_topS.title}</span><span style="font-size:9px;font-family:Space Mono,monospace;color:rgba(255,255,255,.6);background:rgba(0,0,0,.55);padding:2px 8px;border-radius:6px;flex-shrink:0">${_topPct}%</span></div>`:""}
+    const _profileBannerHtml=`<div class="fn-profile-banner-v5" style="position:relative;overflow:hidden;background:${_profBannerFallbackBg}">
+      <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.02) 0,rgba(255,255,255,.02) 1px,transparent 1px,transparent 18px),radial-gradient(ellipse 90% 90% at 15% 60%,rgba(104,211,145,.15) 0%,transparent 55%),radial-gradient(ellipse 70% 90% at 88% 20%,rgba(99,179,237,.12) 0%,transparent 55%);z-index:0"></div>
+      <img id="fp-banner-img" src="${_topCoverUrl||''}" onerror="this.style.display='none'" style="position:absolute;inset:-20px;width:calc(100% + 40px);height:calc(100% + 40px);object-fit:cover;object-position:center 25%;filter:blur(18px) brightness(.35) saturate(1.8);z-index:1;transition:opacity .7s ease;display:${_topCoverUrl?'block':'none'}">
+      <div style="position:absolute;inset:0;z-index:2;background:linear-gradient(180deg,rgba(0,0,0,.05) 0%,rgba(0,0,0,.75) 100%)"></div>
+      ${_topS?`<div id="fp-banner-lbl" style="position:absolute;bottom:10px;left:20px;right:20px;display:${_profBannerLblDisplay};align-items:center;gap:8px;z-index:3"><span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.85);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 8px rgba(0,0,0,.95)">&#9654; ${_topS.title}</span><span style="font-size:9px;font-family:Space Mono,monospace;color:rgba(255,255,255,.55);background:rgba(0,0,0,.55);padding:1px 6px;border-radius:4px;flex-shrink:0">${_topPct}%</span></div>`:""}
     </div>`;
     // series en común
     const myMangaTitles=new Set(data.manga.map(s=>s.title.toLowerCase().trim()));
@@ -1483,7 +1483,7 @@ async function _renderFriendsPanelInner(container){
           <button style="padding:6px 12px;border:1px solid rgba(231,76,76,.3);background:rgba(231,76,76,.07);color:var(--t3);font-size:10px;border-radius:10px;cursor:pointer;font-weight:600;font-family:'Outfit',sans-serif;transition:.15s" onmouseover="this.style.color='var(--dng)';this.style.borderColor='var(--dng)'" onmouseout="this.style.color='var(--t3)';this.style.borderColor='rgba(231,76,76,.3)'" onclick="if(confirm('¿Eliminar a @${_pUsername} de amigos?'))fnRemoveFriend('${vuid}')">✕ Eliminar</button>
         </div>
         ${_profileBannerHtml}
-        <div style="display:flex;align-items:flex-end;gap:14px;padding:0 18px 16px;margin-top:-36px;position:relative;z-index:3;border-bottom:1px solid rgba(255,255,255,.06)">
+        <div style="display:flex;align-items:flex-end;gap:14px;padding:0 20px 16px;margin-top:-32px;position:relative;z-index:1;border-bottom:1px solid rgba(255,255,255,.06)">
           ${_pAv}
           <div style="flex:1;min-width:0;padding-bottom:2px">
             <div class="fn-profile-name">@${_pUsername}</div>
@@ -3468,7 +3468,7 @@ async function p28RenderPublicProfile(root){
   wrap.className="pubprof-wrap";
   const _profCustomPhoto=(()=>{try{return localStorage.getItem("fn-custom-photo-"+(fbUser?.uid||""))||"";}catch(e){return "";}})();
   const _profPhotoSrc=_profCustomPhoto||friendsState.customPhotoUrl||photoURL||"";
-  const avContent=_profPhotoSrc?`<img src="${_profPhotoSrc}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;flex-shrink:0" onerror="this.style.display='none'">`:`<span>${(username||displayName||"?").charAt(0).toUpperCase()}</span>`;
+  const avContent=_profPhotoSrc?`<img src="${_profPhotoSrc}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="this.style.display='none'">`:`<span>${(username||displayName||"?").charAt(0).toUpperCase()}</span>`;
 
   const genreChips=genres.length>0
     ?`<div class="pubprof-genres">${genres.map(([g])=>`<span class="pubprof-genre-chip">${g}</span>`).join("")}</div>`
@@ -3480,7 +3480,7 @@ async function p28RenderPublicProfile(root){
 
   // Banner label
   const _bannerLblHtml=_bannerSeries
-    ?`<div id="pubprof-banner-lbl" style="position:absolute;bottom:9px;left:14px;right:14px;z-index:3;display:flex;align-items:center;gap:7px"><span style="font-size:9px;font-weight:600;color:rgba(255,255,255,.7);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 4px rgba(0,0,0,.9)">&#9654; ${_bannerSeries.title}</span>${_bannerSeries.total>0?'<span style="font-size:9px;font-family:Space Mono,monospace;color:rgba(255,255,255,.5);background:rgba(0,0,0,.5);padding:1px 6px;border-radius:4px;flex-shrink:0">'+ _bannerPct +'%</span>':""}</div>`
+    ?`<div id="pubprof-banner-lbl" style="position:absolute;bottom:10px;left:16px;right:16px;z-index:3;display:flex;align-items:center;gap:8px"><span style="font-size:10px;font-weight:600;color:rgba(255,255,255,.85);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 6px rgba(0,0,0,.95)">&#9654; ${_bannerSeries.title}</span>${_bannerSeries.total>0?'<span style="font-size:9px;font-family:Space Mono,monospace;color:rgba(255,255,255,.65);background:rgba(0,0,0,.55);padding:2px 8px;border-radius:6px;flex-shrink:0">'+ _bannerPct +'%</span>':""}</div>`
     :"";
 
   wrap.innerHTML=`
@@ -3489,6 +3489,8 @@ async function p28RenderPublicProfile(root){
         <img id="pubprof-banner-img" class="pubprof-cover-img" src="${_bannerUrl||''}" style="opacity:${_bannerUrl?1:0}" onerror="this.style.opacity=0" alt="">
       </div>
       ${_bannerLblHtml}
+    </div>
+    <div class="pubprof-av-row">
       <div class="pubprof-av-wrap"><div class="pubprof-av">${avContent}</div></div>
     </div>
     <div class="pubprof-body">
