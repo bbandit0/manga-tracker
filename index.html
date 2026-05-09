@@ -1543,13 +1543,15 @@ async function _renderFriendsPanelInner(container){
       allF.slice(0,3).forEach(s=>{
         if(!s.lastUpdated)return;
         const ageMs=Date.now()-s.lastUpdated;
-        if(ageMs>7*24*3600*1000)return;
+        if(ageMs>30*24*3600*1000)return; // mostrar actividad de los últimos 30 días
         _feedEvts.push({un,uid,title:s.title,_t:s._t,completed:s.completed||0,total:s.total||0,status:s.status,lastUpdated:s.lastUpdated,ageMs});
       });
     }
     _feedEvts.sort((a,b)=>a.ageMs-b.ageMs);
+    // Mostrar sección feed siempre, con mensaje si no hay actividad reciente
+    html+=`<div class="com-section-lbl" style="margin-top:22px">📡 Actividad reciente</div>`;
     if(_feedEvts.length>0){
-      html+=`<div class="com-section-lbl" style="margin-top:22px">📡 Actividad reciente</div><div class="com-feed">`;
+      html+=`<div class="com-feed">`;
       let _lastDay="";
       _feedEvts.slice(0,15).forEach(ev=>{
         const d=new Date(ev.lastUpdated);
@@ -1582,6 +1584,8 @@ async function _renderFriendsPanelInner(container){
         </div>`;
       });
       html+=`</div>`;
+    } else {
+      html+=`<div class="com-feed-empty">Sin actividad reciente de tus amigos en los últimos 30 días</div>`;
     }
 
     // ── Lista de amigos — cards limpias
