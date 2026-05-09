@@ -1848,16 +1848,28 @@ function h(tag,cls,html,attrs){const el=document.createElement(tag);if(cls)el.cl
 // Función central para obtener el número del último capítulo/episodio publicado.
 // Intenta múltiples endpoints y nunca pide al usuario si puede evitarlo.
 
-// ── Helper: fetch con timeout (reemplaza jikanFetchFast que no estaba definida) ──
-async function _jikanFetch(url, timeoutMs=8000){
-  const ctrl=new AbortController();
-  const tid=setTimeout(()=>ctrl.abort(),timeoutMs);
-  try{
-    const res=await fetch(url,{signal:ctrl.signal});
-    clearTimeout(tid);
-    if(!res.ok) return null;
-    return await res.json();
-  }catch(e){clearTimeout(tid);return null;}
+// ── Helper: fetch con timeout + retry automático en 429 (rate limit Jikan) ──
+async function _jikanFetch(url, timeoutMs=8000, _retries=2){
+  for(let attempt=0;attempt<=_retries;attempt++){
+    const ctrl=new AbortController();
+    const tid=setTimeout(()=>ctrl.abort(),timeoutMs);
+    try{
+      const res=await fetch(url,{signal:ctrl.signal});
+      clearTimeout(tid);
+      if(res.status===429){
+        // Rate limit: esperar con backoff exponencial (1s, 2s, 4s) antes de reintentar
+        if(attempt<_retries){
+          const wait=1000*Math.pow(2,attempt);
+          await new Promise(r=>setTimeout(r,wait));
+          continue;
+        }
+        return null;
+      }
+      if(!res.ok) return null;
+      return await res.json();
+    }catch(e){clearTimeout(tid);return null;}
+  }
+  return null;
 }
 
 // ── Fuente 1: Jikan endpoint individual ──────────────────────────────────────
@@ -2149,33 +2161,33 @@ async function searchJikan(query,tabType){
     ...snap.filter(x=>searchType==="manga"?x.publishing:x.airing),
     ...snap.filter(x=>!(searchType==="manga"?x.publishing:x.airing))
   ];
-  const concurrency=2;
-  for(let i=0;i<sorted.length;i+=concurrency){
-    if(ctrl.signal.aborted)return; // abortar si llegó nueva búsqueda
-    const batch=sorted.slice(i,i+concurrency);
-    await Promise.all(batch.map(async(item)=>{
-      if(!item.mal_id)return;
-      if(ctrl.signal.aborted)return;
-      const rawCnt=searchType==="manga"?(item.chapters||0):(item.episodes||0);
-      try{
-        const title=item.title_english||item.title||'';
-        let best=await getBestCount(item.mal_id,searchType,rawCnt,title);
-        // Si todas las fuentes devuelven 0, intentar Jikan individual como último recurso
-        if(!best){
-          try{best=await jikanGetLatestCount(item.mal_id,searchType,false);}catch(e){}
-        }
-        if(ctrl.signal.aborted)return;
-        // Solo actualizar si el item sigue en la lista actual
-        const live=jikanResults.find(x=>x.mal_id===item.mal_id);
-        if(!live)return;
-        live._latestChapter=best;
-        renderJikanDrop(searchType);
-      }catch(e){
-        if(ctrl.signal.aborted)return;
-        const live=jikanResults.find(x=>x.mal_id===item.mal_id);
-        if(live){live._latestChapter=0;renderJikanDrop(searchType);}
+  // Concurrencia 1: procesar de a 1 item para no saturar Jikan (rate limit 3 req/s)
+  // getBestCount puede emitir hasta 4 requests por item (Jikan+AniList+2xMangaDex)
+  for(let i=0;i<sorted.length;i++){
+    if(ctrl.signal.aborted)return;
+    const item=sorted[i];
+    if(!item.mal_id)continue;
+    const rawCnt=searchType==="manga"?(item.chapters||0):(item.episodes||0);
+    try{
+      const title=item.title_english||item.title||'';
+      let best=await getBestCount(item.mal_id,searchType,rawCnt,title);
+      if(!best){
+        try{best=await jikanGetLatestCount(item.mal_id,searchType,false);}catch(e2){}
       }
-    }));
+      if(ctrl.signal.aborted)return;
+      const live=jikanResults.find(x=>x.mal_id===item.mal_id);
+      if(!live)continue;
+      live._latestChapter=best;
+      renderJikanDrop(searchType);
+    }catch(e){
+      if(ctrl.signal.aborted)return;
+      const live=jikanResults.find(x=>x.mal_id===item.mal_id);
+      if(live){live._latestChapter=0;renderJikanDrop(searchType);}
+    }
+    // Pausa 400ms entre items para respetar rate limit de Jikan (3 req/s)
+    if(i<sorted.length-1&&!ctrl.signal.aborted){
+      await new Promise(r=>setTimeout(r,400));
+    }
   }
   _jikanSearchAbort=null;
 }
@@ -2281,10 +2293,16 @@ function selectJikanResult(item,tabType){
   const cover=item.images?.jpg?.large_image_url||item.images?.jpg?.image_url||"";
   const rawCount=tabType==="manga"?(item.chapters||0):(item.episodes||0);
   const publishing=tabType==="manga"?item.publishing:item.airing;
+  // ── FIX RACE CONDITION: capturar todos los valores en variables locales AHORA ──
+  // _pendingJikanId es global y se resetea en cada render(). Si el usuario hace otra
+  // acción antes de que el async de getBestCount termine, el global ya no es válido.
+  // Todas las lecturas del item.mal_id se hacen desde estas variables locales.
+  const _localMalId=item.mal_id;
+  const _localTabType=tabType;
+  const _localPublishing=publishing||false;
   newTitle=title;
   newCover=cover;
   newCoverIsUrl=true;
-  // Usar: 1) enriquecido por API, 2) acumulado de temporadas (FIX #7), 3) rawCount
   const accEps=item._accEps||0;
   const knownCount = Math.max(accEps||0, rawCount||0, item._latestChapter||0);
   newTotal = knownCount ? String(knownCount) : "";
@@ -2300,57 +2318,65 @@ function selectJikanResult(item,tabType){
   newTags=resolvedTags;
   saveLocal();
   jikanResults=[];
-  window._pendingJikanId=item.mal_id;
-  window._pendingJikanPublishing=publishing||false;
+  window._pendingJikanId=_localMalId;
+  window._pendingJikanPublishing=_localPublishing;
   render();
   const inp=document.getElementById("add-title");
   if(inp)inp.value=title;
   const inp2=document.getElementById("add-total");
   if(inp2)inp2.value=newTotal;
   
-  // Buscar el mejor conteo: AniList + Jikan en paralelo
-  if(item.mal_id){
-    const fEl=()=>document.getElementById("add-total");
-    const fe=fEl();
-    if(fe&&!knownCount){fe.value="";fe.placeholder="Buscando...";}
+  // Buscar el mejor conteo usando variables locales (no globales) — Fix race condition
+  if(_localMalId){
+    // El badge ya muestra "Buscando..." gracias al render() de arriba (newTotal vacío)
     (async()=>{
       try{
-        const title=item.title_english||item.title||'';
-        const best=await getBestCount(item.mal_id,tabType,knownCount,title);
-        const f=fEl();
+        const _title=title;
+        // ── Usar _localMalId y _localTabType: nunca leer globals dentro del async ──
+        const best=await getBestCount(_localMalId,_localTabType,knownCount,_title);
+        // Verificar que el usuario no haya seleccionado otra serie mientras esperábamos
+        if(window._pendingJikanId!==_localMalId)return;
         if(best>0){
           newTotal=String(best);
-          if(f){
-            f.value=newTotal;
-            f.placeholder=tabType==="manga"?"Total de capitulos *":"Total de ep. *";
-            f.style.borderColor="rgba(99,179,237,.5)";
-            setTimeout(()=>{const f2=fEl();if(f2)f2.style.borderColor="";},1200);
+          // Actualizar el hidden input (para doAdd) y el badge visible
+          const hiddenInp=document.getElementById("add-total");
+          if(hiddenInp)hiddenInp.value=newTotal;
+          const badge=document.querySelector(".add-cap-badge");
+          if(badge){
+            badge.innerHTML=`<span style="font-size:15px">📖</span><span><b style="font-size:13px">${best}</b> ${_localTabType==="manga"?"caps":"eps"}${_localPublishing?" <span style='opacity:.5;font-size:10px'>· en emisión</span>":""}</span>`;
+            badge.style.borderColor="rgba(99,179,237,.5)";
+            setTimeout(()=>{if(badge)badge.style.borderColor="rgba(99,179,237,.3)";},1200);
           }
-          showToast(`📖 ${best} ${tabType==="manga"?"caps":"eps"}${publishing?" · en emisión":""}`);
+          showToast(`📖 ${best} ${_localTabType==="manga"?"caps":"eps"}${_localPublishing?" · en emisión":""}`);
         }else{
-          // La API no tiene el dato: pedir al usuario que lo ingrese
-          newTotal="0";
-          if(f){
-            f.value="";
-            f.style.borderColor="rgba(251,191,36,.5)";
-            f.style.boxShadow="0 0 0 3px rgba(251,191,36,.12)";
-            f.placeholder=publishing
-              ?(tabType==="manga"?"¿Cuántos caps llevan? Escribe el número":"¿Cuántos eps llevan? Escribe el número")
-              :(tabType==="manga"?"¿Cuántos caps tiene? Escribe el número":"¿Cuántos eps tiene? Escribe el número");
-            setTimeout(()=>{ const ff=fEl(); if(ff)ff.focus(); }, 300);
-            f.oninput=e=>{
-              newTotal=e.target.value;
-              f.style.borderColor="";
-              f.style.boxShadow="";
-            };
+          // Todas las APIs devolvieron 0
+          if(_localPublishing){
+            // En publicación sin dato: usar 1 como mínimo — el polling lo corregirá
+            newTotal="1";
+            const hiddenInp=document.getElementById("add-total");
+            if(hiddenInp)hiddenInp.value="1";
+            const badge=document.querySelector(".add-cap-badge");
+            if(badge){
+              badge.innerHTML=`<span style="font-size:13px">📡</span><span style="opacity:.7">En emisión — caps se actualizarán solos</span>`;
+            }
+            showToast("📡 En emisión — el conteo se actualizará automáticamente",3500);
+          }else{
+            // Serie finalizada sin dato: situación anómala, dejar el input visible para corrección
+            newTotal="";
+            const badge=document.querySelector(".add-cap-badge");
+            if(badge){
+              badge.innerHTML=`<span style="font-size:13px">⚠️</span><span style="opacity:.7">No se encontró el total — busca de nuevo</span>`;
+              badge.style.borderColor="rgba(251,191,36,.4)";
+            }
           }
-          showToast(publishing
-            ?"⏳ MangaDex no tiene dato — intenta de nuevo en un momento"
-            :"✏️ Ingresa el total de caps manualmente", 3500);
         }
       }catch(e){
-        const f=fEl();
-        if(f){f.placeholder="Ingresa el número manualmente";f.focus();}
+        if(window._pendingJikanId!==_localMalId)return;
+        if(_localPublishing){
+          newTotal="1";
+          const hiddenInp=document.getElementById("add-total");
+          if(hiddenInp)hiddenInp.value="1";
+        }
       }
     })();
   }
@@ -2367,18 +2393,21 @@ async function checkJikanUpdates(){
         let stillPub = true;
         let count = 0;
         try{
-          const res=await fetch(`https://api.jikan.moe/v4/${ep}/${series.jikanId}`);
-          const json=await res.json();
-          const jkCnt=tabKey==="manga"?json.data?.chapters:json.data?.episodes;
-          stillPub=tabKey==="manga"?(json.data?.publishing!==false):(json.data?.airing!==false);
-          count=jkCnt||0;
+          // Usar _jikanFetch (tiene retry 429) en lugar de fetch directo
+          const json=await _jikanFetch(`https://api.jikan.moe/v4/${ep}/${series.jikanId}`);
+          if(json){
+            const jkCnt=tabKey==="manga"?json.data?.chapters:json.data?.episodes;
+            stillPub=tabKey==="manga"?(json.data?.publishing!==false):(json.data?.airing!==false);
+            count=jkCnt||0;
+          }
         }catch(e1){}
         // Si Jikan no trajo número, usar AniList (_srcAniList es la función correcta)
         if(!count || count<1){
           const alCnt=await _srcAniList(series.jikanId,tabKey);
           if(alCnt>0)count=alCnt;
         }
-        const shouldUpdate=count>0&&(count>series.total||series.total<=1);
+        // FIX BUG #4: shouldUpdate — actualizar siempre que count > total (no solo cuando total<=1)
+        const shouldUpdate=count>0&&count>series.total;
         if(shouldUpdate){
           series.total=count;
           series.jikanPublishing=stillPub;
@@ -2477,15 +2506,27 @@ function p29RenderGoalBar(root){
   root.appendChild(bar);
 }
 // Poll every 6 hours — funciona con o sin auth
-// checkUpToDateNewChapters también se ejecuta al inicio (no solo al hacer login)
-setTimeout(()=>{
+// FIX BUG #4: guardar antes de hacer cualquier request:
+// 1) No ejecutar si no hay series en la lista (evita requests inútiles y 429 gratuitos)
+// 2) No llamar fnSaveMyPublicProfile desde el polling si fbDb es null (evita error silencioso)
+function _safeCheckJikanUpdates(){
+  const total=data.manga.length+data.anime.length;
+  if(!total)return; // nada que chequear
   checkJikanUpdates();
-  // Chequear caps nuevos para series al día — sin depender de auth
-  setTimeout(checkUpToDateNewChapters, 3000);
+}
+function _safeCheckUpToDate(){
+  const pubCount=data.manga.filter(s=>s.jikanId&&s.jikanPublishing).length
+    +data.anime.filter(s=>s.jikanId&&s.jikanPublishing).length;
+  if(!pubCount)return; // no hay series en publicación con jikanId — no gastar requests
+  checkUpToDateNewChapters();
+}
+setTimeout(()=>{
+  _safeCheckJikanUpdates();
+  setTimeout(_safeCheckUpToDate, 3000);
 }, 10000);
 setInterval(()=>{
-  checkJikanUpdates();
-  setTimeout(checkUpToDateNewChapters, 3000);
+  _safeCheckJikanUpdates();
+  setTimeout(_safeCheckUpToDate, 3000);
 }, 6*60*60*1000);
 
 // ── P2.9: SONIDO +1 (Web Audio API) ──
@@ -2782,7 +2823,32 @@ const fbar=h("div","fbar");fbar.appendChild(h("button",`fchip${animeCls}${showFa
 // Add
 const addS=h("div","add");const addHdr=h("div","add-header");const addHdrL=h("div","add-header-left");addHdrL.append(h("div","add-header-icon",tab==="manga"?"\u{1F4DA}":"\u{1F3AC}"),h("span","add-header-title","➕ Agregar "+(tab==="manga"?"manga":"anime")+" — busca aquí"));const addResetBtn=h("button","add-reset-btn","Limpiar");addResetBtn.onclick=()=>{newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;jikanResults=[];render();};addHdr.append(addHdrL,addResetBtn);addS.appendChild(addHdr);const addBody=h("div","add-body");addS.appendChild(addBody);const titleRow=h("div","add-title-row");const titleWrap=h("div","jikan-wrap");const sIcon=document.createElement("span");sIcon.className="add-title-icon";sIcon.textContent="🔍";const ti=h("input","",null,{placeholder:"Buscar en MyAnimeList...",id:"add-title",value:newTitle,autocomplete:"off",autocorrect:"off",autocapitalize:"off",spellcheck:"false"});ti.oninput=e=>{newTitle=e.target.value;clearTimeout(jikanSearchTimeout);if(e.target.value.length>=2){sIcon.textContent="⏳";jikanSearchTimeout=setTimeout(()=>{searchJikan(e.target.value,tab).finally(()=>{sIcon.textContent="🔍";});},500);}else{jikanResults=[];removeJikanDrop();sIcon.textContent="🔍";}};ti.onkeydown=e=>{if(e.key==="Enter"){jikanResults=[];removeJikanDrop();doAdd();}if(e.key==="Escape"){jikanResults=[];removeJikanDrop();}};// El dropdown Jikan se construye en renderJikanDrop(), no en render(), para preservar foco del input
 titleWrap.append(sIcon,ti);titleRow.appendChild(titleWrap);addBody.appendChild(titleRow);
-const row2=h("div","add-row2");const ni=h("input","add-cap-input",null,{placeholder:tab==="manga"?"Total de capitulos *":"Total de ep. * (todas las temp.)",type:"number",min:"1",id:"add-total",value:newTotal});ni.oninput=e=>{newTotal=e.target.value;};ni.onkeydown=e=>{if(e.key==="Enter")doAdd();};const fi=h("input","hidden",null,{type:"file",accept:"image/*",id:"acf"});fi.onchange=e=>{const f=e.target.files?.[0];if(!f)return;resizeImg(f,b=>{newCover=b;render();});e.target.value="";};const coverBtn=h("button","add-cover-btn",svg.up+" Portada");coverBtn.onclick=()=>document.getElementById("acf").click();const ab=h("button","add-submit-btn",svg.plus);ab.style.background=ac;ab.title="Agregar";ab.onclick=doAdd;row2.append(fi,ni,coverBtn,ab);addBody.appendChild(row2);addBody.appendChild(h("div","add-divider"));const stSec=h("div","add-status-section");stSec.appendChild(h("div","add-status-label","Estado"));const spRow=h("div","add-status-pills");STATUSES.forEach(st=>{const lbl=(st.key==="reading"&&tab==="anime")?"Viendo":getStatusLabel(st.key);const pill=h("button","add-status-pill"+(newStatus===st.key?" sp-"+st.key:""),st.icon+" "+lbl);pill.onclick=()=>{newStatus=st.key;spRow.querySelectorAll(".add-status-pill").forEach(p=>{p.className="add-status-pill";});pill.className="add-status-pill sp-"+st.key;};spRow.appendChild(pill);});stSec.appendChild(spRow);addBody.appendChild(stSec);const genSec=h("div","add-genres-section");genSec.appendChild(h("div","add-genres-label","Generos"));const genGrid=h("div","add-genres-grid");const allTagsList=[...ALL_TAGS,...(theme.customTags||[])];allTagsList.forEach(t=>{const isCustom=!ALL_TAGS.includes(t);const wrapper=isCustom?h("div","tag-custom"):null;const chip=h("button","genre-chip"+(newTags.includes(t)?(animeCls?" anime-on":" on"):""),t);chip.onclick=()=>{if(newTags.includes(t)){newTags=newTags.filter(x=>x!==t);chip.className="genre-chip";}else{newTags.push(t);chip.className="genre-chip"+(animeCls?" anime-on":" on");}};if(isCustom&&wrapper){const dx=h("button","tag-del-x","✕");dx.onclick=e=>{e.stopPropagation();theme.customTags=(theme.customTags||[]).filter(c=>c!==t);newTags=newTags.filter(x=>x!==t);saveLocal();render();};wrapper.append(chip,dx);genGrid.appendChild(wrapper);}else{genGrid.appendChild(chip);}});const addGenChip=h("button","genre-add-chip","+ tag");addGenChip.onclick=()=>{const nm=prompt("Nombre del nuevo tag:");if(!nm||!nm.trim())return;const nt=nm.trim();if(allTagsList.includes(nt)){showToast("Ya existe ese tag");return;}if(!theme.customTags)theme.customTags=[];theme.customTags.push(nt);newTags.push(nt);saveLocal();render();};genGrid.appendChild(addGenChip);genSec.appendChild(genGrid);addBody.appendChild(genSec);if(newCover){const prevW=h("div","add-cover-preview");prevW.append(Object.assign(h("img","cvmn"),{src:newCover}),h("button","bcx","✕ quitar",{onclick:()=>{newCover="";render();}}));addBody.appendChild(prevW);}root.appendChild(addS);
+const row2=h("div","add-row2");
+// FIX BUG #1: Si ya hay un jikanId seleccionado, el usuario NO debe ingresar caps manualmente.
+// Mostrar un badge informativo en lugar del input. Si aún no hay jikanId (ingreso manual),
+// mostrar el input solo para series finalizadas (publicación = polling lo maneja).
+const _hasPendingJikan=!!window._pendingJikanId;
+const _isPendingPub=window._pendingJikanPublishing||false;
+let ni;
+if(_hasPendingJikan){
+  // Serie seleccionada desde MAL: ocultar input y mostrar badge de estado
+  ni=h("input","add-cap-input",null,{type:"hidden",id:"add-total",value:newTotal||"1"});
+  const capBadge=h("div","add-cap-badge","");
+  capBadge.style.cssText="flex:1;padding:10px 14px;background:var(--bg3);border:1px solid rgba(99,179,237,.3);border-radius:9px;color:#7ec8f4;font-family:'Outfit',sans-serif;font-size:12px;display:flex;align-items:center;gap:6px;min-width:0";
+  if(newTotal&&parseInt(newTotal)>0){
+    capBadge.innerHTML=`<span style="font-size:15px">📖</span><span><b style="font-size:13px">${newTotal}</b> ${tab==="manga"?"caps":"eps"}${_isPendingPub?" <span style='opacity:.5;font-size:10px'>· en emisión</span>":""}</span>`;
+  }else{
+    capBadge.innerHTML=`<span style="font-size:13px">⏳</span><span style="opacity:.7">Buscando caps...</span>`;
+  }
+  row2.append(ni,capBadge);
+}else{
+  // Ingreso manual: mostrar input normal
+  ni=h("input","add-cap-input",null,{placeholder:tab==="manga"?"Total de capitulos *":"Total de ep. * (todas las temp.)",type:"number",min:"1",id:"add-total",value:newTotal});
+  ni.oninput=e=>{newTotal=e.target.value;};
+  ni.onkeydown=e=>{if(e.key==="Enter")doAdd();};
+  row2.append(ni);
+}
+const fi=h("input","hidden",null,{type:"file",accept:"image/*",id:"acf"});fi.onchange=e=>{const f=e.target.files?.[0];if(!f)return;resizeImg(f,b=>{newCover=b;render();});e.target.value="";};const coverBtn=h("button","add-cover-btn",svg.up+" Portada");coverBtn.onclick=()=>document.getElementById("acf").click();const ab=h("button","add-submit-btn",svg.plus);ab.style.background=ac;ab.title="Agregar";ab.onclick=doAdd;row2.append(fi,coverBtn,ab);addBody.appendChild(row2);addBody.appendChild(h("div","add-divider"));const stSec=h("div","add-status-section");stSec.appendChild(h("div","add-status-label","Estado"));const spRow=h("div","add-status-pills");STATUSES.forEach(st=>{const lbl=(st.key==="reading"&&tab==="anime")?"Viendo":getStatusLabel(st.key);const pill=h("button","add-status-pill"+(newStatus===st.key?" sp-"+st.key:""),st.icon+" "+lbl);pill.onclick=()=>{newStatus=st.key;spRow.querySelectorAll(".add-status-pill").forEach(p=>{p.className="add-status-pill";});pill.className="add-status-pill sp-"+st.key;};spRow.appendChild(pill);});stSec.appendChild(spRow);addBody.appendChild(stSec);const genSec=h("div","add-genres-section");genSec.appendChild(h("div","add-genres-label","Generos"));const genGrid=h("div","add-genres-grid");const allTagsList=[...ALL_TAGS,...(theme.customTags||[])];allTagsList.forEach(t=>{const isCustom=!ALL_TAGS.includes(t);const wrapper=isCustom?h("div","tag-custom"):null;const chip=h("button","genre-chip"+(newTags.includes(t)?(animeCls?" anime-on":" on"):""),t);chip.onclick=()=>{if(newTags.includes(t)){newTags=newTags.filter(x=>x!==t);chip.className="genre-chip";}else{newTags.push(t);chip.className="genre-chip"+(animeCls?" anime-on":" on");}};if(isCustom&&wrapper){const dx=h("button","tag-del-x","✕");dx.onclick=e=>{e.stopPropagation();theme.customTags=(theme.customTags||[]).filter(c=>c!==t);newTags=newTags.filter(x=>x!==t);saveLocal();render();};wrapper.append(chip,dx);genGrid.appendChild(wrapper);}else{genGrid.appendChild(chip);}});const addGenChip=h("button","genre-add-chip","+ tag");addGenChip.onclick=()=>{const nm=prompt("Nombre del nuevo tag:");if(!nm||!nm.trim())return;const nt=nm.trim();if(allTagsList.includes(nt)){showToast("Ya existe ese tag");return;}if(!theme.customTags)theme.customTags=[];theme.customTags.push(nt);newTags.push(nt);saveLocal();render();};genGrid.appendChild(addGenChip);genSec.appendChild(genGrid);addBody.appendChild(genSec);if(newCover){const prevW=h("div","add-cover-preview");prevW.append(Object.assign(h("img","cvmn"),{src:newCover}),h("button","bcx","✕ quitar",{onclick:()=>{newCover="";render();}}));addBody.appendChild(prevW);}root.appendChild(addS);
 const filtered=sortList(filterList(list));if(filtered.length===0){const emptyWrap=h("div","");emptyWrap.appendChild(h("div","empty",`<div class="icn">${icon}</div><p>${list.length===0?`Agrega tu primer ${tab==="manga"?"manga":"anime"}`:"Sin resultados"}</p>`));if(list.length===0){p28RenderOnboardingExamples(emptyWrap,tab);}root.appendChild(emptyWrap);return;}
 // Catalog view
 if(viewMode==="catalog"){const cat=h("div","catalog");filtered.forEach(s=>{const pct=s.total>0?Math.min(100,(s.completed.length/s.total)*100):0;const cc=h("div","catc");cc.onclick=()=>{pinnedId=s.id;viewMode="list";expanded[s.id]=true;render();};const st=SM[s.status];const statusIcon=st?(s.status==="reading"&&tab==="anime"?"👁️":st.icon):"";cc.innerHTML=`<div style="position:relative">${s.cover?`<img class="catcv" src="${s.cover}">`:`<div class="catph">${icon}</div>`}${s.favorite?`<div class="cat-fav">★</div>`:""}${s.score?`<div class="cat-score">${s.score}</div>`:""}${pct>0?`<div class="cat-pct">${Math.round(pct)}%</div>`:""}${statusIcon?`<div class="cat-status-ov">${statusIcon}</div>`:""}</div><div class="cati"><div class="catt">${s.title}</div><div class="catp">${s.completed.length}/${s.total}</div><div class="catb"><div class="catf" style="width:${pct}%;background:${ac}"></div></div></div>`;cat.appendChild(cc);});root.appendChild(cat);return;}
@@ -3552,24 +3618,38 @@ function markChapter(sid,n,cellEl,ac){const x=data[tab].find(z=>z.id===sid);if(!
     });
   }
   if(cellEl){if(wasRead){cellEl.classList.remove("rd");cellEl.style.background="";cellEl.style.borderColor="";}else{cellEl.classList.add("rd");cellEl.style.background=ac;cellEl.style.borderColor=ac;}}const card=cellEl?.closest(".scard");if(card){const prg=card.querySelector(".sprg");if(prg)prg.textContent=`${x.completed.length}/${x.total}`;const pfill=card.querySelector(".pfill");if(pfill)pfill.style.width=`${x.total>0?(x.completed.length/x.total)*100:0}%`;}}
-function doAdd(){const t=document.getElementById("add-title")?.value.trim();if(!t)return;const ni=document.getElementById("add-total");const rawVal=ni?.value;const totalVal=Math.max(0,parseInt(rawVal)||0);// FIX #12: rechazar negativos
+function doAdd(){const t=document.getElementById("add-title")?.value.trim();if(!t)return;const ni=document.getElementById("add-total");const rawVal=ni?.value;const totalVal=Math.max(0,parseInt(rawVal)||0);
 const isPublishing=window._pendingJikanPublishing||false;
+// Series finalizadas SIN jikanId requieren total > 0 (no hay API que lo busque después)
+// Series en publicación CON jikanId: el polling lo actualizará, se permite total=0 transitoriamente
+// Series en publicación SIN jikanId: también necesitan al menos 1 para que +1 funcione
 if(!isPublishing&&(!totalVal||totalVal<1)){if(ni){ni.style.borderColor="var(--dng)";ni.style.boxShadow="0 0 0 3px rgba(231,76,76,.2)";ni.focus();}showToast("⚠️ Ingresa el número de capítulos");return;}
-if(isPublishing&&(!totalVal||totalVal<1)){showToast("📌 Agregado en publicación — ingresa los caps desde el panel");}
 if(ni){ni.style.borderColor="";ni.style.boxShadow="";}
-// FIX #8: aviso si el usuario agregó sin seleccionar del dropdown (sin jikanId = sin seguimiento automático)
-if(!window._pendingJikanId&&t.length>2){showToast("ℹ️ Sin seleccionar de MAL: no habrá seguimiento automático de caps",3500);}const now=Date.now();const newId=now.toString()+Math.random().toString(36).slice(2,7);data[tab].push(migrate({id:newId,title:t,total:Math.max(totalVal,0),completed:[],cover:newCover||"",coverIsUrl:newCoverIsUrl||false,status:newStatus||"reading",tags:[...newTags],notes:"",score:0,favorite:false,lastUpdated:now,createdAt:now,startDate:"",endDate:"",seasons:[],characters:[],jikanId:window._pendingJikanId||null,jikanPublishing:isPublishing}));const _jId=window._pendingJikanId;const _jPub=isPublishing;newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";newTitle="";newTotal="";window._pendingJikanId=null;window._pendingJikanPublishing=false;save();render();showToast(`"${t}" agregado ✓`);actLogAdd(t,tab,Math.max(totalVal,0));// FIX: Si obra en publicación con total=0, fetchear caps reales ahora
-// FIX: Si obra en publicación con total=0, fetchear caps con getBestCount (MangaDex+AniList+Jikan)
-if(_jPub&&_jId&&totalVal<1){
+// FIX BUG #1: total nunca puede quedar en 0 al guardar — el botón +1 desaparece si total<1
+// Para series en publicación sin dato de API: usar 1 como mínimo (el polling lo corregirá)
+const _pendingId=window._pendingJikanId||null;
+const _pendingPub=isPublishing;
+const safeTotal=totalVal>0?totalVal:(isPublishing?1:0);
+// FIX BUG #8: quitar el aviso de "sin seguimiento automático" — el usuario no tiene por qué
+// saber de jikanId. Solo loguear en consola para debug.
+if(!_pendingId&&t.length>2){console.debug("[mangu] serie agregada sin jikanId — sin polling automático:",t);}
+const now=Date.now();const newId=now.toString()+Math.random().toString(36).slice(2,7);
+data[tab].push(migrate({id:newId,title:t,total:safeTotal,completed:[],cover:newCover||"",coverIsUrl:newCoverIsUrl||false,status:newStatus||"reading",tags:[...newTags],notes:"",score:0,favorite:false,lastUpdated:now,createdAt:now,startDate:"",endDate:"",seasons:[],characters:[],jikanId:_pendingId,jikanPublishing:_pendingPub}));
+// Limpiar estado global DESPUÉS de capturar en variables locales
+newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";newTitle="";newTotal="";window._pendingJikanId=null;window._pendingJikanPublishing=false;
+save();render();showToast(`"${t}" agregado ✓`);actLogAdd(t,tab,safeTotal);
+// FIX BUG #1: Si en publicación, fetchear caps reales SIEMPRE (no solo cuando total<1)
+// para corregir el mínimo de 1 que pusimos arriba, o actualizar un total ya conocido
+if(_pendingPub&&_pendingId){
   const _tabSnap=tab;
-  const _savedId=newId; // newId ya está capturado en este scope
+  const _savedId=newId;
   const _title=t;
   (async()=>{
     try{
-      const cnt=await getBestCount(_jId,_tabSnap,0,_title);
-      if(cnt>0){
+      const cnt=await getBestCount(_pendingId,_tabSnap,safeTotal,_title);
+      if(cnt>0&&cnt!==safeTotal){
         const s=data[_tabSnap].find(x=>x.id===_savedId);
-        if(s){s.total=cnt;save();render();showToast(`📖 ${cnt} ${_tabSnap==="manga"?"caps":"eps"} cargados`);}
+        if(s){s.total=cnt;save();render();showToast(`📖 ${cnt} ${_tabSnap==="manga"?"caps":"eps"} en emisión`);}
       }
     }catch(e){}
   })();
