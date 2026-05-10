@@ -1889,20 +1889,10 @@ async function _srcJikanIndividual(malId, type){
     //   anime: AniList nextAiringEpisode.episode-1 es la fuente más precisa
     if(!cnt && isAiring){
       if(type==="manga"){
-        // Kitsu es la fuente primaria para manga en emisión (chapterCount real)
-        const kitsu=await _srcKitsu(malId,null);
-        if(kitsu>0) return kitsu;
-        // Fallback: MangaDex feed japonés vía MAL ID
-        try{
-          const mdxId=await _mdxGetId(malId,null);
-          if(mdxId){
-            const feedJP=await _mdxFeedLatestJP(mdxId);
-            if(feedJP>0) return feedJP;
-          }
-        }catch(e){}
-        return 0;
+        // Manga en emision: delegar a _getMangaCount (MangaDex -> Jikan)
+        return _getMangaCount(malId,null,0);
       }else{
-        // Para anime en emisión: AniList nextAiringEpisode es la fuente más precisa
+        // Para anime en emision: AniList nextAiringEpisode es la fuente mas precisa
         const alCnt=await _srcAniList(malId,type);
         return alCnt||0;
       }
@@ -2184,22 +2174,57 @@ async function _srcMangaDexByMalId(malId){
 // emisión), _srcMangaDex y _srcMangaDexByMalId (duplicados con sub-requests).
 // Para anime en emisión el flujo sigue igual (AniList nextAiringEpisode).
 async function _getMangaCount(malId, title, rawCount){
-  const T=4000;
+  const T=5000;
   const t=ms=>new Promise(r=>setTimeout(()=>r(0),ms));
-  // 1° fuente: Kitsu — chapterCount actualizado en tiempo real, 1 solo request
-  const kitsu=await Promise.race([_srcKitsu(malId,title),t(T)]);
-  if(kitsu>0) return kitsu;
-  // 2° fuente: MangaDex feed japonés — capítulo original más reciente
-  // Obtener UUID de MangaDex a partir del MAL ID, luego pedir feed JP
-  let mdxCount=0;
+  // 1 fuente: MangaDex por MAL ID — endpoint estable, sin autenticacion
+  // links[mal]=id retorna el UUID y lastChapter (finalizado) o null (en emision)
+  let mdxId=null;
+  let mdxLastChapter=0;
   try{
-    const mdxId=await Promise.race([_mdxGetId(malId,title),t(T)]);
-    if(mdxId){
-      mdxCount=await Promise.race([_mdxFeedLatestJP(mdxId),t(T)]);
+    const url="https://api.mangadex.org/manga?"+
+      "links%5Bmal%5D="+encodeURIComponent(String(malId))+
+      "&limit=5&includes%5B%5D=none"+
+      "&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive"+
+      "&contentRating%5B%5D=erotica&contentRating%5B%5D=pornographic";
+    const res=await Promise.race([
+      fetch(url,{headers:{"Accept":"application/json"}}),
+      t(T)
+    ]);
+    if(res&&res.ok){
+      const items=(await res.json())?.data||[];
+      if(items.length){
+        mdxId=items[0].id;
+        const lc=items[0].attributes?.lastChapter;
+        if(lc&&lc!=="none"&&lc!==null&&lc!=="null"&&lc!==""){
+          const n=Math.floor(parseFloat(lc));
+          if(n>0) mdxLastChapter=n;
+        }
+      }
     }
   }catch(e){}
-  // Retornar el mayor entre rawCount conocido y lo que encontramos
-  return Math.max(rawCount||0,mdxCount||0);
+  // Manga finalizado: lastChapter es el total definitivo
+  if(mdxLastChapter>0) return Math.max(rawCount||0,mdxLastChapter);
+  // Manga en emision: feed JP y feed any en paralelo para el capitulo mas reciente
+  if(mdxId){
+    const [feedJP,feedAny]=await Promise.all([
+      Promise.race([_mdxFeedLatestJP(mdxId),t(T)]),
+      Promise.race([_mdxFeedLatestAny(mdxId),t(T)])
+    ]);
+    const mdxBest=Math.max(feedJP||0,feedAny||0);
+    if(mdxBest>0) return Math.max(rawCount||0,mdxBest);
+  }
+  // 2 fuente: Jikan individual — fallback para titulos sin link MAL en MangaDex
+  try{
+    const jd=await Promise.race([
+      _jikanFetch("https://api.jikan.moe/v4/manga/"+malId),
+      t(T)
+    ]);
+    if(jd){
+      const cnt=jd?.data?.chapters||0;
+      if(cnt>0) return Math.max(rawCount||0,cnt);
+    }
+  }catch(e){}
+  return rawCount||0;
 }
 
 async function getBestCount(malId, type, rawCount, title){
