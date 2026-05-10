@@ -1885,11 +1885,11 @@ async function _srcJikanIndividual(malId, type){
     const cnt=type==="manga"?(d?.data?.chapters||0):(d?.data?.episodes||0);
     // Para series en emisión, Jikan devuelve null en chapters/episodes.
     // Estrategia diferenciada por tipo:
-    //   manga: delegar a _getMangaCount (Kitsu → MangaDex feed JP)
+    //   manga: delegar a _getMangaCount (Jikan /chapters → Jikan individual)
     //   anime: AniList nextAiringEpisode.episode-1 es la fuente más precisa
     if(!cnt && isAiring){
       if(type==="manga"){
-        // Manga en emision: delegar a _getMangaCount (MangaDex -> Jikan)
+        // Manga en emision: delegar a _getMangaCount (Jikan paged -> individual)
         return _getMangaCount(malId,null,0);
       }else{
         // Para anime en emision: AniList nextAiringEpisode es la fuente mas precisa
@@ -2174,62 +2174,47 @@ async function _srcMangaDexByMalId(malId){
 // emisión), _srcMangaDex y _srcMangaDexByMalId (duplicados con sub-requests).
 // Para anime en emisión el flujo sigue igual (AniList nextAiringEpisode).
 async function _getMangaCount(malId, title, rawCount){
-  const T=6000;
-  const t=ms=>new Promise(r=>setTimeout(()=>r(0),ms));
+  // FUENTE UNICA: Jikan — MangaDex eliminado (sitio caido/no confiable).
+  //
+  // Estrategia de 2 niveles con Jikan:
+  //
+  // Nivel 1 — /manga/{id}/chapters (paginado):
+  //   Lista todos los capitulos publicados. Para manga finalizado devuelve
+  //   pagination.items.total directamente. Para manga en emision va a la
+  //   ultima pagina y extrae el numero del capitulo mas reciente.
+  //   Es el endpoint mas preciso para contar capitulos reales publicados.
+  //
+  // Nivel 2 — /manga/{id} (individual):
+  //   Fallback cuando /chapters no tiene datos (manga muy nuevo, sin lista
+  //   de capitulos en MAL). Devuelve el campo chapters del metadata.
+  //   Para manga en emision este campo es null, por lo que solo sirve
+  //   como respaldo para mangas finalizados sin lista de capitulos.
+  //
+  // Ambos usan _jikanFetch que ya tiene retry con backoff exponencial
+  // para manejar rate limit 429 de Jikan (3 req/s).
 
-  // Lanzar MangaDex y Jikan paged EN PARALELO desde el inicio.
-  // — MangaDex links[mal]: rapido cuando tiene el UUID registrado, devuelve
-  //   lastChapter (finalizado) o null (en emision, usar feed).
-  // — Jikan /chapters: confiable para cualquier manga MAL, cubre el caso donde
-  //   MangaDex no tiene el link MAL registrado. Puede ser lento (2 requests si
-  //   hay multiples paginas), pero al correr en paralelo no agrega latencia total.
-  // El resultado es el mayor de ambas fuentes — se complementan.
+  const T = 8000; // timeout generoso — Jikan puede tardar en paginas grandes
+  const t = ms => new Promise(r => setTimeout(()=>r(0), ms));
 
-  // Construir la promesa de MangaDex (UUID lookup + feed si en emision)
-  const mdxPromise = (async()=>{
-    try{
-      const url="https://api.mangadex.org/manga?"+
-        "links%5Bmal%5D="+encodeURIComponent(String(malId))+
-        "&limit=5&includes%5B%5D=none"+
-        "&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive"+
-        "&contentRating%5B%5D=erotica&contentRating%5B%5D=pornographic";
-      const res=await Promise.race([fetch(url,{headers:{"Accept":"application/json"}}),t(T)]);
-      if(!res||!res.ok) return 0;
-      const items=(await res.json())?.data||[];
-      if(!items.length) return 0;
-      const mdxId=items[0].id;
-      const lc=items[0].attributes?.lastChapter;
-      if(lc&&lc!=="none"&&lc!==null&&lc!=="null"&&lc!==""){
-        const n=Math.floor(parseFloat(lc));
-        if(n>0) return n; // manga finalizado: lastChapter es definitivo
-      }
-      // manga en emision: feed JP y any en paralelo
-      const [feedJP,feedAny]=await Promise.all([
-        Promise.race([_mdxFeedLatestJP(mdxId),t(T)]),
-        Promise.race([_mdxFeedLatestAny(mdxId),t(T)])
-      ]);
-      return Math.max(feedJP||0,feedAny||0);
-    }catch(e){return 0;}
-  })();
+  // Nivel 1: endpoint /chapters — mas preciso
+  const paged = await Promise.race([_srcJikanPaged(malId, "manga"), t(T)]);
+  if(paged > 0) return Math.max(rawCount||0, paged);
 
-  // Jikan /chapters corre en paralelo — es el fallback mas confiable
-  const jikanPagedPromise = Promise.race([_srcJikanPaged(malId,"manga"),t(T)]);
-
-  // Esperar ambas y tomar el maximo
-  const [mdxCount, jikanPaged] = await Promise.all([mdxPromise, jikanPagedPromise]);
-  const best = Math.max(rawCount||0, mdxCount||0, jikanPaged||0);
-  if(best>0) return best;
-
-  // Ultimo recurso: Jikan individual (para manga finalizado sin chapters list)
+  // Nivel 2: endpoint individual — fallback
   try{
-    const jd=await Promise.race([_jikanFetch("https://api.jikan.moe/v4/manga/"+malId),t(4000)]);
+    const jd = await Promise.race([
+      _jikanFetch("https://api.jikan.moe/v4/manga/" + malId),
+      t(T)
+    ]);
     if(jd){
-      const cnt=jd?.data?.chapters||0;
-      if(cnt>0) return Math.max(rawCount||0,cnt);
+      const cnt = jd?.data?.chapters || 0;
+      if(cnt > 0) return Math.max(rawCount||0, cnt);
     }
   }catch(e){}
-  return rawCount||0;
+
+  return rawCount || 0;
 }
+
 
 async function getBestCount(malId, type, rawCount, title){
   const T=4000;
