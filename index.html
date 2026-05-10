@@ -1883,21 +1883,24 @@ async function _srcJikanIndividual(malId, type){
     if(!d) return 0;
     const isAiring=type==="manga"?(d?.data?.publishing===true):(d?.data?.airing===true);
     const cnt=type==="manga"?(d?.data?.chapters||0):(d?.data?.episodes||0);
-    // FIX: Para series en emisión, Jikan devuelve null en chapters/episodes (total desconocido).
+    // Para series en emisión, Jikan devuelve null en chapters/episodes.
     // Estrategia diferenciada por tipo:
-    //   manga: Kitsu (chapterCount real) + Jikan paged + MangaDex
-    //   anime: AniList tiene nextAiringEpisode.episode-1 que es muy preciso
+    //   manga: delegar a _getMangaCount (Kitsu → MangaDex feed JP)
+    //   anime: AniList nextAiringEpisode.episode-1 es la fuente más precisa
     if(!cnt && isAiring){
       if(type==="manga"){
-        // Para manga en emisión: Kitsu es la fuente más directa (chapterCount real)
-        const [kitsu,paged]=await Promise.all([
-          _srcKitsu(malId,null),
-          _srcJikanPaged(malId,"manga")
-        ]);
-        if(kitsu>0||paged>0) return Math.max(kitsu,paged);
-        // Fallback: MangaDex por MAL ID
-        const mdx=await _srcMangaDexByMalId(malId);
-        return mdx||0;
+        // Kitsu es la fuente primaria para manga en emisión (chapterCount real)
+        const kitsu=await _srcKitsu(malId,null);
+        if(kitsu>0) return kitsu;
+        // Fallback: MangaDex feed japonés vía MAL ID
+        try{
+          const mdxId=await _mdxGetId(malId,null);
+          if(mdxId){
+            const feedJP=await _mdxFeedLatestJP(mdxId);
+            if(feedJP>0) return feedJP;
+          }
+        }catch(e){}
+        return 0;
       }else{
         // Para anime en emisión: AniList nextAiringEpisode es la fuente más precisa
         const alCnt=await _srcAniList(malId,type);
@@ -2175,28 +2178,35 @@ async function _srcMangaDexByMalId(malId){
   }catch(e){return 0;}
 }
 
-// ── Orquestador: fuentes en paralelo, timeout 15s ────────────────────────
-// Para manga en emisión el flujo es:
-//   Kitsu (chapterCount real) + Jikan paged + AniList + MangaDex feed JP + agg + feed any
-// Para anime en emisión:
-//   AniList nextAiringEpisode (más preciso) + Jikan individual + Jikan paged
+// ── Orquestador manga: Kitsu primero, MangaDex feed JP como fallback ──────────
+// Lógica simplificada: 2 fuentes secuenciales con timeout corto (4s cada una).
+// Eliminadas: Jikan paged (parseo frágil), AniList (retorna null para manga en
+// emisión), _srcMangaDex y _srcMangaDexByMalId (duplicados con sub-requests).
+// Para anime en emisión el flujo sigue igual (AniList nextAiringEpisode).
+async function _getMangaCount(malId, title, rawCount){
+  const T=4000;
+  const t=ms=>new Promise(r=>setTimeout(()=>r(0),ms));
+  // 1° fuente: Kitsu — chapterCount actualizado en tiempo real, 1 solo request
+  const kitsu=await Promise.race([_srcKitsu(malId,title),t(T)]);
+  if(kitsu>0) return kitsu;
+  // 2° fuente: MangaDex feed japonés — capítulo original más reciente
+  // Obtener UUID de MangaDex a partir del MAL ID, luego pedir feed JP
+  let mdxCount=0;
+  try{
+    const mdxId=await Promise.race([_mdxGetId(malId,title),t(T)]);
+    if(mdxId){
+      mdxCount=await Promise.race([_mdxFeedLatestJP(mdxId),t(T)]);
+    }
+  }catch(e){}
+  // Retornar el mayor entre rawCount conocido y lo que encontramos
+  return Math.max(rawCount||0,mdxCount||0);
+}
+
 async function getBestCount(malId, type, rawCount, title){
-  const T=15000;
+  const T=4000;
   const t=ms=>new Promise(r=>setTimeout(()=>r(0),ms));
   if(type==="manga"){
-    // Kitsu + Jikan paged + AniList + MangaDex (feed JP + agg + feed any) — todo en paralelo
-    const [kitsu,j2,al,mdx,mdx2]=await Promise.all([
-      Promise.race([_srcKitsu(malId,title),t(T)]),          // chapterCount real — MEJOR FUENTE
-      Promise.race([_srcJikanPaged(malId,"manga"),t(T)]),    // lista de caps publicados
-      Promise.race([_srcAniList(malId,"manga"),t(T)]),       // null para en emisión — fallback
-      Promise.race([_srcMangaDex(malId,title),t(T)]),        // feed JP + agg + feed any
-      Promise.race([_srcMangaDexByMalId(malId),t(T)])        // mismo vía MAL ID directo
-    ]);
-    const best=Math.max(rawCount||0,kitsu||0,j2||0,al||0,mdx||0,mdx2||0);
-    if(best>0) return best;
-    // Último recurso secuencial
-    const j1=await Promise.race([_srcJikanIndividual(malId,"manga"),t(6000)]);
-    return Math.max(best,j1||0);
+    return _getMangaCount(malId,title,rawCount);
   }else{
     const [j1,j2,al]=await Promise.all([
       Promise.race([_srcJikanIndividual(malId,"anime"),t(T)]),
@@ -2370,7 +2380,8 @@ async function searchJikan(query,tabType){
     ...snap.filter(x=>!(searchType==="manga"?x.publishing:x.airing))
   ];
   // Concurrencia 1: procesar de a 1 item para no saturar Jikan (rate limit 3 req/s)
-  // getBestCount puede emitir hasta 4 requests por item (Jikan+AniList+2xMangaDex)
+  // Para manga: _getMangaCount emite 1-2 requests (Kitsu → MangaDex feed JP si falla)
+  // Para anime: getBestCount emite hasta 3 requests en paralelo (Jikan+AniList)
   for(let i=0;i<sorted.length;i++){
     if(ctrl.signal.aborted)return;
     const item=sorted[i];
@@ -2607,11 +2618,15 @@ function selectJikanResult(item,tabType){
           _updateBadge(best,_localPublishing);
           showToast(`📖 ${best} ${_localTabType==="manga"?"caps":"eps"}${_localPublishing?" · en emisión":""}`);
         }else if(_localPublishing){
-          // En emisión y primer getBestCount retornó 0 — reintentar con mayor timeout
-          // (getBestCount ya incluye Jikan paged + MangaDex feed JP + aggregate + feed any)
+          // En emisión y primer getBestCount retornó 0 — mostrar placeholder
+          // (el polling periódico checkJikanUpdates corregirá el conteo)
           let fallbackCount=0;
           try{
-            fallbackCount=await getBestCount(_localMalId,_localTabType,0,_title);
+            if(_localTabType==="manga"){
+              fallbackCount=await _getMangaCount(_localMalId,_title,0);
+            }else{
+              fallbackCount=await getBestCount(_localMalId,_localTabType,0,_title);
+            }
           }catch(e2){}
           if(window._pendingJikanId!==_localMalId)return;
           if(fallbackCount>0){
@@ -2663,24 +2678,22 @@ async function checkJikanUpdates(){
           }
         }catch(e1){}
         // Si Jikan endpoint individual no trae número (típico en manga/anime en emisión),
-        // usar getBestCount que incluye Kitsu + Jikan paged + AniList + MangaDex
+        // usar la función específica por tipo.
         if(!count || count<1){
           try{
-            // Para manga: intentar Kitsu primero (más rápido y preciso)
             if(tabKey==="manga"){
-              const kitsuCnt=await _srcKitsu(series.jikanId,series.title);
-              if(kitsuCnt>0){ count=kitsuCnt; }
-              else{
-                const best=await getBestCount(series.jikanId,tabKey,0,series.title);
-                if(best>0) count=best;
-              }
+              // Para manga: Kitsu → MangaDex feed JP (2 fuentes, secuencial, rápido)
+              const best=await _getMangaCount(series.jikanId,series.title,0);
+              if(best>0) count=best;
             }else{
               const best=await getBestCount(series.jikanId,tabKey,0,series.title);
               if(best>0) count=best;
             }
           }catch(e2){
-            const alCnt=await _srcAniList(series.jikanId,tabKey);
-            if(alCnt>0) count=alCnt;
+            if(tabKey==="anime"){
+              const alCnt=await _srcAniList(series.jikanId,tabKey);
+              if(alCnt>0) count=alCnt;
+            }
           }
         }
         // FIX BUG #4+: shouldUpdate — actualizar cuando count > total
