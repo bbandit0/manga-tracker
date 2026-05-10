@@ -2110,49 +2110,71 @@ async function searchJikan(query,tabType){
       return true;
     });
 
-    // ── FILTRO 2: normalizar título base para agrupar temporadas ────────────────
-    // Problema conocido: el mismo anime puede tener título en inglés "Attack on Titan"
-    // y en japonés "Shingeki no Kyojin" — el base debe usar SIEMPRE el título inglés
-    // cuando existe, para que todas las temporadas caigan en el mismo grupo.
+    // ── FILTRO 2: relevancia mínima — excluir resultados claramente no relacionados ──
+    // Jikan ordena por relevancia pero puede colar series sin relación al final
+    const queryNorm=query.trim().toLowerCase().replace(/[!！]/g,"").replace(/\s+/g," ");
+    const relevantFiltered=filtered.filter(item=>{
+      const en=(item.title_english||"").toLowerCase().replace(/[!！]/g,"");
+      const ja=(item.title||"").toLowerCase().replace(/[!！]/g,"");
+      const enSyn=(item.title_synonyms||[]).join(" ").toLowerCase();
+      // Mantener si el query aparece en cualquier variante del título
+      return en.includes(queryNorm)||ja.includes(queryNorm)||enSyn.includes(queryNorm)
+        ||queryNorm.includes(en.slice(0,Math.max(4,en.length-4)))
+        ||(item.score&&item.score>7&&(en.startsWith(queryNorm)||ja.startsWith(queryNorm)));
+    });
+    // Si el filtro elimina todo, usar los originales (búsqueda muy específica)
+    const workList=relevantFiltered.length>0?relevantFiltered:filtered;
+
+    // ── AGRUPACIÓN por título japonés ────────────────────────────────────────────
+    // Estrategia: el título japonés es la clave más estable entre temporadas.
+    // "ハイキュー!!" es idéntico en T1, T2, T3, T4 — pero el título inglés
+    // ("Haikyu!! To the Top", "Haikyu!! Final Arc") varía por subtítulos narrativos.
+    // Para series sin título japonés (raras) o western, usar inglés como fallback.
+    //
+    // Limpieza del base: quitar números de temporada, subtítulos de cour, sufijos
+    // narrativos conocidos, y cualquier cosa después de "::" o "—".
     function _baseTitle(t){
       return (t||"")
+        // Patrones de temporada explícitos
         .replace(/\s*[:·]\s*(season|part|cour|temporada)\s*[\dIVX]+.*/i,"")
-        .replace(/\s*(2nd|3rd|4th|5th|\d+th|second|third|fourth|fifth)\s+(season|cour|part).*/i,"")
+        .replace(/\s*(2nd|3rd|4th|5th|6th|\d+th|second|third|fourth|fifth|sixth)\s+(season|cour|part).*/i,"")
         .replace(/\s*season\s*[\dIVX]+.*/i,"")
         .replace(/\s*\d+(st|nd|rd|th)\s*season.*/i,"")
-        .replace(/\s*:\s*(the\s+)?(final|last|first)\s+(season|chapter|arc).*/i,"")
+        .replace(/\s*:\s*(the\s+)?(final|last|first|new)\s+(season|chapter|arc|stage|war|part).*/i,"")
         .replace(/\s*\(?season\)?.*/i,"")
-        .replace(/\s+[IVX]{2,4}$/,"")  // romanos al final (II, III, IV…) — no I solo (falsos positivos)
-        .replace(/\s+\d+$/,"")          // número suelto al final "Bleach 2"
+        // Patrones de cour y partes
+        .replace(/\s*[\-:]\s*\d+(st|nd|rd|th)[\-\s]*cour.*/i,"")
+        .replace(/\s+\d+(st|nd|rd|th)[\-\s]*cour.*/i,"")
+        .replace(/\s*:?\s*(final arc|the final|the beginning|new generation|next generation).*/i,"")
+        // Subtítulos narrativos de Haikyu y similares
+        .replace(/\s*:?\s*(to the top|to the next|vs\..+).*/i,"")
+        // Números romanos al final (II, III, IV…) — no I solo (falsos positivos)
+        .replace(/\s+[IVX]{2,4}$/,"")
+        // Número suelto al final "Bleach 2", "Naruto 4"
+        .replace(/\s+\d+$/,"")
         .trim().toLowerCase();
     }
 
-    // ── AGRUPACIÓN: usar título inglés como clave cuando está disponible ────────
-    // Esto resuelve el caso JP/EN: todas las temporadas de "Shingeki" tienen
-    // title_english="Attack on Titan" → mismo base → un solo grupo.
+    // Para el display mostrar siempre el título inglés si existe, o japonés transliterado
     const seen=new Map(); // base → index en deduped
     const deduped=[];
-    for(const item of filtered){
+    for(const item of workList){
       const titleEn=(item.title_english||"").trim();
       const titleJa=(item.title||"").trim();
-      // Preferir inglés para la clave; si no hay inglés, usar japonés
-      const keyTitle=titleEn||titleJa;
-      const base=_baseTitle(keyTitle);
-      // Solo contar como temporada: excluir OVA/Movie incluso si pasaron el filtro suave
+      // Clave de agrupación: título japonés primero (más estable entre temporadas),
+      // fallback a inglés si no hay japonés
+      const keyForGrouping=titleJa||titleEn;
+      const base=_baseTitle(keyForGrouping);
       const itemEps=searchType==="manga"?(item.chapters||0):(item.episodes||0);
       const isAiring=searchType==="manga"?item.publishing:item.airing;
       if(!seen.has(base)){
         if(deduped.length<6){
           seen.set(base,deduped.length);
           const cloned=Object.assign({},item);
-          // Usar título inglés como display si está disponible
           if(titleEn) cloned._displayTitle=titleEn;
           cloned._accEps=itemEps;
           cloned._seasonCount=1;
-          // Si la primera temporada está finalizada pero hay más, puede haber una activa
           cloned._anyAiring=isAiring||false;
-          // Guardar el mal_id de la temporada MÁS RECIENTE en publicación
-          // (para que AniList nos dé el episodio correcto de la emisión actual)
           cloned._latestMalId=item.mal_id;
           deduped.push(cloned);
         } else seen.set(base,-1);
@@ -2161,7 +2183,6 @@ async function searchJikan(query,tabType){
         if(idx>=0&&deduped[idx]){
           deduped[idx]._accEps=(deduped[idx]._accEps||0)+itemEps;
           deduped[idx]._seasonCount=(deduped[idx]._seasonCount||1)+1;
-          // Si esta temporada está en emisión, actualizar el flag y el malId de la más reciente
           if(isAiring){
             deduped[idx]._anyAiring=true;
             deduped[idx].airing=true;
