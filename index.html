@@ -2393,67 +2393,71 @@ async function searchJikan(query,tabType){
   }
   if(ctrl.signal.aborted)return;
 
-  // Mostrar dropdown inmediatamente con lo que tiene Jikan (caps para finalizados conocidos)
+  // Mostrar dropdown inmediatamente con lo que tiene Jikan
   renderJikanDrop(searchType);
 
-  // Enriquecer items con MangaDex+AniList+Jikan
-  // Prioridad: primero los en publicación (son los que fallan más), luego finalizados
-  // Concurrencia limitada a 2 para no saturar las APIs (Jikan tiene rate limit de 3 req/seg)
-  const snap=[...jikanResults]; // snapshot para evitar race con nueva búsqueda
-  const sorted=[
-    ...snap.filter(x=>searchType==="manga"?x.publishing:x.airing),
-    ...snap.filter(x=>!(searchType==="manga"?x.publishing:x.airing))
-  ];
-  // Concurrencia 1: procesar de a 1 item para no saturar Jikan (rate limit 3 req/s)
-  // Para manga: _getMangaCount emite 1-2 requests (Kitsu → MangaDex feed JP si falla)
-  // Para anime: getBestCount emite hasta 3 requests en paralelo (Jikan+AniList)
-  for(let i=0;i<sorted.length;i++){
-    if(ctrl.signal.aborted)return;
-    const item=sorted[i];
-    if(!item.mal_id)continue;
-    const rawCnt=searchType==="manga"?(item.chapters||0):(item.episodes||0);
-    try{
-      const title=item._displayTitle||item.title_english||item.title||'';
-      const isMultiSeason=(item._seasonCount||1)>1;
-      const isAiring=searchType==="manga"?item.publishing:item.airing;
+  // Enriquecer items con conteo real — estrategia diferenciada por tipo:
+  //
+  // MANGA: MangaDex no tiene rate limit estricto → paralelismo total (todos a la vez).
+  //   Cada item lanza _getMangaCount independientemente y actualiza el dropdown
+  //   tan pronto llega su resultado. El usuario ve los números aparecer de a uno
+  //   en ~2-5s en lugar de esperar 6×(API+400ms) = ~15s+.
+  //
+  // ANIME: Jikan tiene rate limit de 3 req/s → concurrencia 1 + pausa 400ms.
+  //   Se mantiene el flujo secuencial original para no recibir 429.
 
-      let best=0;
-      if(isMultiSeason&&isAiring&&item._latestMalId){
-        // Serie con múltiples temporadas y la última está en emisión:
-        // 1) Pedir episodios de la temporada activa (_latestMalId) via AniList
-        // 2) Sumar a los episodios acumulados de temporadas anteriores
-        const prevSeasonEps=(item._accEps||0)-(rawCnt||0); // eps de temp. anteriores
+  const snap=[...jikanResults];
+
+  async function _enrichItem(item){
+    if(ctrl.signal.aborted)return;
+    if(!item.mal_id)return;
+    const rawCnt=searchType==="manga"?(item.chapters||0):(item.episodes||0);
+    const title=item._displayTitle||item.title_english||item.title||'';
+    const isMultiSeason=(item._seasonCount||1)>1;
+    const isAiring=searchType==="manga"?item.publishing:item.airing;
+    let best=0;
+    try{
+      if(searchType==="manga"){
+        // Manga: siempre _getMangaCount (MangaDex links[mal] → feed JP/any → Jikan)
+        best=await _getMangaCount(item.mal_id,title,rawCnt);
+      }else if(isMultiSeason&&isAiring&&item._latestMalId){
+        const prevSeasonEps=(item._accEps||0)-(rawCnt||0);
         const latestEps=await _srcAniList(item._latestMalId,searchType);
-        // AniList retorna nextAiringEpisode.episode-1 para animes en emisión
         const latestBest=latestEps>0?latestEps:rawCnt||0;
         best=prevSeasonEps+latestBest;
       }else if(isMultiSeason&&!isAiring){
-        // Serie completa con múltiples temporadas: usar _accEps si es mayor que rawCnt
-        // NO usar getBestCount con el malId de la primera temporada (devolvería solo T1)
         best=item._accEps||rawCnt||0;
-        // Confirmar con AniList del malId principal por si _accEps está incompleto
         const alTotal=await _srcAniList(item.mal_id,searchType);
         if(alTotal>best) best=alTotal;
       }else{
-        // Serie de una sola temporada: flujo normal
         best=await getBestCount(item.mal_id,searchType,rawCnt,title);
         if(!best){
           try{best=await jikanGetLatestCount(item.mal_id,searchType,false);}catch(e2){}
         }
       }
+    }catch(e){}
+    if(ctrl.signal.aborted)return;
+    const live=jikanResults.find(x=>x.mal_id===item.mal_id);
+    if(!live)return;
+    live._latestChapter=best;
+    renderJikanDrop(searchType);
+  }
+
+  if(searchType==="manga"){
+    // Manga: todos en paralelo — MangaDex no tiene rate limit como Jikan
+    await Promise.all(snap.map(item=>_enrichItem(item)));
+  }else{
+    // Anime: secuencial con pausa para respetar rate limit de Jikan (3 req/s)
+    const sortedAnime=[
+      ...snap.filter(x=>x.airing),
+      ...snap.filter(x=>!x.airing)
+    ];
+    for(let i=0;i<sortedAnime.length;i++){
       if(ctrl.signal.aborted)return;
-      const live=jikanResults.find(x=>x.mal_id===item.mal_id);
-      if(!live)continue;
-      live._latestChapter=best;
-      renderJikanDrop(searchType);
-    }catch(e){
-      if(ctrl.signal.aborted)return;
-      const live=jikanResults.find(x=>x.mal_id===item.mal_id);
-      if(live){live._latestChapter=0;renderJikanDrop(searchType);}
-    }
-    // Pausa 400ms entre items para respetar rate limit de Jikan (3 req/s)
-    if(i<sorted.length-1&&!ctrl.signal.aborted){
-      await new Promise(r=>setTimeout(r,400));
+      await _enrichItem(sortedAnime[i]);
+      if(i<sortedAnime.length-1&&!ctrl.signal.aborted){
+        await new Promise(r=>setTimeout(r,400));
+      }
     }
   }
   _jikanSearchAbort=null;
