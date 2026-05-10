@@ -2087,59 +2087,86 @@ let _jikanSearchAbort=null;
 
 async function searchJikan(query,tabType){
   if(!query||query.length<2){jikanResults=[];removeJikanDrop();return;}
-  // Cancelar búsqueda anterior en vuelo
   if(_jikanSearchAbort){_jikanSearchAbort.abort();_jikanSearchAbort=null;}
   const ctrl=new AbortController();
   _jikanSearchAbort=ctrl;
-  // Capturar el tipo en el momento de la búsqueda para evitar race al cambiar tab
   const searchType=tabType;
   const ep=searchType==="manga"?"manga":"anime";
   try{
-    const res=await fetch(`https://api.jikan.moe/v4/${ep}?q=${encodeURIComponent(query)}&limit=12`,{signal:ctrl.signal});
+    const res=await fetch(`https://api.jikan.moe/v4/${ep}?q=${encodeURIComponent(query)}&limit=20`,{signal:ctrl.signal});
     if(ctrl.signal.aborted)return;
     if(!res.ok){jikanResults=[];return;}
     const json=await res.json();
     const raw=(json.data||[]);
-    // ── Deduplicar por título base para evitar mostrar cada temporada por separado ──
-    // Estrategia: normalizar título quitando patrones de temporada ("Season 2", "2nd Season",
-    // "Part 2", "Cour 2", números romanos al final, etc.) y agrupar.
-    // Se conserva solo la primera entrada de cada grupo (la más relevante según el score de Jikan).
+
+    // ── FILTRO 1: excluir OVAs, películas, especiales, música ──────────────────
+    // Solo queremos TV (temporadas canónicas) y manga principal (no doujin, one-shot)
+    const EXCLUDED_TYPES_ANIME=new Set(["OVA","Movie","Special","ONA","Music","CM","PV"]);
+    const EXCLUDED_TYPES_MANGA=new Set(["Doujin","One-shot","Novel","Light Novel"]);
+    const filtered=raw.filter(item=>{
+      const t=(item.type||"").trim();
+      if(searchType==="anime") return !EXCLUDED_TYPES_ANIME.has(t);
+      if(searchType==="manga") return !EXCLUDED_TYPES_MANGA.has(t);
+      return true;
+    });
+
+    // ── FILTRO 2: normalizar título base para agrupar temporadas ────────────────
+    // Problema conocido: el mismo anime puede tener título en inglés "Attack on Titan"
+    // y en japonés "Shingeki no Kyojin" — el base debe usar SIEMPRE el título inglés
+    // cuando existe, para que todas las temporadas caigan en el mismo grupo.
     function _baseTitle(t){
       return (t||"")
-        .replace(/\s*[:·]\s*(season|part|cour)\s*\d+.*/i,"")
-        .replace(/\s*(2nd|3rd|\d+th|second|third|fourth|fifth)\s+(season|cour|part).*/i,"")
-        .replace(/\s*season\s*\d+.*/i,"")
+        .replace(/\s*[:·]\s*(season|part|cour|temporada)\s*[\dIVX]+.*/i,"")
+        .replace(/\s*(2nd|3rd|4th|5th|\d+th|second|third|fourth|fifth)\s+(season|cour|part).*/i,"")
+        .replace(/\s*season\s*[\dIVX]+.*/i,"")
         .replace(/\s*\d+(st|nd|rd|th)\s*season.*/i,"")
+        .replace(/\s*:\s*(the\s+)?(final|last|first)\s+(season|chapter|arc).*/i,"")
         .replace(/\s*\(?season\)?.*/i,"")
-        .replace(/\s+[IVX]{1,4}$/, "") // Roman numerals at end
+        .replace(/\s+[IVX]{2,4}$/,"")  // romanos al final (II, III, IV…) — no I solo (falsos positivos)
+        .replace(/\s+\d+$/,"")          // número suelto al final "Bleach 2"
         .trim().toLowerCase();
     }
-    // ── Agrupar por título base acumulando episodios de TODAS las temporadas ──
-    // Primero recorrer TODO el array para acumular, luego limitar a 6 entradas
+
+    // ── AGRUPACIÓN: usar título inglés como clave cuando está disponible ────────
+    // Esto resuelve el caso JP/EN: todas las temporadas de "Shingeki" tienen
+    // title_english="Attack on Titan" → mismo base → un solo grupo.
     const seen=new Map(); // base → index en deduped
     const deduped=[];
-    for(const item of raw){
+    for(const item of filtered){
       const titleEn=(item.title_english||"").trim();
       const titleJa=(item.title||"").trim();
-      const displayTitle=titleEn||titleJa;
-      const base=_baseTitle(displayTitle)||_baseTitle(titleJa);
+      // Preferir inglés para la clave; si no hay inglés, usar japonés
+      const keyTitle=titleEn||titleJa;
+      const base=_baseTitle(keyTitle);
+      // Solo contar como temporada: excluir OVA/Movie incluso si pasaron el filtro suave
       const itemEps=searchType==="manga"?(item.chapters||0):(item.episodes||0);
+      const isAiring=searchType==="manga"?item.publishing:item.airing;
       if(!seen.has(base)){
-        if(deduped.length<6){ // agregar nueva entrada solo si hay espacio
-          seen.set(base, deduped.length);
+        if(deduped.length<6){
+          seen.set(base,deduped.length);
           const cloned=Object.assign({},item);
-          cloned._accEps=itemEps; // acumulador de eps de todas las temporadas
+          // Usar título inglés como display si está disponible
+          if(titleEn) cloned._displayTitle=titleEn;
+          cloned._accEps=itemEps;
           cloned._seasonCount=1;
+          // Si la primera temporada está finalizada pero hay más, puede haber una activa
+          cloned._anyAiring=isAiring||false;
+          // Guardar el mal_id de la temporada MÁS RECIENTE en publicación
+          // (para que AniList nos dé el episodio correcto de la emisión actual)
+          cloned._latestMalId=item.mal_id;
           deduped.push(cloned);
-        }
-        // aunque no haya espacio, registrar la base para no acumularla en otro grupo
-        else seen.set(base,-1);
+        } else seen.set(base,-1);
       } else {
-        // Temporada adicional: acumular eps al grupo existente
         const idx=seen.get(base);
         if(idx>=0&&deduped[idx]){
           deduped[idx]._accEps=(deduped[idx]._accEps||0)+itemEps;
           deduped[idx]._seasonCount=(deduped[idx]._seasonCount||1)+1;
+          // Si esta temporada está en emisión, actualizar el flag y el malId de la más reciente
+          if(isAiring){
+            deduped[idx]._anyAiring=true;
+            deduped[idx].airing=true;
+            deduped[idx]._latestMalId=item.mal_id;
+          }
         }
       }
     }
@@ -2169,10 +2196,33 @@ async function searchJikan(query,tabType){
     if(!item.mal_id)continue;
     const rawCnt=searchType==="manga"?(item.chapters||0):(item.episodes||0);
     try{
-      const title=item.title_english||item.title||'';
-      let best=await getBestCount(item.mal_id,searchType,rawCnt,title);
-      if(!best){
-        try{best=await jikanGetLatestCount(item.mal_id,searchType,false);}catch(e2){}
+      const title=item._displayTitle||item.title_english||item.title||'';
+      const isMultiSeason=(item._seasonCount||1)>1;
+      const isAiring=searchType==="manga"?item.publishing:item.airing;
+
+      let best=0;
+      if(isMultiSeason&&isAiring&&item._latestMalId){
+        // Serie con múltiples temporadas y la última está en emisión:
+        // 1) Pedir episodios de la temporada activa (_latestMalId) via AniList
+        // 2) Sumar a los episodios acumulados de temporadas anteriores
+        const prevSeasonEps=(item._accEps||0)-(rawCnt||0); // eps de temp. anteriores
+        const latestEps=await _srcAniList(item._latestMalId,searchType);
+        // AniList retorna nextAiringEpisode.episode-1 para animes en emisión
+        const latestBest=latestEps>0?latestEps:rawCnt||0;
+        best=prevSeasonEps+latestBest;
+      }else if(isMultiSeason&&!isAiring){
+        // Serie completa con múltiples temporadas: usar _accEps si es mayor que rawCnt
+        // NO usar getBestCount con el malId de la primera temporada (devolvería solo T1)
+        best=item._accEps||rawCnt||0;
+        // Confirmar con AniList del malId principal por si _accEps está incompleto
+        const alTotal=await _srcAniList(item.mal_id,searchType);
+        if(alTotal>best) best=alTotal;
+      }else{
+        // Serie de una sola temporada: flujo normal
+        best=await getBestCount(item.mal_id,searchType,rawCnt,title);
+        if(!best){
+          try{best=await jikanGetLatestCount(item.mal_id,searchType,false);}catch(e2){}
+        }
       }
       if(ctrl.signal.aborted)return;
       const live=jikanResults.find(x=>x.mal_id===item.mal_id);
@@ -2197,25 +2247,33 @@ function removeJikanDrop(){
   if(old)old.remove();
 }
 
-// ── FIX v3.2: renderJikanDrop con actualización quirúrgica de conteo ──
-// Genera el HTML de conteo para un item del dropdown
+// ── FIX v3.3: renderJikanDrop con soporte multi-temporada y _anyAiring ──
 function _jikanCountHTML(item, tab_){
   const rawCount=tab_==="manga"?(item.chapters||0):(item.episodes||0);
-  const pub=tab_==="manga"?item.publishing:item.airing;
+  // Usar _anyAiring: es true si CUALQUIER temporada del grupo está en emisión
+  const pub=tab_==="manga"?item.publishing:(item._anyAiring||item.airing);
   const chapLabel=tab_==="manga"?"Cap.":"Ep.";
   const enrichmentDone = item._latestChapter !== undefined;
-  // Prioridad: 1) enriquecido por API, 2) acumulado de temporadas, 3) rawCount de Jikan
-  const accEps=item._accEps||0;
-  const displayCount = (item._latestChapter > 0)
-    ? item._latestChapter
-    : (accEps > rawCount ? accEps : (rawCount > 0 ? rawCount : 0));
   const hasMultiSeasons=(item._seasonCount||1)>1;
-  if(displayCount > 0){
-    const seasonNote = hasMultiSeasons && !item._latestChapter
-      ? `<span style="opacity:.4;font-size:8px;margin-left:2px">(${item._seasonCount} t.)</span>` : "";
-    const label = pub
+  // Prioridad de conteo:
+  // 1) _latestChapter: resultado del enrichment async (fuente más precisa)
+  // 2) _accEps: solo si el enrichment ya terminó (evitar mostrar número pre-OVA-filtrado)
+  // 3) rawCount: lo que vino de Jikan directamente (solo para series de 1 temporada)
+  let displayCount=0;
+  if(item._latestChapter>0){
+    displayCount=item._latestChapter;
+  }else if(enrichmentDone){
+    // Enrichment terminó pero devolvió 0 — no mostrar _accEps (puede estar inflado)
+    displayCount=0;
+  }else if(!hasMultiSeasons&&rawCount>0){
+    // Serie de 1 temporada: mostrar rawCount mientras se carga
+    displayCount=rawCount;
+  }
+  // Para multi-temporada sin enriquecimiento aún: no mostrar número (puede estar mal)
+  if(displayCount>0){
+    const label=pub
       ? `${chapLabel} <b>${displayCount}</b> <span style="opacity:.55;font-size:8px">últ.</span>`
-      : `${chapLabel} ${displayCount}${seasonNote}`;
+      : `${chapLabel} ${displayCount}${hasMultiSeasons&&!pub?`<span style="opacity:.4;font-size:8px;margin-left:2px"> (${item._seasonCount} temp.)</span>`:""}`;
     return `<span class="jikan-chapters-count">${label}</span>`;
   }else if(!enrichmentDone){
     return `<span class="jikan-count-pending" style="font-size:9px;color:var(--t2);font-family:Space Mono,monospace;opacity:.7">buscando...</span>`;
@@ -2265,7 +2323,8 @@ function renderJikanDrop(tabType){
     row.className="jikan-item";
     row.setAttribute("data-malid", item.mal_id||"");
     const thumb=item.images?.jpg?.image_url||"";
-    const pub=tab_==="manga"?item.publishing:item.airing;
+    // Usar _anyAiring para el badge: refleja si cualquier temporada del grupo está activa
+    const pub=tab_==="manga"?item.publishing:(item._anyAiring||item.airing);
     const _getYear=str=>str?new Date(str).getFullYear()||null:null;
     const yearStart=(item.published?.prop?.from?.year)||(item.aired?.prop?.from?.year)||_getYear(item.published?.from)||_getYear(item.aired?.from)||null;
     const yearEnd=(item.published?.prop?.to?.year)||(item.aired?.prop?.to?.year)||_getYear(item.published?.to)||_getYear(item.aired?.to)||null;
@@ -2279,9 +2338,11 @@ function renderJikanDrop(tabType){
     }
     const countHTML=_jikanCountHTML(item,tab_);
     const badgeHTML=pub
-      ?`<span class="jikan-badge pub"><span class="jikan-dot"></span>En publicación</span>`
+      ?`<span class="jikan-badge pub"><span class="jikan-dot"></span>En emisión</span>`
       :`<span class="jikan-badge fin">✓ Finalizado</span>`;
-    row.innerHTML=`${thumb?`<img class="jikan-thumb" src="${thumb}" loading="lazy">`:`<div class="jikan-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--t3)">?</div>`}<div class="jikan-info"><div class="jikan-title">${item.title_english||item.title}</div><div class="jikan-meta">${countHTML}${badgeHTML}${yearHTML}</div></div>`;
+    // Mostrar título en inglés si está disponible (_displayTitle), sino el original
+    const displayTitle=item._displayTitle||item.title_english||item.title;
+    row.innerHTML=`${thumb?`<img class="jikan-thumb" src="${thumb}" loading="lazy">`:`<div class="jikan-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--t3)">?</div>`}<div class="jikan-info"><div class="jikan-title">${displayTitle}</div><div class="jikan-meta">${countHTML}${badgeHTML}${yearHTML}</div></div>`;
     row.onclick=()=>{selectJikanResult(item,tab_);removeJikanDrop();};
     drop.appendChild(row);
   });
@@ -2289,17 +2350,17 @@ function renderJikanDrop(tabType){
 }
 
 function selectJikanResult(item,tabType){
-  const title=item.title_english||item.title;
+  const title=item._displayTitle||item.title_english||item.title;
   const cover=item.images?.jpg?.large_image_url||item.images?.jpg?.image_url||"";
   const rawCount=tabType==="manga"?(item.chapters||0):(item.episodes||0);
-  const publishing=tabType==="manga"?item.publishing:item.airing;
-  // ── FIX RACE CONDITION: capturar todos los valores en variables locales AHORA ──
-  // _pendingJikanId es global y se resetea en cada render(). Si el usuario hace otra
-  // acción antes de que el async de getBestCount termine, el global ya no es válido.
-  // Todas las lecturas del item.mal_id se hacen desde estas variables locales.
-  const _localMalId=item.mal_id;
+  // Para multi-temporada: publishing es true si _anyAiring
+  const publishing=tabType==="manga"?item.publishing:(item._anyAiring||item.airing);
+  // FIX RACE CONDITION: capturar variables locales ANTES de cualquier async
+  // Para polling usar _latestMalId si existe (temporada más reciente en emisión)
+  const _localMalId=item._latestMalId||item.mal_id;
   const _localTabType=tabType;
   const _localPublishing=publishing||false;
+  const _isMultiSeason=(item._seasonCount||1)>1;
   newTitle=title;
   newCover=cover;
   newCoverIsUrl=true;
@@ -2328,46 +2389,53 @@ function selectJikanResult(item,tabType){
   
   // Buscar el mejor conteo usando variables locales (no globales) — Fix race condition
   if(_localMalId){
-    // El badge ya muestra "Buscando..." gracias al render() de arriba (newTotal vacío)
     (async()=>{
       try{
         const _title=title;
-        // ── Usar _localMalId y _localTabType: nunca leer globals dentro del async ──
-        const best=await getBestCount(_localMalId,_localTabType,knownCount,_title);
+        let best=0;
+        if(_isMultiSeason&&_localPublishing&&item._latestMalId){
+          // Multi-temporada en emisión: eps anteriores + eps de la temporada activa via AniList
+          const rawCnt=tabType==="manga"?(item.chapters||0):(item.episodes||0);
+          const prevSeasonEps=(item._accEps||0)-(rawCnt||0);
+          const latestEps=await _srcAniList(item._latestMalId,_localTabType);
+          const latestBest=latestEps>0?latestEps:(rawCnt||0);
+          best=prevSeasonEps+latestBest;
+        }else if(_isMultiSeason&&!_localPublishing){
+          // Multi-temporada completa: usar _accEps o confirmar con AniList
+          best=item._accEps||0;
+          const alTotal=await _srcAniList(item.mal_id,_localTabType);
+          if(alTotal>best) best=alTotal;
+        }else{
+          best=await getBestCount(_localMalId,_localTabType,knownCount,_title);
+        }
         // Verificar que el usuario no haya seleccionado otra serie mientras esperábamos
         if(window._pendingJikanId!==_localMalId)return;
-        if(best>0){
-          newTotal=String(best);
-          // Actualizar el hidden input (para doAdd) y el badge visible
+        const _updateBadge=(count,isEmision)=>{
+          newTotal=String(count);
           const hiddenInp=document.getElementById("add-total");
           if(hiddenInp)hiddenInp.value=newTotal;
           const badge=document.querySelector(".add-cap-badge");
           if(badge){
-            badge.innerHTML=`<span style="font-size:15px">📖</span><span><b style="font-size:13px">${best}</b> ${_localTabType==="manga"?"caps":"eps"}${_localPublishing?" <span style='opacity:.5;font-size:10px'>· en emisión</span>":""}</span>`;
+            const emTag=isEmision?`<span style='opacity:.5;font-size:10px'>· en emisión</span>`:"";
+            badge.innerHTML=`<span style="font-size:15px">📖</span><span><b style="font-size:13px">${count}</b> ${_localTabType==="manga"?"caps":"eps"} ${emTag}</span>`;
             badge.style.borderColor="rgba(99,179,237,.5)";
             setTimeout(()=>{if(badge)badge.style.borderColor="rgba(99,179,237,.3)";},1200);
           }
+        };
+        if(best>0){
+          _updateBadge(best,_localPublishing);
           showToast(`📖 ${best} ${_localTabType==="manga"?"caps":"eps"}${_localPublishing?" · en emisión":""}`);
+        }else if(_localPublishing){
+          // En emisión sin dato aún: mínimo 1, el polling lo corregirá
+          _updateBadge(1,true);
+          const badge=document.querySelector(".add-cap-badge");
+          if(badge) badge.innerHTML=`<span style="font-size:13px">📡</span><span style="opacity:.7">En emisión — caps se actualizarán solos</span>`;
+          showToast("📡 En emisión — el conteo se actualizará automáticamente",3500);
         }else{
-          // Todas las APIs devolvieron 0
-          if(_localPublishing){
-            // En publicación sin dato: usar 1 como mínimo — el polling lo corregirá
-            newTotal="1";
-            const hiddenInp=document.getElementById("add-total");
-            if(hiddenInp)hiddenInp.value="1";
-            const badge=document.querySelector(".add-cap-badge");
-            if(badge){
-              badge.innerHTML=`<span style="font-size:13px">📡</span><span style="opacity:.7">En emisión — caps se actualizarán solos</span>`;
-            }
-            showToast("📡 En emisión — el conteo se actualizará automáticamente",3500);
-          }else{
-            // Serie finalizada sin dato: situación anómala, dejar el input visible para corrección
-            newTotal="";
-            const badge=document.querySelector(".add-cap-badge");
-            if(badge){
-              badge.innerHTML=`<span style="font-size:13px">⚠️</span><span style="opacity:.7">No se encontró el total — busca de nuevo</span>`;
-              badge.style.borderColor="rgba(251,191,36,.4)";
-            }
+          const badge=document.querySelector(".add-cap-badge");
+          if(badge){
+            badge.innerHTML=`<span style="font-size:13px">⚠️</span><span style="opacity:.7">No se encontró el total — busca de nuevo</span>`;
+            badge.style.borderColor="rgba(251,191,36,.4)";
           }
         }
       }catch(e){
