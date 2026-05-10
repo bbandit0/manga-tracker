@@ -1884,10 +1884,22 @@ async function _srcJikanIndividual(malId, type){
     const isAiring=type==="manga"?(d?.data?.publishing===true):(d?.data?.airing===true);
     const cnt=type==="manga"?(d?.data?.chapters||0):(d?.data?.episodes||0);
     // FIX: Para series en emisión, Jikan devuelve null en chapters/episodes (total desconocido).
-    // Si cnt===0 y la serie está en emisión, usar AniList para obtener el episodio/cap actual.
+    // Estrategia diferenciada por tipo:
+    //   manga: Jikan /chapters paginado es la fuente más fiable (MAL trackea caps originales JP)
+    //   anime: AniList tiene nextAiringEpisode.episode-1 que es muy preciso
     if(!cnt && isAiring){
-      const alCnt=await _srcAniList(malId,type);
-      return alCnt||0;
+      if(type==="manga"){
+        // Para manga en emisión: intentar /chapters paginado primero (capítulos reales publicados)
+        const paged=await _srcJikanPaged(malId,"manga");
+        if(paged>0) return paged;
+        // Fallback: MangaDex aggregate
+        const mdx=await _srcMangaDexByMalId(malId);
+        return mdx||0;
+      }else{
+        // Para anime en emisión: AniList nextAiringEpisode es la fuente más precisa
+        const alCnt=await _srcAniList(malId,type);
+        return alCnt||0;
+      }
     }
     return cnt||0;
   }catch(e){return 0;}
@@ -1905,6 +1917,12 @@ async function _srcJikanPaged(malId, type){
     const lp=d.pagination?.last_visible_page||1;
     if(lp<=1){
       const last=d.data[d.data.length-1];
+      // FIX: para manga en emisión, el campo es "chapter" (string numérico como "166")
+      // Intentar extraer directamente antes de llamar a jikanExtractPublishedNumber
+      const directChap=type==="manga"
+        ?parseFloat(last?.chapter||last?.chapters||0)
+        :parseFloat(last?.episode||last?.episodes||0);
+      if(directChap>0) return Math.floor(directChap);
       return jikanExtractPublishedNumber(last,type)||d.data.length;
     }
     // Ir a la última página
@@ -1913,8 +1931,15 @@ async function _srcJikanPaged(malId, type){
       const totL=dL.pagination?.items?.total||0;
       if(totL>0) return totL;
       const last=dL.data[dL.data.length-1];
+      // FIX: extraer número de capítulo del último entry con mayor robustez
+      const directChap=type==="manga"
+        ?parseFloat(last?.chapter||last?.chapters||0)
+        :parseFloat(last?.episode||last?.episodes||0);
+      if(directChap>0) return Math.floor(directChap);
       const n=jikanExtractPublishedNumber(last,type);
-      return n>0?n:(lp-1)*100+dL.data.length;
+      if(n>0) return n;
+      // Fallback final: (páginas-1)*100 + items en última página
+      return (lp-1)*100+dL.data.length;
     }
     return (lp-1)*100+d.data.length;
   }catch(e){return 0;}
@@ -1924,6 +1949,8 @@ async function _srcJikanPaged(malId, type){
 async function _srcAniList(malId, type){
   try{
     const mediaType=type==="manga"?"MANGA":"ANIME";
+    // Para manga en emisión: pedir chapters (puede ser null) + status
+    // Para anime en emisión: nextAiringEpisode da el ep actual con precisión
     const fields=type==="manga"
       ?"chapters volumes status"
       :"episodes status nextAiringEpisode{episode}";
@@ -1944,10 +1971,9 @@ async function _srcAniList(malId, type){
 }
 
 // ── Fuente 4: MangaDex (SOLO para manga) ──────────────────────────────────────
-// Estrategia: buscar por MAL ID directo → fallback por título → lastChapter o aggregate
+// Estrategia: buscar por título → match por MAL ID → aggregate de capítulos
 async function _srcMangaDex(malId, title){
   try{
-    // Primero: intentar búsqueda directa por MAL ID via título (limit 20 para mayor cobertura)
     const q=encodeURIComponent((title||"").slice(0,80));
     if(!q) return 0;
     const url=`https://api.mangadex.org/manga?title=${q}&limit=20&includes[]=none`
@@ -1964,17 +1990,16 @@ async function _srcMangaDex(malId, title){
       if(String(it?.attributes?.links?.mal||"")===malStr){
         const lc=it.attributes?.lastChapter;
         if(lc&&lc!=="none"&&lc!==""){const n=Math.floor(parseFloat(lc));if(n>0)return n;}
-        exactId=it.id; // guardar ID aunque lastChapter sea null
+        exactId=it.id;
         break;
       }
     }
 
-    // FIX: si hay match exacto por MAL ID, usarlo para aggregate (antes usaba items[0] por error)
-    // Si no hay match exacto, usar el primer resultado como fallback
+    // Si hay match exacto usar ese ID, sino el primero de los resultados
     const mdxId=exactId||items[0]?.id;
     if(!mdxId) return 0;
 
-    // aggregate sin filtro de idioma para cubrir todos los capítulos publicados globalmente
+    // aggregate sin filtro de idioma para cubrir todos los caps publicados globalmente
     const aggRes=await fetch(`https://api.mangadex.org/manga/${mdxId}/aggregate`,
       {headers:{"Accept":"application/json"}});
     if(!aggRes.ok) return 0;
@@ -1987,7 +2012,18 @@ async function _srcMangaDex(malId, title){
         if(!isNaN(n)&&n>max) max=n;
       }
     }
-    return max>0?Math.floor(max):0;
+    if(max>0) return Math.floor(max);
+
+    // FIX: Si el aggregate no tiene datos (manga solo en japonés sin scanlation en MangaDex),
+    // intentar con los otros items del resultado de búsqueda que tengan lastChapter
+    for(const it of items.slice(0,5)){
+      const lc=it.attributes?.lastChapter;
+      if(lc&&lc!=="none"&&lc!=="null"&&lc!==""){
+        const n=Math.floor(parseFloat(lc));
+        if(n>0) return n;
+      }
+    }
+    return 0;
   }catch(e){return 0;}
 }
 
@@ -2029,13 +2065,15 @@ async function _srcMangaDexByMalId(malId){
 
 // ── Orquestador: fuentes en paralelo, timeout 12s ────────────────────────
 // DISEÑO: Jikan rate limit = 3 req/seg. searchJikan ya usó 1 req.
-// Por eso getBestCount usa SOLO 1 fuente Jikan (paged) + AniList + 2x MangaDex.
-// _srcJikanIndividual se reserva como fallback secuencial si todo falla.
+// Para manga en emisión: Jikan /chapters paginado es la fuente más fiable.
+// Para anime en emisión: AniList nextAiringEpisode es la más precisa.
 async function getBestCount(malId, type, rawCount, title){
   const T=12000;
   const t=ms=>new Promise(r=>setTimeout(()=>r(0),ms));
   if(type==="manga"){
-    // Solo 1 request Jikan (paged), 1 AniList, 2 MangaDex — evita rate limit
+    // Fuentes en paralelo: Jikan paged + AniList + 2x MangaDex
+    // _srcJikanIndividual se llama secuencialmente al final si todo falla
+    // (ya internamente llama _srcJikanPaged para mangas en emisión)
     const [j2,al,mdx,mdx2]=await Promise.all([
       Promise.race([_srcJikanPaged(malId,"manga"),t(T)]),
       Promise.race([_srcAniList(malId,"manga"),t(T)]),
@@ -2043,9 +2081,9 @@ async function getBestCount(malId, type, rawCount, title){
       Promise.race([_srcMangaDexByMalId(malId),t(T)])
     ]);
     const best=Math.max(rawCount||0,j2||0,al||0,mdx||0,mdx2||0);
-    // Si todavía 0, intentar Jikan individual como último recurso
     if(best>0) return best;
-    const j1=await Promise.race([_srcJikanIndividual(malId,"manga"),t(4000)]);
+    // Último recurso: _srcJikanIndividual (para manga en emisión usa /chapters paginado internamente)
+    const j1=await Promise.race([_srcJikanIndividual(malId,"manga"),t(6000)]);
     return Math.max(best,j1||0);
   }else{
     const [j1,j2,al]=await Promise.all([
@@ -2457,9 +2495,19 @@ function selectJikanResult(item,tabType){
           _updateBadge(best,_localPublishing);
           showToast(`📖 ${best} ${_localTabType==="manga"?"caps":"eps"}${_localPublishing?" · en emisión":""}`);
         }else if(_localPublishing){
-          // En emisión y getBestCount retornó 0 — intentar AniList como último recurso antes del placeholder
+          // En emisión y getBestCount retornó 0 — intentar fuentes específicas según tipo
           let fallbackCount=0;
-          try{fallbackCount=await _srcAniList(_localMalId,_localTabType);}catch(e2){}
+          try{
+            if(_localTabType==="manga"){
+              // Para manga en emisión: Jikan /chapters paginado es más fiable que AniList
+              fallbackCount=await _srcJikanPaged(_localMalId,"manga");
+              // Si paged también falla, intentar MangaDex por MAL ID
+              if(!fallbackCount) fallbackCount=await _srcMangaDexByMalId(_localMalId);
+            }else{
+              // Para anime en emisión: AniList nextAiringEpisode
+              fallbackCount=await _srcAniList(_localMalId,_localTabType);
+            }
+          }catch(e2){}
           if(window._pendingJikanId!==_localMalId)return;
           if(fallbackCount>0){
             _updateBadge(fallbackCount,true);
@@ -2497,11 +2545,11 @@ async function checkJikanUpdates(){
     const publishing=data[tabKey].filter(s=>s.jikanId&&s.jikanPublishing);
     for(const series of publishing){
       try{
-        // Obtener mejor conteo con AniList + Jikan en paralelo
+        // Obtener mejor conteo con todas las fuentes disponibles
         let stillPub = true;
         let count = 0;
         try{
-          // Usar _jikanFetch (tiene retry 429) en lugar de fetch directo
+          // Primero: Jikan endpoint individual para verificar estado de publicación
           const json=await _jikanFetch(`https://api.jikan.moe/v4/${ep}/${series.jikanId}`);
           if(json){
             const jkCnt=tabKey==="manga"?json.data?.chapters:json.data?.episodes;
@@ -2509,10 +2557,17 @@ async function checkJikanUpdates(){
             count=jkCnt||0;
           }
         }catch(e1){}
-        // Si Jikan no trajo número, usar AniList (_srcAniList es la función correcta)
+        // Si Jikan endpoint individual no trae número (típico en manga/anime en emisión),
+        // usar getBestCount que incluye Jikan paged + AniList + MangaDex
         if(!count || count<1){
-          const alCnt=await _srcAniList(series.jikanId,tabKey);
-          if(alCnt>0)count=alCnt;
+          try{
+            const best=await getBestCount(series.jikanId,tabKey,0,series.title);
+            if(best>0) count=best;
+          }catch(e2){
+            // Fallback directo a AniList si getBestCount falla
+            const alCnt=await _srcAniList(series.jikanId,tabKey);
+            if(alCnt>0) count=alCnt;
+          }
         }
         // FIX BUG #4+: shouldUpdate — actualizar cuando count > total
         // FIX EXTRA: si total era 0 (serie recién agregada en emisión), asignar el primer conteo
