@@ -1885,14 +1885,17 @@ async function _srcJikanIndividual(malId, type){
     const cnt=type==="manga"?(d?.data?.chapters||0):(d?.data?.episodes||0);
     // FIX: Para series en emisión, Jikan devuelve null en chapters/episodes (total desconocido).
     // Estrategia diferenciada por tipo:
-    //   manga: Jikan /chapters paginado es la fuente más fiable (MAL trackea caps originales JP)
+    //   manga: Kitsu (chapterCount real) + Jikan paged + MangaDex
     //   anime: AniList tiene nextAiringEpisode.episode-1 que es muy preciso
     if(!cnt && isAiring){
       if(type==="manga"){
-        // Para manga en emisión: intentar /chapters paginado primero (capítulos reales publicados)
-        const paged=await _srcJikanPaged(malId,"manga");
-        if(paged>0) return paged;
-        // Fallback: MangaDex aggregate
+        // Para manga en emisión: Kitsu es la fuente más directa (chapterCount real)
+        const [kitsu,paged]=await Promise.all([
+          _srcKitsu(malId,null),
+          _srcJikanPaged(malId,"manga")
+        ]);
+        if(kitsu>0||paged>0) return Math.max(kitsu,paged);
+        // Fallback: MangaDex por MAL ID
         const mdx=await _srcMangaDexByMalId(malId);
         return mdx||0;
       }else{
@@ -1960,6 +1963,46 @@ async function _srcJikanPaged(malId, type){
       return (lp-1)*100+dL.data.length;
     }
     return (lp-1)*100+d.data.length;
+  }catch(e){return 0;}
+}
+
+// ── Fuente 3b: Kitsu API — chapterCount real para manga en emisión ────────────
+// Kitsu mantiene chapterCount actualizado para manga en publicación.
+// Acepta MAL ID directamente via filter[malId] — sin autenticación, CORS habilitado.
+// Ejemplos reales: One Punch Man → 238, Dandadan → 183+, Witch Hat Atelier → 80+
+async function _srcKitsu(malId, title){
+  if(!malId&&!title) return 0;
+  try{
+    // Intento 1: búsqueda directa por MAL ID (más precisa, 1 solo request)
+    if(malId){
+      const url=`https://kitsu.io/api/edge/manga?filter[malId]=${malId}&page[limit]=3`;
+      const res=await fetch(url,{
+        headers:{"Accept":"application/vnd.api+json","Content-Type":"application/vnd.api+json"}
+      });
+      if(res.ok){
+        const items=(await res.json())?.data||[];
+        for(const it of items){
+          const cnt=it?.attributes?.chapterCount;
+          if(cnt&&cnt>0) return cnt;
+        }
+      }
+    }
+    // Intento 2: búsqueda por título (fallback)
+    if(!title) return 0;
+    const q=encodeURIComponent((title||"").slice(0,60));
+    const url2=`https://kitsu.io/api/edge/manga?filter[text]=${q}&page[limit]=5`;
+    const res2=await fetch(url2,{
+      headers:{"Accept":"application/vnd.api+json","Content-Type":"application/vnd.api+json"}
+    });
+    if(!res2.ok) return 0;
+    const items2=(await res2.json())?.data||[];
+    // Buscar el mejor match: preferir el que tenga más capítulos (el más relevante)
+    let best=0;
+    for(const it of items2){
+      const cnt=it?.attributes?.chapterCount;
+      if(cnt&&cnt>best) best=cnt;
+    }
+    return best;
   }catch(e){return 0;}
 }
 
@@ -2134,23 +2177,24 @@ async function _srcMangaDexByMalId(malId){
 
 // ── Orquestador: fuentes en paralelo, timeout 15s ────────────────────────
 // Para manga en emisión el flujo es:
-//   Jikan paged (lista caps publicados) + AniList + MangaDex (feed JP + agg + feed any)
+//   Kitsu (chapterCount real) + Jikan paged + AniList + MangaDex feed JP + agg + feed any
 // Para anime en emisión:
 //   AniList nextAiringEpisode (más preciso) + Jikan individual + Jikan paged
 async function getBestCount(malId, type, rawCount, title){
-  const T=15000; // 15s — MangaDex hace 3 requests internos en paralelo
+  const T=15000;
   const t=ms=>new Promise(r=>setTimeout(()=>r(0),ms));
   if(type==="manga"){
-    // Todas las fuentes en paralelo con timeout global
-    const [j2,al,mdx,mdx2]=await Promise.all([
-      Promise.race([_srcJikanPaged(malId,"manga"),t(T)]),
-      Promise.race([_srcAniList(malId,"manga"),t(T)]),
-      Promise.race([_srcMangaDex(malId,title),t(T)]),    // feed JP + agg + feed any
-      Promise.race([_srcMangaDexByMalId(malId),t(T)])    // mismo flujo desde MAL ID directo
+    // Kitsu + Jikan paged + AniList + MangaDex (feed JP + agg + feed any) — todo en paralelo
+    const [kitsu,j2,al,mdx,mdx2]=await Promise.all([
+      Promise.race([_srcKitsu(malId,title),t(T)]),          // chapterCount real — MEJOR FUENTE
+      Promise.race([_srcJikanPaged(malId,"manga"),t(T)]),    // lista de caps publicados
+      Promise.race([_srcAniList(malId,"manga"),t(T)]),       // null para en emisión — fallback
+      Promise.race([_srcMangaDex(malId,title),t(T)]),        // feed JP + agg + feed any
+      Promise.race([_srcMangaDexByMalId(malId),t(T)])        // mismo vía MAL ID directo
     ]);
-    const best=Math.max(rawCount||0,j2||0,al||0,mdx||0,mdx2||0);
+    const best=Math.max(rawCount||0,kitsu||0,j2||0,al||0,mdx||0,mdx2||0);
     if(best>0) return best;
-    // Último recurso secuencial: _srcJikanIndividual (para manga en emisión usa paged internamente)
+    // Último recurso secuencial
     const j1=await Promise.race([_srcJikanIndividual(malId,"manga"),t(6000)]);
     return Math.max(best,j1||0);
   }else{
@@ -2619,13 +2663,22 @@ async function checkJikanUpdates(){
           }
         }catch(e1){}
         // Si Jikan endpoint individual no trae número (típico en manga/anime en emisión),
-        // usar getBestCount que incluye Jikan paged + AniList + MangaDex
+        // usar getBestCount que incluye Kitsu + Jikan paged + AniList + MangaDex
         if(!count || count<1){
           try{
-            const best=await getBestCount(series.jikanId,tabKey,0,series.title);
-            if(best>0) count=best;
+            // Para manga: intentar Kitsu primero (más rápido y preciso)
+            if(tabKey==="manga"){
+              const kitsuCnt=await _srcKitsu(series.jikanId,series.title);
+              if(kitsuCnt>0){ count=kitsuCnt; }
+              else{
+                const best=await getBestCount(series.jikanId,tabKey,0,series.title);
+                if(best>0) count=best;
+              }
+            }else{
+              const best=await getBestCount(series.jikanId,tabKey,0,series.title);
+              if(best>0) count=best;
+            }
           }catch(e2){
-            // Fallback directo a AniList si getBestCount falla
             const alCnt=await _srcAniList(series.jikanId,tabKey);
             if(alCnt>0) count=alCnt;
           }
