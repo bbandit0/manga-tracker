@@ -347,40 +347,40 @@ html::after{
   100%{opacity:0;transform:translate(var(--px),var(--py)) rotate(var(--rot)) scale(.4)}
 }
 
-/* ── RECOMENDACIONES ── */
-/* ── DISCOVER SECTION v2 ── */
+/* ── DISCOVER / RECOMENDACIONES v2 ── */
 .reco-section{margin:0}
 .reco-page-header{padding:20px 0 16px;border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:0}
 .reco-page-title{font-size:22px;font-weight:800;color:var(--t1);font-family:'Space Mono',monospace;letter-spacing:-1px;margin-bottom:2px}
 .reco-page-title span{background:linear-gradient(120deg,#a78bfa,#63b3ed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .reco-page-sub{font-size:11px;color:var(--t3);font-family:'Outfit',sans-serif}
-.reco-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:0;padding:16px 0 10px}
-.reco-title-wrap{display:flex;align-items:center;gap:10px}
-.reco-icon-box{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,rgba(155,125,255,.22),rgba(99,179,237,.16));border:1px solid rgba(155,125,255,.35);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;box-shadow:0 4px 14px rgba(155,125,255,.15)}
-.reco-label{font-size:14px;font-weight:700;color:var(--t1)}
-.reco-sublabel{font-size:10px;color:var(--t3);margin-top:2px}
-.reco-new-tag{font-size:9px;font-weight:700;padding:3px 9px;border-radius:20px;background:linear-gradient(135deg,rgba(155,125,255,.2),rgba(99,179,237,.15));color:#c4b5fd;border:1px solid rgba(155,125,255,.35);letter-spacing:.3px}
-.reco-context{font-size:11px;color:var(--t2);margin-bottom:16px;padding:10px 14px;background:linear-gradient(135deg,rgba(155,125,255,.07),rgba(99,179,237,.05));border:1px solid rgba(155,125,255,.18);border-radius:12px;line-height:1.5;display:flex;align-items:center;gap:8px}
-.reco-context::before{content:'🎯';font-size:14px;flex-shrink:0}
-.reco-context b{color:#c4b5fd}
-.reco-section-lbl{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1.2px;margin:16px 0 10px;display:flex;align-items:center;gap:10px}
+.reco-refresh-btn{background:linear-gradient(135deg,rgba(155,125,255,.16),rgba(99,179,237,.1));border:1px solid rgba(155,125,255,.35);color:#c4b5fd;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;padding:7px 14px;border-radius:20px;cursor:pointer;transition:all .2s;white-space:nowrap;display:flex;align-items:center;gap:5px;letter-spacing:.2px;flex-shrink:0}
+.reco-refresh-btn:hover{background:linear-gradient(135deg,rgba(155,125,255,.26),rgba(99,179,237,.18));border-color:rgba(155,125,255,.55)}
+.reco-tags-row{display:flex;flex-wrap:wrap;gap:6px;padding-top:2px}
+.reco-tag-pill{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(155,125,255,.1);border:1px solid rgba(155,125,255,.22);color:#c4b5fd;letter-spacing:.2px}
+.reco-tag-count{font-family:'Space Mono',monospace;font-size:8px;color:rgba(196,181,253,.5)}
+.reco-section-lbl{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1.2px;margin:18px 0 10px;display:flex;align-items:center;gap:10px}
 .reco-section-lbl::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.06)}
-.reco-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-.reco-row::-webkit-scrollbar{display:none}
-.reco-card{flex-shrink:0;width:140px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:16px;overflow:hidden;cursor:pointer;transition:all .25s cubic-bezier(.34,1.56,.64,1);position:relative}
-.reco-card:hover{border-color:rgba(155,125,255,.4);transform:translateY(-4px) scale(1.02);box-shadow:0 16px 40px rgba(155,125,255,.18),0 4px 12px rgba(0,0,0,.4)}
-.reco-card:active{transform:scale(.97)}
-.reco-card-cover{width:100%;height:190px;display:flex;align-items:center;justify-content:center;font-size:52px;background-size:cover;background-position:center;position:relative}
-.reco-card-cover::after{content:'';position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(transparent,rgba(0,0,0,.8))}
-.reco-card-score{position:absolute;top:8px;right:8px;font-size:9px;font-weight:700;padding:3px 7px;border-radius:20px;background:rgba(0,0,0,.8);color:#fbbf24;backdrop-filter:blur(6px);display:flex;align-items:center;gap:3px;z-index:2}
-.reco-card-body{padding:10px 11px 12px}
-.reco-card-title{font-size:11px;font-weight:700;color:var(--t1);margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.reco-card-reason{font-size:9px;color:var(--t3);line-height:1.5;margin-bottom:7px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.reco-card-footer{display:flex;align-items:center;justify-content:space-between}
-.reco-card-tag{font-size:8px;font-weight:700;padding:2px 7px;border-radius:20px;background:rgba(155,125,255,.13);color:#a78bfa;border:1px solid rgba(155,125,255,.25);letter-spacing:.2px}
-.reco-add-hint{font-size:8px;color:var(--t3)}
-.reco-empty{font-size:12px;color:var(--t3);padding:24px;text-align:center;background:rgba(255,255,255,.02);border-radius:12px;border:1px dashed rgba(255,255,255,.06)}
-@keyframes shimmer{from{opacity:.6}to{opacity:1}}
+/* Grid de 2 columnas en móvil, 3+ en desktop */
+.reco-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:520px){.reco-grid{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:680px){.reco-grid{grid-template-columns:repeat(4,1fr)}}
+/* Card horizontal con portada + info */
+.reco-card-h{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:14px;overflow:hidden;cursor:pointer;transition:all .22s cubic-bezier(.34,1.56,.64,1);display:flex;flex-direction:column}
+.reco-card-h:hover{background:rgba(255,255,255,.06);border-color:rgba(155,125,255,.38);transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.5),0 0 0 1px rgba(155,125,255,.18)}
+.reco-card-h:active{transform:scale(.97)}
+.reco-card-h-img{width:100%;aspect-ratio:2/3;position:relative;background:linear-gradient(135deg,rgba(155,125,255,.12),rgba(99,179,237,.08));background-size:cover;background-position:center;flex-shrink:0}
+.reco-score-badge{position:absolute;top:6px;right:6px;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;background:rgba(0,0,0,.75);color:#fbbf24;backdrop-filter:blur(6px);display:flex;align-items:center;gap:2px}
+.reco-card-h-body{padding:9px 10px 10px;flex:1;display:flex;flex-direction:column;gap:4px}
+.reco-card-h-title{font-size:11px;font-weight:700;color:var(--t1);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.reco-card-h-syn{font-size:9px;color:var(--t3);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:2px}
+.reco-card-h-meta{display:flex;gap:4px;align-items:center;font-size:9px;color:var(--t3);font-family:'Space Mono',monospace;margin-top:2px}
+.reco-dot{color:rgba(255,255,255,.15)}
+.reco-card-h-footer{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:6px;gap:4px}
+.reco-add-btn{font-size:9px;font-weight:700;padding:3px 8px;border-radius:6px;background:linear-gradient(135deg,rgba(155,125,255,.2),rgba(99,179,237,.14));border:1px solid rgba(155,125,255,.3);color:#c4b5fd;cursor:pointer;transition:.15s;white-space:nowrap;flex-shrink:0}
+.reco-add-btn:hover{background:linear-gradient(135deg,rgba(155,125,255,.32),rgba(99,179,237,.22));border-color:rgba(155,125,255,.5)}
+.reco-card-tag{font-size:8px;font-weight:700;padding:2px 6px;border-radius:10px;background:rgba(155,125,255,.1);color:#a78bfa;border:1px solid rgba(155,125,255,.2);letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px}
+.reco-empty{font-size:12px;color:var(--t3);padding:24px;text-align:center;background:rgba(255,255,255,.02);border-radius:12px;border:1px dashed rgba(255,255,255,.06);margin-bottom:10px}
+.skel-reco{pointer-events:none}
 @keyframes skeletonPulse{0%,100%{opacity:.35}50%{opacity:.65}}
 .skel-line{height:11px;border-radius:5px;background:rgba(255,255,255,.07);animation:skeletonPulse 1.6s ease-in-out infinite;margin-bottom:7px}
 .skel-line.short{width:50%}.skel-line.med{width:72%}.skel-line.full{width:100%}
@@ -429,7 +429,7 @@ html::after{
 .pubprof-cover{height:185px;position:relative;overflow:hidden;background:linear-gradient(135deg,#0d1b35 0%,#1a1040 40%,#0d2535 100%);border-radius:22px 22px 0 0}
 .pubprof-cover-inner{position:absolute;inset:0;overflow:hidden}
 /* Banner image — same technique as community cards (proven to work) */
-.pubprof-cover-img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:140%;height:140%;object-fit:cover;object-position:center center;filter:blur(16px) brightness(.3) saturate(1.7);pointer-events:none}
+.pubprof-cover-img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:140%;height:140%;object-fit:cover;object-position:center center;filter:blur(5px) brightness(.48) saturate(1.5);pointer-events:none}
 .pubprof-cover::before{content:"";position:absolute;inset:0;z-index:1;background:radial-gradient(ellipse 120% 80% at 15% 50%,rgba(99,179,237,.32) 0%,transparent 55%),radial-gradient(ellipse 80% 100% at 88% 25%,rgba(155,125,255,.28) 0%,transparent 55%),repeating-linear-gradient(135deg,rgba(255,255,255,.02) 0,rgba(255,255,255,.02) 1px,transparent 1px,transparent 22px)}
 .pubprof-cover::after{content:"";position:absolute;bottom:0;left:0;right:0;height:80px;z-index:2;background:linear-gradient(transparent,rgba(10,16,28,.98))}
 /* Avatar — correct overlap positioning */
@@ -585,7 +585,7 @@ html::after{
 /* ── Mi perfil card ── */
 .my-profile-card{border-radius:20px;overflow:hidden;border:1px solid rgba(255,255,255,.08);background:rgba(10,14,26,.95);margin-bottom:4px}
 .my-profile-banner{height:110px;position:relative;overflow:hidden;background:linear-gradient(135deg,#0d1b35 0%,#1a1040 50%,#0d2535 100%)}
-.my-profile-banner-img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:160%;height:160%;object-fit:cover;object-position:center 25%;filter:blur(18px) brightness(.28) saturate(1.9);pointer-events:none;transition:opacity .5s ease}
+.my-profile-banner-img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:160%;height:160%;object-fit:cover;object-position:center 25%;filter:blur(6px) brightness(.52) saturate(1.6);pointer-events:none;transition:opacity .5s ease}
 .my-profile-banner-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.04) 0%,rgba(0,0,0,.82) 100%);z-index:1}
 .my-profile-banner-label{position:absolute;bottom:9px;left:14px;right:14px;z-index:2;font-size:9px;color:rgba(255,255,255,.6);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.3px;display:flex;align-items:center;gap:5px}
 .my-profile-banner-label::before{content:'▶';font-size:7px;flex-shrink:0}
@@ -617,7 +617,7 @@ html::after{
 .friend-card{background:rgba(10,14,26,.9);border:1px solid rgba(255,255,255,.07);border-radius:20px;overflow:hidden;margin-bottom:10px;cursor:pointer;transition:border-color .2s,transform .2s,box-shadow .2s}
 .friend-card:hover{border-color:rgba(99,179,237,.28);transform:translateY(-2px);box-shadow:0 12px 36px rgba(0,0,0,.5)}
 .friend-card-banner{height:110px;position:relative;overflow:hidden;border-radius:18px 18px 0 0}
-.friend-card-banner-img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:180%;height:180%;object-fit:cover;object-position:center 20%;filter:blur(12px) brightness(.35) saturate(2.2);transition:opacity .6s ease}
+.friend-card-banner-img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:180%;height:180%;object-fit:cover;object-position:center 20%;filter:blur(5px) brightness(.48) saturate(1.6);transition:opacity .6s ease}
 .friend-card-banner-overlay{position:absolute;inset:0;background:linear-gradient(160deg,rgba(0,0,0,.08) 0%,rgba(0,0,0,.65) 70%,rgba(0,0,0,.88) 100%);z-index:1}
 .friend-card-banner-label{position:absolute;bottom:9px;left:14px;right:14px;z-index:2;font-size:9px;color:rgba(255,255,255,.7);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.2px;display:flex;align-items:center;gap:4px}
 .friend-card-banner-label::before{content:'▶';font-size:7px;opacity:.7;flex-shrink:0}
@@ -1261,7 +1261,7 @@ async function _renderFriendsPanelInner(container){
     // FIX: mostrar label siempre (con o sin imagen de banner)
     const _profileBannerHtml=`<div class="fn-profile-banner-v5" style="position:relative;overflow:hidden;height:120px;background:${_profBannerFallbackBg}">
       <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.02) 0,rgba(255,255,255,.02) 1px,transparent 1px,transparent 18px),radial-gradient(ellipse 90% 90% at 15% 60%,rgba(104,211,145,.15) 0%,transparent 55%),radial-gradient(ellipse 70% 90% at 88% 20%,rgba(99,179,237,.12) 0%,transparent 55%);z-index:0"></div>
-      <img id="fp-banner-img" src="${_topCoverUrl||''}" onerror="this.style.opacity=0" style="position:absolute;inset:-20px;width:calc(100% + 40px);height:calc(100% + 40px);object-fit:cover;object-position:center 25%;filter:blur(18px) brightness(.32) saturate(1.9);z-index:1;transition:opacity .7s ease;opacity:${_topCoverUrl?'1':'0'}">
+      <img id="fp-banner-img" src="${_topCoverUrl||''}" onerror="this.style.opacity=0" style="position:absolute;inset:-20px;width:calc(100% + 40px);height:calc(100% + 40px);object-fit:cover;object-position:center 25%;filter:blur(5px) brightness(.45) saturate(1.6);z-index:1;transition:opacity .7s ease;opacity:${_topCoverUrl?'1':'0'}">
       <div style="position:absolute;inset:0;z-index:2;background:linear-gradient(180deg,rgba(0,0,0,.04) 0%,rgba(0,0,0,.82) 100%)"></div>
       ${_topS?`<div id="fp-banner-lbl" style="position:absolute;bottom:10px;left:20px;right:20px;display:flex;align-items:center;gap:8px;z-index:3"><span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.75);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 8px rgba(0,0,0,.95)">&#9654; ${_topS.title}</span><span style="font-size:9px;font-family:Space Mono,monospace;color:rgba(255,255,255,.5);background:rgba(0,0,0,.5);padding:1px 6px;border-radius:4px;flex-shrink:0">${_topPct}%</span></div>`:""}
     </div>`;
@@ -3658,33 +3658,49 @@ function p28RenderOnboardingExamples(root,type){
 }
 
 // ── P2.8: RECOMENDACIONES POR SIMILITUD DE TAGS ──
-async function p28FetchReco(tags,type){
+async function p28FetchReco(tags, type, limit=8){
   if(!tags||tags.length===0)return[];
   const jikanType=type==="manga"?"manga":"anime";
   const existingTitles=new Set([...data.manga,...data.anime].map(s=>s.title.toLowerCase()));
+  const genreMap={"Shōnen":27,"Seinen":42,"Acción":1,"Comedia":4,"Romance":22,"Horror":14,"Fantasy":10,"Sci-Fi":24,"Sobrenatural":37,"Deportes":30,"Thriller":41,"Mecha":18,"Slice of Life":36,"Isekai":62,"Award Winning":46,"Gore":58,"Drama":8,"Histórico":13,"Escolar":23,"Psicológico":40,"Misterio":7,"Militar":38};
   const results=[];
-  const tag=tags[Math.floor(Math.random()*tags.length)];
-  // Mapeo básico tag→genre_id Jikan
-  const genreMap={"Shōnen":27,"Seinen":42,"Acción":1,"Comedia":4,"Romance":22,"Horror":14,"Fantasy":10,"Sci-Fi":24,"Sobrenatural":37,"Deportes":30,"Thriller":41,"Mecha":18,"Slice of Life":36,"Isekai":62};
-  const genreId=genreMap[tag]||27;
-  try{
-    const res=await fetch(`https://api.jikan.moe/v4/${jikanType}?genres=${genreId}&order_by=score&sort=desc&limit=10`);
-    if(!res.ok)return[];
-    const json=await res.json();
-    (json.data||[]).forEach(item=>{
-      const t=(item.title_english||item.title||"").toLowerCase();
-      if(!existingTitles.has(t)&&results.length<6){
+  const seen=new Set();
+  // Usar los top 3 tags que tengan mapping, en orden de popularidad en la colección
+  const tagCounts={};
+  [...data.manga,...data.anime].forEach(s=>(s.tags||[]).forEach(t=>{tagCounts[t]=(tagCounts[t]||0)+1;}));
+  const sortedTags=tags.filter(t=>genreMap[t]).sort((a,b)=>(tagCounts[b]||0)-(tagCounts[a]||0)).slice(0,3);
+  if(sortedTags.length===0){
+    // Fallback: usar el primero disponible con id por defecto
+    sortedTags.push(tags[0]);
+  }
+  for(const tag of sortedTags){
+    if(results.length>=limit)break;
+    const genreId=genreMap[tag]||27;
+    try{
+      const res=await fetch(`https://api.jikan.moe/v4/${jikanType}?genres=${genreId}&order_by=score&sort=desc&limit=12`);
+      if(!res.ok)continue;
+      const json=await res.json();
+      for(const item of (json.data||[])){
+        if(results.length>=limit)break;
+        const t=(item.title_english||item.title||"").toLowerCase();
+        const malId=item.mal_id;
+        if(existingTitles.has(t)||seen.has(malId))continue;
+        seen.add(malId);
         results.push({
-          id:item.mal_id,
+          id:malId,
           title:item.title_english||item.title,
           score:item.score||0,
-          tag:tag,
-          reason:`Ya que te gusta "${tag}" en ${type==="manga"?"tu manga":"tu anime"}`,
-          image:item.images?.jpg?.image_url||""
+          tag,
+          synopsis:(item.synopsis||"").slice(0,120).replace(/\n/g," ")||"",
+          members:item.members||0,
+          status:item.status||"",
+          year:item.aired?.prop?.from?.year||item.published?.prop?.from?.year||null,
+          image:item.images?.jpg?.large_image_url||item.images?.jpg?.image_url||""
         });
       }
-    });
-  }catch(e){console.warn("p28 reco fetch:",e);}
+      await new Promise(r=>setTimeout(r,350)); // rate limit Jikan
+    }catch(e){console.warn("reco fetch:",e);}
+  }
   return results;
 }
 
@@ -3694,7 +3710,7 @@ async function p28RenderRecoSection(root){
   if(allTags.length===0){
     const sec=document.createElement("div");
     sec.className="reco-section";
-    sec.innerHTML=`<div class="reco-hdr"><div class="reco-title-wrap"><div class="reco-icon-box">✨</div><div><div class="reco-label">Descubrir</div><div class="reco-sublabel">Recomendaciones por tags · Jikan API</div></div></div><span class="reco-new-tag">NUEVO</span></div><div class="reco-empty">Agrega tags a tu manga o anime para ver recomendaciones personalizadas</div>`;
+    sec.innerHTML=`<div class="reco-page-header"><div style="display:flex;align-items:center;justify-content:space-between"><div><div class="reco-page-title">✦ <span>Descubrir</span></div><div class="reco-page-sub">Recomendaciones basadas en tus tags · Jikan API</div></div></div></div><div class="reco-empty" style="margin-top:20px">Agrega tags a tu manga o anime para ver recomendaciones personalizadas</div>`;
     root.appendChild(sec);
     return;
   }
@@ -3702,82 +3718,107 @@ async function p28RenderRecoSection(root){
   const tagsKey=allTags.sort().join(",");
   const isCached=p28RecoCache.tagsKey===tagsKey&&(p28RecoCache.manga.length>0||p28RecoCache.anime.length>0);
 
+  // Calcular top tags para mostrar
+  const tagCounts={};
+  [...data.manga,...data.anime].forEach(s=>(s.tags||[]).forEach(t=>{tagCounts[t]=(tagCounts[t]||0)+1;}));
+  const topTagsSorted=[...allTags].sort((a,b)=>(tagCounts[b]||0)-(tagCounts[a]||0));
+  const topTagsDisplay=topTagsSorted.slice(0,5).map(t=>`<span class="reco-tag-pill">${t} <span class="reco-tag-count">${tagCounts[t]||""}</span></span>`).join("");
+
   const sec=document.createElement("div");
   sec.className="reco-section";
-  const topTags=allTags.slice(0,3).join(", ");
   sec.innerHTML=`
     <div class="reco-page-header">
-      <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
         <div>
           <div class="reco-page-title">✦ <span>Descubrir</span></div>
           <div class="reco-page-sub">Recomendaciones basadas en tus tags · Jikan API</div>
         </div>
-        <button id="reco-refresh-btn" onclick="p28RecoCache={manga:[],anime:[],tagsKey:''};render();showToast('🔄 Buscando nuevas recomendaciones...');" style="background:linear-gradient(135deg,rgba(155,125,255,.16),rgba(99,179,237,.1));border:1px solid rgba(155,125,255,.35);color:#c4b5fd;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;padding:7px 14px;border-radius:20px;cursor:pointer;transition:all .2s;white-space:nowrap;display:flex;align-items:center;gap:5px;letter-spacing:.2px">↺ Refrescar</button>
+        <button id="reco-refresh-btn" onclick="p28RecoCache={manga:[],anime:[],tagsKey:''};render();showToast('🔄 Buscando nuevas recomendaciones...');" class="reco-refresh-btn">↺ Refrescar</button>
       </div>
+      <div class="reco-tags-row" style="margin-top:12px">${topTagsDisplay}</div>
     </div>
-    <div class="reco-context" style="margin-top:16px">Tus tags: <b>${topTags}</b></div>
     <div id="reco-manga-wrap"></div>
     <div id="reco-anime-wrap"></div>`;
   root.appendChild(sec);
 
-  async function renderRecoList(containerId,type,items){
+  function buildSkeletonGrid(){
+    return `<div class="reco-grid">${[1,2,3,4,5,6].map(()=>`
+      <div class="reco-card-h skel-reco">
+        <div class="reco-card-h-img" style="background:rgba(255,255,255,.05);animation:skeletonPulse 1.6s ease-in-out infinite"></div>
+        <div class="reco-card-h-body">
+          <div class="skel-line full" style="margin-bottom:8px;height:13px"></div>
+          <div class="skel-line med" style="margin-bottom:6px"></div>
+          <div class="skel-line short"></div>
+        </div>
+      </div>`).join("")}</div>`;
+  }
+
+  function buildRecoGrid(items, type, ac){
+    if(!items.length)return`<div class="reco-empty">Sin resultados para estos tags</div>`;
+    return`<div class="reco-grid">${items.map(r=>{
+      const scoreBadge=r.score>0?`<span class="reco-score-badge">⭐ ${r.score.toFixed(1)}</span>`:"";
+      const yearStr=r.year?`<span>${r.year}</span>`:"";
+      const membStr=r.members>0?`<span>${r.members>1000000?(r.members/1000000).toFixed(1)+"M":r.members>1000?Math.round(r.members/1000)+"K":r.members} fans</span>`:"";
+      const imgStyle=r.image?`background:url('${r.image.replace(/'/g,"\\'")}') center/cover no-repeat`:`background:linear-gradient(135deg,rgba(155,125,255,.2),rgba(99,179,237,.12))`;
+      return`<div class="reco-card-h" data-reco-id="${r.id}" data-reco-type="${type}" data-reco-title="${(r.title||"").replace(/"/g,"&quot;")}">
+        <div class="reco-card-h-img" style="${imgStyle}">${scoreBadge}</div>
+        <div class="reco-card-h-body">
+          <div class="reco-card-h-title">${r.title}</div>
+          ${r.synopsis?`<div class="reco-card-h-syn">${r.synopsis}${r.synopsis.length>=120?"…":""}</div>`:""}
+          <div class="reco-card-h-meta">${yearStr}${yearStr&&membStr?`<span class="reco-dot">·</span>`:""}${membStr}</div>
+          <div class="reco-card-h-footer">
+            <span class="reco-card-tag">${r.tag}</span>
+            <button class="reco-add-btn" onclick="event.stopPropagation()">+ Agregar</button>
+          </div>
+        </div>
+      </div>`;
+    }).join("")}</div>`;
+  }
+
+  async function renderRecoSection(containerId, type, items){
     const wrap=document.getElementById(containerId);
     if(!wrap)return;
-    const lbl=type==="manga"?"📚 Manga":"🎬 Anime";
-    if(items.length===0){wrap.innerHTML=`<div class="reco-empty">${lbl} — sin resultados para estos tags</div>`;return;}
-    const row=document.createElement("div");
-    row.className="reco-row";
-    items.forEach(r=>{
-      const card=document.createElement("div");
-      card.className="reco-card";
-      const bgStyle=r.image?`background:url('${r.image}') center/cover no-repeat`:`background:linear-gradient(135deg,rgba(155,125,255,.2),rgba(99,179,237,.12));display:flex;align-items:center;justify-content:center;font-size:52px`;
-      card.innerHTML=`
-        ${r.score?`<div class="reco-card-score">⭐ ${r.score.toFixed(1)}</div>`:""}
-        <div class="reco-card-cover" style="${bgStyle}">${r.image?"":"📚"}</div>
-        <div class="reco-card-body">
-          <div class="reco-card-title">${r.title}</div>
-          <div class="reco-card-reason">${r.reason}</div>
-          <div class="reco-card-footer"><span class="reco-card-tag">${r.tag}</span><span class="reco-add-hint">+ ver</span></div>
-        </div>`;
-      card.addEventListener("click",()=>{
-        // Pre-rellena el formulario con el título y cambia al tab correspondiente
-        tab=type;newTitle=r.title;render();
-        setTimeout(()=>{const inp=document.getElementById("add-title");if(inp){inp.value=r.title;searchJikan(r.title,type);}},100);
-        showToast(`Buscando "${r.title}"...`);
-      });
-      row.appendChild(card);
+    const ac=type==="manga"?theme.accentManga:"var(--aa)";
+    const lbl=type==="manga"?"📚 Manga recomendado":"🎬 Anime recomendado";
+    const header=`<div class="reco-section-lbl">${lbl}</div>`;
+    wrap.innerHTML=header+buildRecoGrid(items,type,ac);
+    // Event listeners para click en card y botón agregar
+    wrap.querySelectorAll(".reco-card-h").forEach(card=>{
+      card.onclick=()=>{
+        const t=card.dataset.recoTitle;
+        const tp=card.dataset.recoType;
+        tab=tp;newTitle=t;render();
+        setTimeout(()=>{const inp=document.getElementById("add-title");if(inp){inp.value=t;searchJikan(t,tp);}},100);
+        showToast(`Buscando "${t}"...`);
+      };
+      const addBtn=card.querySelector(".reco-add-btn");
+      if(addBtn)addBtn.onclick=e=>{
+        e.stopPropagation();
+        const t=card.dataset.recoTitle;
+        const tp=card.dataset.recoType;
+        tab=tp;newTitle=t;render();
+        setTimeout(()=>{const inp=document.getElementById("add-title");if(inp){inp.value=t;searchJikan(t,tp);}},100);
+        showToast(`Buscando "${t}"...`);
+      };
     });
-    const seclbl=document.createElement("div");
-    seclbl.className="reco-section-lbl";
-    seclbl.textContent=lbl;
-    wrap.appendChild(seclbl);
-    wrap.appendChild(row);
   }
 
   if(isCached){
-    await renderRecoList("reco-manga-wrap","manga",p28RecoCache.manga);
-    await renderRecoList("reco-anime-wrap","anime",p28RecoCache.anime);
+    await renderRecoSection("reco-manga-wrap","manga",p28RecoCache.manga);
+    await renderRecoSection("reco-anime-wrap","anime",p28RecoCache.anime);
   } else {
     const mangaWrap=document.getElementById("reco-manga-wrap");
     const animeWrap=document.getElementById("reco-anime-wrap");
-    const _skeleton=`<div style="display:flex;gap:12px;padding:4px 0">
-      ${[1,2,3,4].map(()=>`<div style="flex-shrink:0;width:140px;border-radius:16px;overflow:hidden;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06)">
-        <div style="width:100%;height:190px;background:linear-gradient(135deg,rgba(155,125,255,.08),rgba(99,179,237,.06));animation:shimmer 1.5s infinite alternate"></div>
-        <div style="padding:10px 11px 12px">
-          <div style="height:10px;border-radius:6px;background:rgba(255,255,255,.07);margin-bottom:7px"></div>
-          <div style="height:8px;border-radius:6px;background:rgba(255,255,255,.04);width:70%"></div>
-        </div>
-      </div>`).join('')}
-    </div>`;
-    if(mangaWrap)mangaWrap.innerHTML=_skeleton;
-    if(animeWrap)animeWrap.innerHTML=_skeleton;
-    const [mangaReco,animeReco]=await Promise.all([
-      p28FetchReco(allTags,"manga"),
-      p28FetchReco(allTags,"anime")
-    ]);
-    p28RecoCache={manga:mangaReco,anime:animeReco,tagsKey};
-    await renderRecoList("reco-manga-wrap","manga",mangaReco);
-    await renderRecoList("reco-anime-wrap","anime",animeReco);
+    if(mangaWrap)mangaWrap.innerHTML=`<div class="reco-section-lbl">📚 Manga recomendado</div>${buildSkeletonGrid()}`;
+    if(animeWrap)animeWrap.innerHTML=`<div class="reco-section-lbl">🎬 Anime recomendado</div>${buildSkeletonGrid()}`;
+    // Secuencial para respetar rate limit de Jikan (350ms entre requests en p28FetchReco)
+    const mangaReco=await p28FetchReco(topTagsSorted,"manga",8);
+    p28RecoCache.manga=mangaReco;
+    await renderRecoSection("reco-manga-wrap","manga",mangaReco);
+    const animeReco=await p28FetchReco(topTagsSorted,"anime",8);
+    p28RecoCache.anime=animeReco;
+    await renderRecoSection("reco-anime-wrap","anime",animeReco);
+    p28RecoCache.tagsKey=tagsKey;
   }
 }
 
