@@ -1811,6 +1811,9 @@ function nextChapter(s){
   if(!s.total||s.total<1)return null;
   const done=new Set(s.completed);
   for(let i=1;i<=s.total;i++){if(!done.has(i))return i;}
+  // Para series en emisión: si ya se leyeron todos los caps conocidos, el siguiente
+  // sería total+1 (hay más por publicar). No mostrar "completo" prematuramente.
+  if(s.jikanPublishing)return s.total+1;
   return null;
 }
 function filterList(list){let r=list;if(showFavsOnly)r=r.filter(s=>s.favorite);if(filterStatus!=="all")r=r.filter(s=>s.status===filterStatus);if(filterTag!=="all")r=r.filter(s=>(s.tags||[]).includes(filterTag));if(search){const q=search.toLowerCase();r=r.filter(s=>s.title.toLowerCase().includes(q)||(s.tags||[]).some(t=>t.toLowerCase().includes(q))||(s.notes||'').toLowerCase().includes(q));}return r;}
@@ -1923,18 +1926,23 @@ async function _srcJikanPaged(malId, type){
       if(!entry) return 0;
       // Para manga: campo "chapter" (string numérico como "166")
       // Para anime: campo "episode" (number o string)
+      // NOTA: entry.mal_id es el ID del registro en la lista de caps de MAL, NO el número
+      // de capítulo — no debe usarse como candidato (genera números incorrectos en emisión).
       const candidates=type==="manga"
-        ?[entry.chapter, entry.chapters, entry.mal_id, entry.number, entry.no]
-        :[entry.episode, entry.episodes, entry.mal_id, entry.number, entry.no];
+        ?[entry.chapter, entry.chapters, entry.number, entry.no]
+        :[entry.episode, entry.episodes, entry.number, entry.no];
       for(const v of candidates){
         if(v===null||v===undefined||v==="none"||v==="") continue;
         const n=parseFloat(String(v));
         if(Number.isFinite(n)&&n>0) return Math.floor(n);
       }
-      // Fallback: extraer número del título
+      // Fallback: extraer número del título (ej: "Chapter 166" → 166)
       const txt=String(entry.title||entry.name||"");
-      const m=txt.match(/(\d+(?:\.\d+)?)/);
+      const m=txt.match(/(?:chapter|cap(?:[ií]tulo)?|episode|ep)\.?\s*#?\s*(\d+(?:\.\d+)?)/i);
       if(m) return Math.floor(parseFloat(m[1]))||0;
+      // Fallback numérico genérico (solo si no hay otra opción)
+      const m2=txt.match(/\b(\d{1,4}(?:\.\d+)?)\b/);
+      if(m2) return Math.floor(parseFloat(m2[1]))||0;
       return 0;
     };
 
@@ -2272,10 +2280,11 @@ function jikanExtractPublishedNumber(entry,type){
     const n=Number(v);
     return Number.isFinite(n)&&n>0?Math.floor(n):0;
   };
-  // Jikan v4 /chapters endpoint devuelve el número en campo "chapter" (string) o "mal_id"
+  // Jikan v4 /chapters endpoint devuelve el número en campo "chapter" (string) o en el título
+  // NOTA: entry.mal_id es el ID del registro en MAL, no el número de capítulo — excluido.
   const direct=type==="manga"
-    ? [entry.chapter,entry.chapters,entry.number,entry.no,entry.mal_id]
-    : [entry.episode,entry.episodes,entry.number,entry.no,entry.mal_id];
+    ? [entry.chapter,entry.chapters,entry.number,entry.no]
+    : [entry.episode,entry.episodes,entry.number,entry.no];
   for(const v of direct){
     const n=toPosInt(v);
     if(n>0)return n;
@@ -3200,7 +3209,10 @@ const sa=h("div","sact");const nxt=nextChapter(s);if(nxt){const qbCls=["qnext",t
 const x=data[tab].find(z=>z.id===s.id);if(!x){qb.disabled=false;return;}
 // Evitar duplicados en completed
 if(!x.completed.includes(nxt))x.completed.push(nxt);
-x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();const wasCompleted=x.completed.length===x.total&&x.total>0;if(wasCompleted){x.status="completed";actLogComplete(x.title,tab,x.total);}else if(x.status==="plan")x.status="reading";actLogChapter(x.title,tab,nxt,x.completed.length,x.total);p28TouchStreak();const streak=p28GetStreak();p29PlayTick();p29BumpGoal();save();if(wasCompleted){p28ShowPlusAnim(tab,x.title,streak);setTimeout(()=>p29ShowConfetti(ac),300);}else{p28ShowPlusAnim(tab,x.title,streak);}setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxt} ✓${wasCompleted?" · 🎉 ¡Serie completada!":""}`);},200);};sa.appendChild(qb);}sa.appendChild(h("button","ib dng",svg.trash,{onclick:e=>{e.stopPropagation();showModal("Eliminar",`¿Eliminar <b>${s.title}</b>?`,"🗑",()=>{data[tab]=data[tab].filter(x=>x.id!==s.id);save();render();showToast(`"${s.title}" eliminado`);});}}));sa.appendChild(h("div","ib",isExp?svg.chu:svg.chd));sh.appendChild(sa);sc.appendChild(sh);
+x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();
+// Para series en emisión: si el cap marcado supera el total conocido, extender total automáticamente
+if(x.jikanPublishing&&nxt>x.total){x.total=nxt;}
+const wasCompleted=x.completed.length===x.total&&x.total>0&&!x.jikanPublishing;if(wasCompleted){x.status="completed";actLogComplete(x.title,tab,x.total);}else if(x.status==="plan")x.status="reading";actLogChapter(x.title,tab,nxt,x.completed.length,x.total);p28TouchStreak();const streak=p28GetStreak();p29PlayTick();p29BumpGoal();save();if(wasCompleted){p28ShowPlusAnim(tab,x.title,streak);setTimeout(()=>p29ShowConfetti(ac),300);}else{p28ShowPlusAnim(tab,x.title,streak);}setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxt} ✓${wasCompleted?" · 🎉 ¡Serie completada!":""}`);},200);};sa.appendChild(qb);}sa.appendChild(h("button","ib dng",svg.trash,{onclick:e=>{e.stopPropagation();showModal("Eliminar",`¿Eliminar <b>${s.title}</b>?`,"🗑",()=>{data[tab]=data[tab].filter(x=>x.id!==s.id);save();render();showToast(`"${s.title}" eliminado`);});}}));sa.appendChild(h("div","ib",isExp?svg.chu:svg.chd));sh.appendChild(sa);sc.appendChild(sh);
 // ── Expanded panel ──
 if(isExp){const cp=h("div","cpnl");
 // ── SECCIÓN ESTADO ──
@@ -3258,7 +3270,10 @@ pillBtn.innerHTML=`<span style="font-size:13px;font-weight:700">+1</span>${nxtCh
 pillBtn.onclick=e=>{e.stopPropagation();if(!nxtCh||pillBtn.disabled)return;pillBtn.disabled=true;// FIX #13
 const x=data[tab].find(z=>z.id===s.id);if(!x){pillBtn.disabled=false;return;}
 if(!x.completed.includes(nxtCh))x.completed.push(nxtCh);
-x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();const wasCompleted=x.completed.length===x.total&&x.total>0;if(wasCompleted){x.status="completed";actLogComplete(x.title,tab,x.total);}else if(x.status==="plan")x.status="reading";actLogChapter(x.title,tab,nxtCh,x.completed.length,x.total);p28TouchStreak();const streak=p28GetStreak();p29PlayTick();p29BumpGoal();save();if(wasCompleted){p28ShowPlusAnim(tab,x.title,streak);setTimeout(()=>p29ShowConfetti(ac),300);}else{p28ShowPlusAnim(tab,x.title,streak);}setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxtCh} ✓${wasCompleted?" · 🎉 ¡Serie completada!":""}`);},200);};
+x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();
+// Para series en emisión: extender total si el cap marcado lo supera
+if(x.jikanPublishing&&nxtCh>x.total){x.total=nxtCh;}
+const wasCompleted=x.completed.length===x.total&&x.total>0&&!x.jikanPublishing;if(wasCompleted){x.status="completed";actLogComplete(x.title,tab,x.total);}else if(x.status==="plan")x.status="reading";actLogChapter(x.title,tab,nxtCh,x.completed.length,x.total);p28TouchStreak();const streak=p28GetStreak();p29PlayTick();p29BumpGoal();save();if(wasCompleted){p28ShowPlusAnim(tab,x.title,streak);setTimeout(()=>p29ShowConfetti(ac),300);}else{p28ShowPlusAnim(tab,x.title,streak);}setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxtCh} ✓${wasCompleted?" · 🎉 ¡Serie completada!":""}`);},200);};
 ctl.appendChild(pillBtn);
 const cbtns=h("div","");cbtns.style.cssText="display:flex;gap:5px;flex-wrap:wrap";
 cbtns.appendChild(h("button","bs",svg.edit+" Total",{onclick:()=>{editTotal=editTotal===s.id?null:s.id;editTotalVal=String(s.total);render();}}));
