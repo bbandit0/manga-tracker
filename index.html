@@ -1583,9 +1583,18 @@ async function _renderFriendsPanelInner(container){
 
   // ── Lista de amigos — PRIMERO, visible sin scrollear
   if(friends.length>0){
+    // Ordenar por actividad más reciente primero
+    const friendsSorted=[...friends].sort((a,b)=>{
+      const fpA=_friendProfiles.get(a.uid);const fpB=_friendProfiles.get(b.uid);
+      const allA=[...(fpA?.allManga||fpA?.topManga||[]),...(fpA?.allAnime||fpA?.topAnime||[])];
+      const allB=[...(fpB?.allManga||fpB?.topManga||[]),...(fpB?.allAnime||fpB?.topAnime||[])];
+      const latestA=allA.reduce((m,s)=>Math.max(m,s.lastUpdated||0),0);
+      const latestB=allB.reduce((m,s)=>Math.max(m,s.lastUpdated||0),0);
+      return latestB-latestA;
+    });
     html+=`<div class="com-section-lbl" style="margin-top:16px">Mis amigos <span style="font-size:9px;padding:1px 7px;border-radius:20px;background:rgba(255,255,255,.07);color:var(--t2);font-family:'Space Mono',monospace;margin-left:4px;font-weight:700">${friends.length}</span></div>
     <div class="com-friends-grid">`;
-    for(const f of friends){
+    for(const f of friendsSorted){
       const fp=_friendProfiles.get(f.uid)||null;
       const un=fp?.username||f.username||"usuario";
       const mC=fp?.mangaCount||0;const aC=fp?.animeCount||0;
@@ -1593,6 +1602,9 @@ async function _renderFriendsPanelInner(container){
                   ...(fp?.allAnime||fp?.topAnime||[]).map(s=>({...s,_t:"A"}))];
       const readingF=allF.filter(s=>s.status==="reading").sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0));
       const readingCount=readingF.length;
+      const lastActive=allF.reduce((m,s)=>Math.max(m,s.lastUpdated||0),0);
+      const lastActiveStr=lastActive>0?_histTimeAgo(lastActive):"";
+      const isRecentlyActive=lastActive>Date.now()-3600000*24;
       const topS=readingF.find(s=>s.cover&&typeof s.cover==="string"&&s.cover.startsWith("http"))||readingF[0]||null;
       let bannerUrl=topS?.cover&&typeof topS.cover==="string"&&topS.cover.startsWith("http")?topS.cover:"";
       if(!bannerUrl&&topS?.title){
@@ -1609,67 +1621,68 @@ async function _renderFriendsPanelInner(container){
         }
       }
       let _h=0;for(let i=0;i<un.length;i++){_h=(_h*31+un.charCodeAt(i))&0xFFFFFF;}_h=_h%360;
-      const _grad=`linear-gradient(135deg,hsl(${_h},60%,18%) 0%,hsl(${(_h+60)%360},55%,13%) 100%)`;
+      const _grad=`linear-gradient(135deg,hsl(${_h},65%,22%) 0%,hsl(${(_h+60)%360},58%,15%) 100%)`;
       const _avSrc=fp?.avatarUrl||f.avatarUrl||"";
       const _avHtml=_avSrc
         ?`<div class="friend-card-avatar"><img src="${_avSrc}" onerror="this.parentElement.textContent='${un.charAt(0).toUpperCase()}'"></div>`
-        :`<div class="friend-card-avatar" style="background:linear-gradient(135deg,hsl(${_h},60%,38%),hsl(${(_h+50)%360},55%,30%))">${un.charAt(0).toUpperCase()}</div>`;
+        :`<div class="friend-card-avatar" style="background:linear-gradient(135deg,hsl(${_h},65%,42%),hsl(${(_h+50)%360},58%,33%))">${un.charAt(0).toUpperCase()}</div>`;
 
-      // Mini-actividad reciente del amigo (max 3 items)
+      // Actividad reciente (top 3)
       const recentActivity=readingF.slice(0,3);
-      // Score promedio del amigo
-      const allFScored=[...(fp?.allManga||fp?.topManga||[]),...(fp?.allAnime||fp?.topAnime||[])].filter(s=>s.score>0);
-      const avgFScore=allFScored.length>0?(allFScored.reduce((s,x)=>s+(x.score||0),0)/allFScored.length).toFixed(1):null;
-      // Compatibilidad
-      const _compat=calcCompatibility(data,fp||{});
 
       const actHtml=recentActivity.length>0
         ? recentActivity.map(s=>{
             const pct=s.total>0?Math.round((s.completed||0)/s.total*100):0;
             const barClr=s._t==="M"?ac:"var(--aa)";
-            const chLbl=s._t==="M"?"Cap.":"Ep.";
+            const barGlow=pct>80?`;box-shadow:0 0 6px ${barClr}66`:"";
             const typeTag=s._t==="M"
-              ?`<span style="font-size:8px;font-weight:700;color:${ac};background:rgba(99,179,237,.13);padding:1px 6px;border-radius:4px;flex-shrink:0">M</span>`
-              :`<span style="font-size:8px;font-weight:700;color:var(--aa);background:rgba(104,211,145,.11);padding:1px 6px;border-radius:4px;flex-shrink:0">A</span>`;
+              ?`<span style="font-size:8px;font-weight:700;color:${ac};background:rgba(99,179,237,.15);padding:1px 6px;border-radius:4px;flex-shrink:0;letter-spacing:.3px">M</span>`
+              :`<span style="font-size:8px;font-weight:700;color:var(--aa);background:rgba(104,211,145,.13);padding:1px 6px;border-radius:4px;flex-shrink:0;letter-spacing:.3px">A</span>`;
             return `<div class="fc-activity-item">
               <div class="fc-act-top">${typeTag}<span class="fc-act-title">${s.title}</span>${s.total>0?`<span style="font-size:9px;color:var(--t3);font-family:'Space Mono',monospace;flex-shrink:0">${s.completed||0}/${s.total}</span>`:""}
               </div>
-              ${s.total>0?`<div class="fc-act-bar"><div class="fc-act-fill" style="width:${pct}%;background:${barClr}"></div></div>
-              <div class="fc-act-pct" style="color:${barClr}">${pct}%</div>`:""}
+              ${s.total>0?`<div class="fc-act-bar"><div class="fc-act-fill" style="width:${pct}%;background:${barClr}${barGlow}"></div></div>
+              <div class="fc-act-pct" style="color:${barClr};font-weight:700">${pct}%</div>`:""}
             </div>`;
           }).join("")
         : `<div style="font-size:10px;color:var(--t3);padding:4px 2px;font-style:italic">Sin series en progreso</div>`;
 
       // Stats extra: completados totales
       const totalCompletedF=(fp?.allManga||fp?.topManga||[]).filter(s=>s.status==="completed").length+(fp?.allAnime||fp?.topAnime||[]).filter(s=>s.status==="completed").length;
+      const allFScored=[...(fp?.allManga||fp?.topManga||[]),...(fp?.allAnime||fp?.topAnime||[])].filter(s=>s.score>0);
+      const avgFScore=allFScored.length>0?(allFScored.reduce((s,x)=>s+(x.score||0),0)/allFScored.length).toFixed(1):null;
+      const _compat=calcCompatibility(data,fp||{});
+      const compatBar=_compat.score>0?`<div style="display:flex;align-items:center;gap:5px;margin-top:5px">
+        <div style="flex:1;height:3px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden"><div style="height:100%;width:${_compat.score}%;background:linear-gradient(90deg,${_compat.color}88,${_compat.color});border-radius:2px;transition:width .6s ease"></div></div>
+        <span style="font-size:9px;color:${_compat.color};font-family:'Space Mono',monospace;font-weight:700;white-space:nowrap">${_compat.score}% ${_compat.emoji}</span>
+      </div>`:"";
+      // Dot "activo recientemente"
+      const activeDot=isRecentlyActive?`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 6px #34d39988;flex-shrink:0;margin-left:2px" title="Activo recientemente"></span>`:"";
 
       html+=`<div class="friend-card-v2" data-fc-uid="${f.uid}" data-view-uid="${f.uid}">
         <div class="friend-card-banner" style="${bannerUrl?"":"background:"+_grad}">
           <img class="friend-card-banner-img" src="${bannerUrl||""}" style="opacity:${bannerUrl?1:0}" onerror="this.style.opacity=0">
           <div class="friend-card-banner-overlay"></div>
           ${topS?`<div class="friend-card-banner-label">${topS.title}</div>`:""}
+          ${lastActiveStr?`<div style="position:absolute;top:8px;right:8px;z-index:3;font-size:8px;font-weight:700;color:rgba(255,255,255,.7);background:rgba(0,0,0,.55);padding:2px 7px;border-radius:10px;backdrop-filter:blur(4px);font-family:'Space Mono',monospace">${lastActiveStr}</div>`:""}
         </div>
         <div class="fc-v2-body">
           <div class="fc-v2-header">
             ${_avHtml}
             <div class="fc-v2-info">
-              <div class="friend-card-name">@${un}</div>
+              <div style="display:flex;align-items:center;gap:5px"><div class="friend-card-name" style="font-size:14px">@${un}</div>${activeDot}</div>
               <div class="fc-v2-stats">
-                <span style="color:${ac}">${mC}M</span>
+                <span style="color:${ac};font-weight:700">${mC}M</span>
                 <span style="color:var(--t3)">·</span>
-                <span style="color:var(--aa)">${aC}A</span>
+                <span style="color:var(--aa);font-weight:700">${aC}A</span>
                 ${avgFScore?`<span style="color:var(--t3)">·</span><span style="color:var(--wrn)">★${avgFScore}</span>`:""}
                 ${totalCompletedF>0?`<span style="color:var(--t3)">·</span><span style="color:var(--suc)">✓${totalCompletedF}</span>`:""}
               </div>
-              ${_compat.score>0?`<div style="display:flex;align-items:center;gap:5px;margin-top:4px">
-                <div style="flex:1;height:2px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden"><div style="height:100%;width:${_compat.score}%;background:${_compat.color};border-radius:2px"></div></div>
-                <span style="font-size:8px;color:${_compat.color};font-family:'Space Mono',monospace;font-weight:700">${_compat.score}%</span>
-                <span style="font-size:8px;color:var(--t3)">${_compat.emoji}</span>
-              </div>`:""}
+              ${compatBar}
             </div>
             <button onclick="event.stopPropagation();showModal('Eliminar amigo','¿Eliminar a @${un} de tus amigos?','❌',()=>fnRemoveFriend('${f.uid}'))" class="friend-card-remove" title="Eliminar">✕</button>
           </div>
-          ${recentActivity.length>0?`<div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Leyendo ahora</div>`:""}
+          ${recentActivity.length>0?`<div style="font-size:8px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;display:flex;align-items:center;gap:6px">Leyendo ahora <div style="flex:1;height:1px;background:rgba(255,255,255,.05)"></div></div>`:""}
           <div class="fc-v2-activity">${actHtml}</div>
         </div>
       </div>`;
@@ -2880,28 +2893,220 @@ async function checkUpToDateNewChapters(){
   }
 }
 // ── P2.9: META DIARIA ──
+let _p29AudioCtx=null;
 function p29GetGoalKey(){return fbUser?"mat-goal-"+fbUser.uid:"mat-goal-guest";}
 function p29GetGoalData(){try{const raw=localStorage.getItem(p29GetGoalKey());return raw?JSON.parse(raw):{goal:5,todayCount:0,lastDate:""};}catch(e){return{goal:5,todayCount:0,lastDate:""};}}
 function p29SaveGoalData(d){try{localStorage.setItem(p29GetGoalKey(),JSON.stringify(d));}catch(e){}}
-function p29BumpGoal(){const td=today();const d=p29GetGoalData();if(d.lastDate!==td){d.todayCount=0;d.lastDate=td;}d.todayCount=(d.todayCount||0)+1;p29SaveGoalData(d);
-  // Actualizar la barra de meta en el DOM sin re-renderizar toda la app
+
+// ── SONIDOS DIFERENCIADOS ──
+function p29PlayTick(){
+  try{
+    if(!_p29AudioCtx){_p29AudioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+    if(theme.soundEnabled===false)return;
+    const ctx=_p29AudioCtx;const now=ctx.currentTime;
+    const notes=[880,1108,1320];
+    notes.forEach((freq,i)=>{
+      const osc=ctx.createOscillator();const gain=ctx.createGain();const filter=ctx.createBiquadFilter();
+      filter.type="lowpass";filter.frequency.value=3000;
+      osc.connect(filter);filter.connect(gain);gain.connect(ctx.destination);
+      osc.type="sine";osc.frequency.setValueAtTime(freq,now+i*0.045);
+      const vol=i===0?0.18:i===1?0.12:0.08;
+      gain.gain.setValueAtTime(0,now+i*0.045);
+      gain.gain.linearRampToValueAtTime(vol,now+i*0.045+0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001,now+i*0.045+0.38);
+      osc.start(now+i*0.045);osc.stop(now+i*0.045+0.4);
+    });
+    const sub=ctx.createOscillator();const subGain=ctx.createGain();
+    sub.connect(subGain);subGain.connect(ctx.destination);sub.type="sine";
+    sub.frequency.setValueAtTime(220,now);subGain.gain.setValueAtTime(0.04,now);
+    subGain.gain.exponentialRampToValueAtTime(0.001,now+0.25);sub.start(now);sub.stop(now+0.28);
+  }catch(e){}
+}
+
+function p29PlayGoalSound(){
+  // Fanfarria de meta diaria: ascenso de 5 notas + acorde final
+  try{
+    if(!_p29AudioCtx){_p29AudioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+    if(theme.soundEnabled===false)return;
+    const ctx=_p29AudioCtx;const now=ctx.currentTime;
+    const melody=[523,659,784,1047,1319];// Do5 Mi5 Sol5 Do6 Mi6
+    melody.forEach((freq,i)=>{
+      const osc=ctx.createOscillator();const gain=ctx.createGain();
+      osc.connect(gain);gain.connect(ctx.destination);
+      osc.type="triangle";osc.frequency.setValueAtTime(freq,now+i*0.1);
+      gain.gain.setValueAtTime(0,now+i*0.1);
+      gain.gain.linearRampToValueAtTime(0.22,now+i*0.1+0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001,now+i*0.1+0.28);
+      osc.start(now+i*0.1);osc.stop(now+i*0.1+0.3);
+    });
+    // Acorde final de celebración
+    [523,659,784].forEach((freq,i)=>{
+      const osc=ctx.createOscillator();const gain=ctx.createGain();
+      osc.connect(gain);gain.connect(ctx.destination);
+      osc.type="sine";osc.frequency.setValueAtTime(freq,now+0.56);
+      gain.gain.setValueAtTime(0.15-i*0.04,now+0.56);
+      gain.gain.exponentialRampToValueAtTime(0.001,now+1.1);
+      osc.start(now+0.56);osc.stop(now+1.15);
+    });
+  }catch(e){}
+}
+
+function p29PlayCompleteSound(){
+  // Sonido épico de completar una serie: acorde de victoria con reverb sintético
+  try{
+    if(!_p29AudioCtx){_p29AudioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+    if(theme.soundEnabled===false)return;
+    const ctx=_p29AudioCtx;const now=ctx.currentTime;
+    // Glissando ascendente
+    const glide=ctx.createOscillator();const glideGain=ctx.createGain();
+    glide.connect(glideGain);glideGain.connect(ctx.destination);
+    glide.type="sawtooth";glide.frequency.setValueAtTime(220,now);
+    glide.frequency.exponentialRampToValueAtTime(1760,now+0.35);
+    glideGain.gain.setValueAtTime(0.08,now);glideGain.gain.exponentialRampToValueAtTime(0.001,now+0.38);
+    glide.start(now);glide.stop(now+0.4);
+    // Acorde de victoria en 3 oleadas
+    [[523,659,784],[622,784,988],[698,880,1047]].forEach(([a,b,c],wave)=>{
+      [a,b,c].forEach(freq=>{
+        const osc=ctx.createOscillator();const gain=ctx.createGain();
+        osc.connect(gain);gain.connect(ctx.destination);
+        osc.type="sine";osc.frequency.setValueAtTime(freq,now+0.3+wave*0.18);
+        gain.gain.setValueAtTime(0.14,now+0.3+wave*0.18);
+        gain.gain.exponentialRampToValueAtTime(0.001,now+0.3+wave*0.18+0.55);
+        osc.start(now+0.3+wave*0.18);osc.stop(now+0.3+wave*0.18+0.6);
+      });
+    });
+  }catch(e){}
+}
+
+function p29PlayUpToDateSound(){
+  // Sonido de "al día": 2 notas cortas ascendentes + shimmer
+  try{
+    if(!_p29AudioCtx){_p29AudioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+    if(theme.soundEnabled===false)return;
+    const ctx=_p29AudioCtx;const now=ctx.currentTime;
+    [880,1320,1760].forEach((freq,i)=>{
+      const osc=ctx.createOscillator();const gain=ctx.createGain();
+      osc.connect(gain);gain.connect(ctx.destination);
+      osc.type="sine";osc.frequency.setValueAtTime(freq,now+i*0.08);
+      gain.gain.setValueAtTime(0.16,now+i*0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001,now+i*0.08+0.22);
+      osc.start(now+i*0.08);osc.stop(now+i*0.08+0.25);
+    });
+  }catch(e){}
+}
+
+// ── ANIMACIÓN DOPAMINA MEJORADA ──
+function p28ShowPlusAnim(type, title, streakCount, isGoalHit, isComplete, isUpToDate){
+  document.querySelectorAll(".p28-anim-overlay,.p28-particle,.p28-ring").forEach(e=>e.remove());
+  const colors=type==="manga"
+    ?["#63b3ed","#9b7dff","#34d399","#7ecbff","#fbbf24","#f472b6"]
+    :["#68d391","#34d399","#63b3ed","#fbbf24","#a78bfa","#fb923c"];
+  const mc=colors[0];
+
+  let mainText="+1";let subText=type==="manga"?"📖 cap":"▶ ep";
+  let mainColor=mc;let extraLines="";let particleCount=22;let ringCount=2;
+
+  if(isComplete){
+    mainText="🎉";subText="¡COMPLETADO!";mainColor="#fbbf24";
+    extraLines=`<div style="color:#fbbf24;font-size:11px;font-weight:700;margin-top:4px;animation:p28Sub .6s ease forwards;animation-delay:.15s;opacity:0">${title.length>20?title.slice(0,20)+"…":title}</div>`;
+    particleCount=55;ringCount=4;
+  } else if(isGoalHit){
+    mainText="🎯";subText="¡META DIARIA!";mainColor="#f59e0b";
+    extraLines=`<div style="color:#fbbf24;font-size:11px;font-weight:700;margin-top:4px;animation:p28Sub .6s ease forwards;animation-delay:.15s;opacity:0">¡Objetivo cumplido!</div>`;
+    particleCount=40;ringCount=3;
+  } else if(isUpToDate){
+    mainText="✓";subText="¡AL DÍA!";mainColor="#34d399";
+    extraLines=`<div style="color:#34d399;font-size:10px;font-weight:600;margin-top:4px;animation:p28Sub .6s ease forwards;animation-delay:.15s;opacity:0">${title.length>22?title.slice(0,22)+"…":title}</div>`;
+    particleCount=35;ringCount=3;
+  }
+
+  const streakLine=(streakCount>=2&&!isComplete&&!isGoalHit)
+    ?`<div style="color:#fbbf24;font-size:11px;font-weight:700;animation:p28Sub .75s ease forwards;animation-delay:.2s;opacity:0;font-family:'Space Mono',monospace">🔥 ${streakCount} días</div>`
+    :"";
+
+  const ov=document.createElement("div");
+  ov.className="p28-anim-overlay";
+  const scale=isComplete?"1.5":isGoalHit?"1.3":"1";
+  ov.innerHTML=`<div class="p28-plus-main" style="color:${mainColor};transform:scale(${scale})">${mainText}</div><div class="p28-plus-sub" style="color:${mainColor};border:1px solid ${mainColor}44">${subText}</div>${extraLines}${streakLine}`;
+  document.body.appendChild(ov);
+
+  const cx=window.innerWidth/2,cy=window.innerHeight/2;
+  for(let ri=0;ri<ringCount;ri++){
+    const ring=document.createElement("div");
+    ring.className="p28-ring";
+    const sz=120+ri*90;
+    ring.style.cssText=`left:${cx}px;top:${cy}px;width:${sz}px;height:${sz}px;color:${colors[ri%colors.length]};animation-delay:${ri*75}ms`;
+    document.body.appendChild(ring);
+  }
+  for(let i=0;i<particleCount;i++){
+    const p=document.createElement("div");
+    p.className="p28-particle";
+    const angle=(i/particleCount)*360+(Math.random()-0.5)*25;
+    const dist=(isComplete||isGoalHit?100:70)+Math.random()*100;
+    const px=Math.cos(angle*Math.PI/180)*dist+"px";
+    const py=Math.sin(angle*Math.PI/180)*dist+"px";
+    const isRect=i%3===0;
+    const sz=isRect?`width:${4+Math.random()*5}px;height:${8+Math.random()*10}px;border-radius:2px`:`width:${5+Math.random()*6}px;height:${5+Math.random()*6}px;border-radius:50%`;
+    const rot=(Math.random()*360)+"deg";
+    p.style.cssText=`left:${cx}px;top:${cy}px;${sz};--px:${px};--py:${py};--rot:${rot};background:${colors[i%colors.length]};animation-delay:${Math.random()*80}ms;transform-origin:center`;
+    document.body.appendChild(p);
+  }
+  const dur=isComplete||isGoalHit?1400:950;
+  setTimeout(()=>{ov.remove();document.querySelectorAll(".p28-particle,.p28-ring").forEach(e=>e.remove());},dur);
+}
+
+function p29BumpGoal(){
+  const td=today();const d=p29GetGoalData();
+  if(d.lastDate!==td){d.todayCount=0;d.lastDate=td;}
+  const prevCount=d.todayCount||0;
+  d.todayCount=prevCount+1;
+  p29SaveGoalData(d);
   const goalFill=document.querySelector(".daily-goal-fill");
   const goalCount=document.querySelector(".daily-goal-count");
   if(goalFill){const pct=Math.round(Math.min(d.todayCount,d.goal)/d.goal*100);goalFill.style.width=pct+"%";}
-  if(goalCount){goalCount.textContent=Math.min(d.todayCount,d.goal)+" caps hoy";}
-  // Animación de meta alcanzada — solo cuando se llega exactamente al objetivo
+  if(goalCount){goalCount.textContent=Math.min(d.todayCount,d.goal)+" / "+d.goal+" hoy";}
+  // Exactamente al llegar al objetivo
   if(d.todayCount===d.goal){
-    setTimeout(()=>p29ShowConfetti(window._p29ac||"#63b3ed"),200);
-    showToast("🎯 ¡Meta diaria alcanzada! "+d.goal+" caps",3000);
-    // Animación visual en la barra
+    setTimeout(()=>{
+      p29PlayGoalSound();
+      p29ShowConfetti(window._p29ac||"#f59e0b","goal");
+    },150);
+    showToast("🎯 ¡Meta diaria! "+d.goal+" caps — ¡Increíble!",4000);
     const bar=document.querySelector(".daily-goal-bar");
     if(bar){
-      bar.style.transition="box-shadow .3s";
-      bar.style.boxShadow="0 0 0 2px "+(window._p29ac||"#63b3ed")+",0 0 18px "+(window._p29ac||"#63b3ed")+"55";
-      setTimeout(()=>{if(bar)bar.style.boxShadow="";},1800);
+      bar.style.transition="box-shadow .3s,background .3s";
+      bar.style.boxShadow="0 0 0 2px #f59e0b,0 0 24px #f59e0b88";
+      bar.style.background="rgba(245,158,11,.08)";
+      setTimeout(()=>{if(bar){bar.style.boxShadow="";bar.style.background="";}},2500);
     }
   }
   return d;
+}
+
+// ── P2.9: CONFETTI MEJORADO (soporte de tipos) ──
+function p29ShowConfetti(ac, type){
+  document.querySelectorAll(".p29-confetti-particle").forEach(e=>e.remove());
+  const isGoal=type==="goal";const isComplete=type==="complete"||!type;
+  const colors=isGoal
+    ?[ac||"#f59e0b","#fbbf24","#fb923c","#f472b6","#fde68a"]
+    :[ac||"#63b3ed","#fbbf24","#34d399","#f472b6","#a78bfa","#fb923c"];
+  const count=isGoal?60:80;
+  const cx=window.innerWidth/2;const cy=window.innerHeight/3;
+  for(let i=0;i<count;i++){
+    const p=document.createElement("div");
+    p.className="p29-confetti-particle";
+    const angle=(i/count)*360+(Math.random()-0.5)*40;
+    const dist=(isGoal?120:180)+Math.random()*(isGoal?140:200);
+    const px=Math.cos(angle*Math.PI/180)*dist+"px";
+    const py=Math.sin(angle*Math.PI/180)*dist+"px";
+    const sz=isGoal?(4+Math.random()*6):(4+Math.random()*8);
+    const isRect=i%4===0;
+    const shapeStyle=isRect?`width:${sz}px;height:${sz*2}px;border-radius:2px`:`width:${sz}px;height:${sz}px;border-radius:50%`;
+    const rot=(Math.random()*720)+"deg";
+    p.style.cssText=`position:fixed;left:${cx}px;top:${cy}px;${shapeStyle};--px:${px};--py:${py};--rot:${rot};background:${colors[i%colors.length]};animation:p29Confetti ${isGoal?.75:.9}s ease-out forwards;animation-delay:${Math.random()*(isGoal?60:80)}ms;z-index:9999;pointer-events:none`;
+    document.body.appendChild(p);
+  }
+  setTimeout(()=>document.querySelectorAll(".p29-confetti-particle").forEach(e=>e.remove()),isGoal?1000:1200);
 }
 function p29RenderGoalBar(root){
   const td=today();
@@ -2919,9 +3124,9 @@ function p29RenderGoalBar(root){
       <input id="goal-input-inline" type="number" min="1" max="99" value="${goal}"
         style="width:44px;padding:2px 6px;background:rgba(255,255,255,.08);border:1px solid var(--bd);border-radius:6px;color:var(--t1);font-family:'Space Mono',monospace;font-size:12px;font-weight:700;text-align:center;outline:none;"
         title="Cambia tu meta diaria">
-      <span class="daily-goal-count">${done} caps hoy</span>
+      <span class="daily-goal-count">${done} / ${goal} hoy</span>
     </div>
-  </div><div class="daily-goal-track"><div class="daily-goal-fill" style="width:${pct}%;background:${mc}"></div></div>`;
+  </div><div class="daily-goal-track"><div class="daily-goal-fill" style="width:${pct}%;background:${mc}${done>=goal?";box-shadow:0 0 8px "+mc+"88":""}"></div></div>`;
   const gi=bar.querySelector("#goal-input-inline");
   if(gi){
     gi.onchange=()=>{const v=parseInt(gi.value);if(v>0&&v<=99){const nd=p29GetGoalData();nd.goal=v;p29SaveGoalData(nd);render();}};
@@ -2952,75 +3157,6 @@ setInterval(()=>{
   _safeCheckJikanUpdates();
   setTimeout(_safeCheckUpToDate, 3000);
 }, 6*60*60*1000);
-
-// ── P2.9: SONIDO +1 (Web Audio API) ──
-let _p29AudioCtx=null;
-function p29PlayTick(){
-  try{
-    if(!_p29AudioCtx){_p29AudioCtx=new(window.AudioContext||window.webkitAudioContext)();}
-    const ctx=_p29AudioCtx;
-    const now=ctx.currentTime;
-    // Sonido tipo xilofón/campana: frecuencias armónicas suaves (dopaminérgico)
-    const notes=[880,1108,1320]; // La5 + Do#6 + Mi6 (acorde mayor brillante)
-    notes.forEach((freq,i)=>{
-      const osc=ctx.createOscillator();
-      const gain=ctx.createGain();
-      const filter=ctx.createBiquadFilter();
-      filter.type="lowpass";
-      filter.frequency.value=3000;
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type="sine";
-      osc.frequency.setValueAtTime(freq,now+i*0.045);
-      // Envolvente ADSR muy suave: attack rápido, decay largo, sin sustain
-      const vol=i===0?0.18:i===1?0.12:0.08;
-      gain.gain.setValueAtTime(0,now+i*0.045);
-      gain.gain.linearRampToValueAtTime(vol,now+i*0.045+0.012);
-      gain.gain.exponentialRampToValueAtTime(0.001,now+i*0.045+0.38);
-      osc.start(now+i*0.045);
-      osc.stop(now+i*0.045+0.4);
-    });
-    // Sub-capa armónica grave suave para calidez
-    const sub=ctx.createOscillator();
-    const subGain=ctx.createGain();
-    sub.connect(subGain);
-    subGain.connect(ctx.destination);
-    sub.type="sine";
-    sub.frequency.setValueAtTime(220,now);
-    subGain.gain.setValueAtTime(0.04,now);
-    subGain.gain.exponentialRampToValueAtTime(0.001,now+0.25);
-    sub.start(now);
-    sub.stop(now+0.28);
-  }catch(e){}
-}
-
-// ── P2.9: CONFETTI AL COMPLETAR SERIE ──
-function p29ShowConfetti(ac){
-  document.querySelectorAll(".p29-confetti-particle").forEach(e=>e.remove());
-  const colors=[ac||"#63b3ed","#fbbf24","#34d399","#f472b6","#a78bfa","#fb923c"];
-  const cx=window.innerWidth/2;
-  const cy=window.innerHeight/3;
-  for(let i=0;i<48;i++){
-    const p=document.createElement("div");
-    p.className="p29-confetti-particle";
-    const color=colors[i%colors.length];
-    const size=4+Math.random()*6;
-    const angle=(i/48)*360+(Math.random()-0.5)*30;
-    const dist=80+Math.random()*160;
-    const px=Math.cos(angle*Math.PI/180)*dist;
-    const py=-(60+Math.random()*180);
-    const dur=0.8+Math.random()*0.6;
-    const delay=Math.random()*0.15;
-    const isRect=Math.random()>0.5;
-    p.style.cssText=`position:fixed;left:${cx}px;top:${cy}px;width:${size}px;height:${isRect?size*2.5:size}px;background:${color};border-radius:${isRect?"2px":"50%"};pointer-events:none;z-index:9998;animation:p29Confetti ${dur}s ease-out ${delay}s forwards`;
-    p.style.setProperty("--px",px+"px");
-    p.style.setProperty("--py",py+"px");
-    p.style.setProperty("--rot",(Math.random()*720-360)+"deg");
-    document.body.appendChild(p);
-  }
-  setTimeout(()=>document.querySelectorAll(".p29-confetti-particle").forEach(e=>e.remove()),1800);
-}
 
 // ── P2.9: ANIMACIÓN RACHA en overlay +1 ──
 
@@ -3291,7 +3427,7 @@ if(!x.completed.includes(nxt))x.completed.push(nxt);
 x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();
 // Para series en emisión: si el cap marcado supera el total conocido, extender total automáticamente
 if(x.jikanPublishing&&nxt>x.total){x.total=nxt;}
-const wasCompleted=x.completed.length===x.total&&x.total>0&&!x.jikanPublishing;if(wasCompleted){x.status="completed";actLogComplete(x.title,tab,x.total);}else if(x.status==="plan")x.status="reading";actLogChapter(x.title,tab,nxt,x.completed.length,x.total);p28TouchStreak();const streak=p28GetStreak();p29PlayTick();p29BumpGoal();save();if(wasCompleted){p28ShowPlusAnim(tab,x.title,streak);setTimeout(()=>p29ShowConfetti(ac),300);}else{p28ShowPlusAnim(tab,x.title,streak);}setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxt} ✓${wasCompleted?" · 🎉 ¡Serie completada!":""}`);},200);};sa.appendChild(qb);}sa.appendChild(h("button","ib dng",svg.trash,{onclick:e=>{e.stopPropagation();showModal("Eliminar",`¿Eliminar <b>${s.title}</b>?`,"🗑",()=>{data[tab]=data[tab].filter(x=>x.id!==s.id);save();render();showToast(`"${s.title}" eliminado`);});}}));sa.appendChild(h("div","ib",isExp?svg.chu:svg.chd));sh.appendChild(sa);sc.appendChild(sh);
+const wasCompleted=x.completed.length===x.total&&x.total>0&&!x.jikanPublishing;if(wasCompleted){x.status="completed";actLogComplete(x.title,tab,x.total);}else if(x.status==="plan")x.status="reading";actLogChapter(x.title,tab,nxt,x.completed.length,x.total);p28TouchStreak();const streak=p28GetStreak();const goalData=p29BumpGoal();const isGoalHit=goalData.todayCount===goalData.goal;const isUpToDate=!wasCompleted&&x.jikanPublishing&&x.completed.length>=x.total;if(wasCompleted){p29PlayCompleteSound();p29ShowConfetti(ac,"complete");p28ShowPlusAnim(tab,x.title,streak,false,true,false);}else if(isGoalHit){p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,true,false,false);}else if(isUpToDate){p29PlayUpToDateSound();p29ShowConfetti(ac,"uptodate");p28ShowPlusAnim(tab,x.title,streak,false,false,true);}else{p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,false,false,false);}save();setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxt} ✓${wasCompleted?" · 🎉 ¡Completado!":isUpToDate?" · ✓ ¡Al día!":""}`);},200);};sa.appendChild(qb);}sa.appendChild(h("button","ib dng",svg.trash,{onclick:e=>{e.stopPropagation();showModal("Eliminar",`¿Eliminar <b>${s.title}</b>?`,"🗑",()=>{data[tab]=data[tab].filter(x=>x.id!==s.id);save();render();showToast(`"${s.title}" eliminado`);});}}));sa.appendChild(h("div","ib",isExp?svg.chu:svg.chd));sh.appendChild(sa);sc.appendChild(sh);
 // ── Expanded panel ──
 if(isExp){const cp=h("div","cpnl");
 // ── SECCIÓN ESTADO ──
@@ -3352,7 +3488,7 @@ if(!x.completed.includes(nxtCh))x.completed.push(nxtCh);
 x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();
 // Para series en emisión: extender total si el cap marcado lo supera
 if(x.jikanPublishing&&nxtCh>x.total){x.total=nxtCh;}
-const wasCompleted=x.completed.length===x.total&&x.total>0&&!x.jikanPublishing;if(wasCompleted){x.status="completed";actLogComplete(x.title,tab,x.total);}else if(x.status==="plan")x.status="reading";actLogChapter(x.title,tab,nxtCh,x.completed.length,x.total);p28TouchStreak();const streak=p28GetStreak();p29PlayTick();p29BumpGoal();save();if(wasCompleted){p28ShowPlusAnim(tab,x.title,streak);setTimeout(()=>p29ShowConfetti(ac),300);}else{p28ShowPlusAnim(tab,x.title,streak);}setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxtCh} ✓${wasCompleted?" · 🎉 ¡Serie completada!":""}`);},200);};
+const wasCompleted=x.completed.length===x.total&&x.total>0&&!x.jikanPublishing;if(wasCompleted){x.status="completed";actLogComplete(x.title,tab,x.total);}else if(x.status==="plan")x.status="reading";actLogChapter(x.title,tab,nxtCh,x.completed.length,x.total);p28TouchStreak();const streak=p28GetStreak();const goalData=p29BumpGoal();const isGoalHit=goalData.todayCount===goalData.goal;const isUpToDate=!wasCompleted&&x.jikanPublishing&&x.completed.length>=x.total;if(wasCompleted){p29PlayCompleteSound();p29ShowConfetti(ac,"complete");p28ShowPlusAnim(tab,x.title,streak,false,true,false);}else if(isGoalHit){p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,true,false,false);}else if(isUpToDate){p29PlayUpToDateSound();p29ShowConfetti(ac,"uptodate");p28ShowPlusAnim(tab,x.title,streak,false,false,true);}else{p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,false,false,false);}save();setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxtCh} ✓${wasCompleted?" · 🎉 ¡Completado!":isUpToDate?" · ✓ ¡Al día!":""}`);},200);};
 ctl.appendChild(pillBtn);
 const cbtns=h("div","");cbtns.style.cssText="display:flex;gap:5px;flex-wrap:wrap";
 cbtns.appendChild(h("button","bs",svg.edit+" Total",{onclick:()=>{editTotal=editTotal===s.id?null:s.id;editTotalVal=String(s.total);render();}}));
@@ -3465,45 +3601,6 @@ function p28GetStreak(){
     return 0;
   }
   return d.count||0;
-}
-
-// ── P2.8: ANIMACIÓN DOPAMINA +1 ──
-function p28ShowPlusAnim(type,title,streakCount){
-  document.querySelectorAll(".p28-anim-overlay,.p28-particle,.p28-ring").forEach(e=>e.remove());
-  const colors=type==="manga"
-    ?["#63b3ed","#9b7dff","#34d399","#7ecbff","#fbbf24","#f472b6"]
-    :["#68d391","#34d399","#63b3ed","#fbbf24","#a78bfa","#fb923c"];
-  const mc=colors[0];
-  const label=type==="manga"?"📖 +1 cap":"▶ +1 ep";
-  const streakLine=streakCount&&streakCount>=2?`<div style="color:#fbbf24;font-size:12px;font-weight:700;animation:p28Sub .75s ease forwards;animation-delay:.2s;opacity:0;font-family:'Space Mono',monospace">🔥 ${streakCount} días</div>`:"";
-  const ov=document.createElement("div");
-  ov.className="p28-anim-overlay";
-  ov.innerHTML=`<div class="p28-plus-main" style="color:${mc}">+1</div><div class="p28-plus-sub" style="color:${mc};border:1px solid ${mc}44">${label}</div>${streakLine}`;
-  document.body.appendChild(ov);
-  // Anillos expansivos
-  const cx=window.innerWidth/2,cy=window.innerHeight/2;
-  [0,80].forEach((delay,ri)=>{
-    const ring=document.createElement("div");
-    ring.className="p28-ring";
-    const sz=120+ri*80;
-    ring.style.cssText=`left:${cx}px;top:${cy}px;width:${sz}px;height:${sz}px;color:${colors[ri]};animation-delay:${delay}ms`;
-    document.body.appendChild(ring);
-  });
-  // Partículas mixtas: círculos + rectángulos
-  for(let i=0;i<22;i++){
-    const p=document.createElement("div");
-    p.className="p28-particle";
-    const angle=(i/22)*360+(Math.random()-0.5)*25;
-    const dist=70+Math.random()*90;
-    const px=Math.cos(angle*Math.PI/180)*dist+"px";
-    const py=Math.sin(angle*Math.PI/180)*dist+"px";
-    const isRect=i%3===0;
-    const sz=isRect?`width:${4+Math.random()*4}px;height:${8+Math.random()*8}px;border-radius:2px`:`width:${5+Math.random()*5}px;height:${5+Math.random()*5}px;border-radius:50%`;
-    const rot=(Math.random()*360)+"deg";
-    p.style.cssText=`left:${cx}px;top:${cy}px;${sz};--px:${px};--py:${py};--rot:${rot};background:${colors[i%colors.length]};animation-delay:${Math.random()*60}ms;transform-origin:center`;
-    document.body.appendChild(p);
-  }
-  setTimeout(()=>{ov.remove();document.querySelectorAll(".p28-particle,.p28-ring").forEach(e=>e.remove());},950);
 }
 
 // ── P2.8: RENDERIZAR STREAK BANNER ──
@@ -4081,9 +4178,11 @@ function markChapter(sid,n,cellEl,ac){const x=data[tab].find(z=>z.id===sid);if(!
   x.completed=[..._doneSet].sort((a,b)=>a-b);// FIX #13: Set evita duplicados
   x.lastUpdated=Date.now();const wasCompleted=x.completed.length===x.total&&x.total>0;if(wasCompleted){x.status="completed";actLogComplete(x.title,tab,x.total);}else if(x.completed.length>0&&x.status==="plan")x.status="reading";
   actLogChapter(x.title,tab,n,x.completed.length,x.total);
-  p28TouchStreak();const streak=p28GetStreak();p29PlayTick();p29BumpGoal();save();
-  p28ShowPlusAnim(tab,x.title,streak);
-  if(wasCompleted){setTimeout(()=>p29ShowConfetti(ac),300);setTimeout(()=>showToast("🎉 ¡Serie completada!"),500);}
+  p28TouchStreak();const streak=p28GetStreak();const goalData=p29BumpGoal();const isGoalHit=goalData.todayCount===goalData.goal;
+  if(wasCompleted){p29PlayCompleteSound();p29ShowConfetti(ac,"complete");p28ShowPlusAnim(tab,x.title,streak,false,true,false);setTimeout(()=>showToast("🎉 ¡"+x.title.slice(0,20)+" completado!"),500);}
+  else if(isGoalHit){p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,true,false,false);}
+  else{p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,false,false,false);}
+  save();
   // Actualizar visualmente todas las celdas del panel expandido
   const panel=cellEl?.closest(".cpnl");
   if(panel){
