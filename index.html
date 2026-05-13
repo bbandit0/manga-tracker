@@ -493,6 +493,22 @@ html::after{
 
 /* ── SEPARADOR ── */
 
+/* ── COMUNIDAD: friend-card-v2 y grid ── */
+.com-friends-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:4px}
+.friend-card-v2{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:18px;overflow:hidden;cursor:pointer;transition:all .22s ease}
+.friend-card-v2:hover{background:rgba(255,255,255,.055);border-color:rgba(255,255,255,.13);box-shadow:0 10px 34px rgba(0,0,0,.55);transform:translateY(-2px)}
+.fc-v2-body{padding:12px 14px 14px}
+.fc-v2-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.fc-v2-info{flex:1;min-width:0}
+.fc-v2-stats{font-size:10px;color:var(--t2);margin-top:2px;display:flex;gap:5px;align-items:center;font-family:'Space Mono',monospace}
+.fc-v2-activity{display:flex;flex-direction:column;gap:7px}
+.fc-activity-item{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:9px;padding:8px 10px}
+.fc-act-top{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.fc-act-title{font-size:11px;color:var(--t1);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.fc-act-bar{height:3px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;margin-bottom:3px}
+.fc-act-fill{height:100%;border-radius:2px;transition:width .4s ease}
+.fc-act-pct{font-size:9px;font-family:'Space Mono',monospace;font-weight:700}
+
 /* ── FIN P2.8 CSS ── */
 
 /* ── MOBILE: add form row fixes ── */
@@ -1487,9 +1503,34 @@ async function _renderFriendsPanelInner(container){
     if(friendsState.statusMsg) html+=`<div class="com-status-msg ${friendsState.statusType}" style="margin-top:8px">${friendsState.statusMsg}</div>`;
   }
 
-  // ── Solicitudes recibidas
+  // ── Pre-cargar perfiles de amigos y construir feed (necesario antes de renderizar cards)
+  const _friendProfiles=new Map();
+  const _feedEvts=[];
+  if(friends.length>0){
+    for(const f of friends){
+      try{
+        const fDoc=await withTimeout(fbDb.collection("public_profiles").doc(f.uid).get());
+        if(fDoc.exists)_friendProfiles.set(f.uid,fDoc.data());
+      }catch(e){}
+    }
+    for(const [uid,fp] of _friendProfiles){
+      const un=fp.username||"usuario";
+      const allF=[...(fp.allManga||fp.topManga||[]).map(s=>({...s,_t:"M",uid,un})),
+                  ...(fp.allAnime||fp.topAnime||[]).map(s=>({...s,_t:"A",uid,un}))];
+      allF.sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0));
+      allF.slice(0,3).forEach(s=>{
+        if(!s.lastUpdated)return;
+        const ageMs=Date.now()-s.lastUpdated;
+        if(ageMs>30*24*3600*1000)return;
+        _feedEvts.push({un,uid,title:s.title,_t:s._t,completed:s.completed||0,total:s.total||0,status:s.status,lastUpdated:s.lastUpdated,ageMs});
+      });
+    }
+    _feedEvts.sort((a,b)=>a.ageMs-b.ageMs);
+  }
+
+  // ── Solicitudes recibidas (al fondo — menos urgente que ver a tus amigos)
   if(received.length>0){
-    html+=`<div class="com-section-lbl" style="margin-top:18px">📨 Solicitudes (${received.length})</div>`;
+    html+=`<div class="com-section-lbl" style="margin-top:22px">📨 Solicitudes (${received.length})</div>`;
     if(receivedError){
       html+=`<div class="com-status-msg error">Error al leer solicitudes — revisa las reglas de Firestore</div>`;
     }else{
@@ -1527,31 +1568,89 @@ async function _renderFriendsPanelInner(container){
     }
   }
 
-  // ── Feed de actividad de amigos
+  // ── Lista de amigos — PRIMERO, visible sin scrollear
   if(friends.length>0){
-    const _friendProfiles=new Map();
+    html+=`<div class="com-section-lbl" style="margin-top:16px">Mis amigos <span style="font-size:9px;padding:1px 7px;border-radius:20px;background:rgba(255,255,255,.07);color:var(--t2);font-family:'Space Mono',monospace;margin-left:4px;font-weight:700">${friends.length}</span></div>
+    <div class="com-friends-grid">`;
     for(const f of friends){
-      try{
-        const fDoc=await withTimeout(fbDb.collection("public_profiles").doc(f.uid).get());
-        if(fDoc.exists)_friendProfiles.set(f.uid,fDoc.data());
-      }catch(e){}
+      const fp=_friendProfiles.get(f.uid)||null;
+      const un=fp?.username||f.username||"usuario";
+      const mC=fp?.mangaCount||0;const aC=fp?.animeCount||0;
+      const allF=[...(fp?.allManga||fp?.topManga||[]).map(s=>({...s,_t:"M"})),
+                  ...(fp?.allAnime||fp?.topAnime||[]).map(s=>({...s,_t:"A"}))];
+      const readingF=allF.filter(s=>s.status==="reading").sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0));
+      const readingCount=readingF.length;
+      const topS=readingF.find(s=>s.cover&&typeof s.cover==="string"&&s.cover.startsWith("http"))||readingF[0]||null;
+      let bannerUrl=topS?.cover&&typeof topS.cover==="string"&&topS.cover.startsWith("http")?topS.cover:"";
+      if(!bannerUrl&&topS?.title){
+        const _ck=((topS._t==="A"?"anime":"manga")+":"+topS.title).toLowerCase();
+        const _cc=_coverUrlCache.get(_ck);
+        if(_cc&&_cc!=="pending") bannerUrl=_cc;
+        else if(!_cc){
+          fnFetchCoverUrl(topS.title,topS._t==="A"?"anime":"manga").then(url=>{
+            if(url){
+              const el=document.querySelector(`[data-fc-uid="${f.uid}"] .friend-card-banner-img`);
+              if(el){el.style.transition="opacity .5s ease";el.src=url;el.onload=()=>{el.style.opacity="1";};}
+            }
+          });
+        }
+      }
+      let _h=0;for(let i=0;i<un.length;i++){_h=(_h*31+un.charCodeAt(i))&0xFFFFFF;}_h=_h%360;
+      const _grad=`linear-gradient(135deg,hsl(${_h},60%,18%) 0%,hsl(${(_h+60)%360},55%,13%) 100%)`;
+      const _avSrc=fp?.avatarUrl||f.avatarUrl||"";
+      const _avHtml=_avSrc
+        ?`<div class="friend-card-avatar"><img src="${_avSrc}" onerror="this.parentElement.textContent='${un.charAt(0).toUpperCase()}'"></div>`
+        :`<div class="friend-card-avatar" style="background:linear-gradient(135deg,hsl(${_h},60%,38%),hsl(${(_h+50)%360},55%,30%))">${un.charAt(0).toUpperCase()}</div>`;
+
+      // Mini-actividad reciente del amigo (max 2 items)
+      const recentActivity=readingF.slice(0,2);
+      const actHtml=recentActivity.length>0
+        ? recentActivity.map(s=>{
+            const pct=s.total>0?Math.round((s.completed||0)/s.total*100):0;
+            const barClr=s._t==="M"?ac:"var(--aa)";
+            const typeTag=s._t==="M"
+              ?`<span style="font-size:9px;font-weight:700;color:${ac};background:rgba(99,179,237,.12);padding:1px 5px;border-radius:4px">M</span>`
+              :`<span style="font-size:9px;font-weight:700;color:var(--aa);background:rgba(104,211,145,.1);padding:1px 5px;border-radius:4px">A</span>`;
+            return `<div class="fc-activity-item">
+              <div class="fc-act-top">${typeTag}<span class="fc-act-title">${s.title}</span></div>
+              ${s.total>0?`<div class="fc-act-bar"><div class="fc-act-fill" style="width:${pct}%;background:${barClr}"></div></div>
+              <div class="fc-act-pct" style="color:${barClr}">${pct}%</div>`:""}
+            </div>`;
+          }).join("")
+        : `<div style="font-size:10px;color:var(--t3);padding:6px 0;font-style:italic">Sin actividad reciente</div>`;
+
+      html+=`<div class="friend-card-v2" data-fc-uid="${f.uid}" data-view-uid="${f.uid}">
+        <div class="friend-card-banner" style="${bannerUrl?"":"background:"+_grad}">
+          <img class="friend-card-banner-img" src="${bannerUrl||""}" style="opacity:${bannerUrl?1:0}" onerror="this.style.opacity=0">
+          <div class="friend-card-banner-overlay"></div>
+          ${topS?`<div class="friend-card-banner-label">▶ ${topS.title}</div>`:""}
+        </div>
+        <div class="fc-v2-body">
+          <div class="fc-v2-header">
+            ${_avHtml}
+            <div class="fc-v2-info">
+              <div class="friend-card-name">@${un}</div>
+              <div class="fc-v2-stats">
+                <span style="color:${ac}">${mC}M</span>
+                <span style="color:var(--t3)">·</span>
+                <span style="color:var(--aa)">${aC}A</span>
+                <span style="color:var(--t3)">·</span>
+                <span style="color:var(--suc)">${readingCount} leyendo</span>
+              </div>
+            </div>
+            <button onclick="event.stopPropagation();showModal('Eliminar amigo','¿Eliminar a @${un} de tus amigos?','❌',()=>fnRemoveFriend('${f.uid}'))" class="friend-card-remove" title="Eliminar">✕</button>
+          </div>
+          <div class="fc-v2-activity">${actHtml}</div>
+        </div>
+      </div>`;
     }
-    // Construir eventos
-    const _feedEvts=[];
-    for(const [uid,fp] of _friendProfiles){
-      const un=fp.username||"usuario";
-      const allF=[...(fp.allManga||fp.topManga||[]).map(s=>({...s,_t:"M",uid,un})),
-                  ...(fp.allAnime||fp.topAnime||[]).map(s=>({...s,_t:"A",uid,un}))];
-      allF.sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0));
-      allF.slice(0,3).forEach(s=>{
-        if(!s.lastUpdated)return;
-        const ageMs=Date.now()-s.lastUpdated;
-        if(ageMs>30*24*3600*1000)return; // mostrar actividad de los últimos 30 días
-        _feedEvts.push({un,uid,title:s.title,_t:s._t,completed:s.completed||0,total:s.total||0,status:s.status,lastUpdated:s.lastUpdated,ageMs});
-      });
-    }
-    _feedEvts.sort((a,b)=>a.ageMs-b.ageMs);
-    // Mostrar sección feed siempre, con mensaje si no hay actividad reciente
+    html+=`</div>`; // cierre com-friends-grid
+  } else {
+    html+=`<div class="com-section-lbl" style="margin-top:16px">Mis amigos</div><div class="com-feed-empty">Sin amigos aún<br><span style="font-size:10px;opacity:.6">Búscalos por @username abajo</span></div>`;
+  }
+
+  // ── Feed de actividad de amigos (debajo de las cards)
+  if(friends.length>0){
     html+=`<div class="com-section-lbl" style="margin-top:22px">📡 Actividad reciente</div>`;
     if(_feedEvts.length>0){
       html+=`<div class="com-feed">`;
@@ -1590,70 +1689,6 @@ async function _renderFriendsPanelInner(container){
     } else {
       html+=`<div class="com-feed-empty">Sin actividad reciente de tus amigos en los últimos 30 días</div>`;
     }
-
-    // ── Lista de amigos — cards limpias
-    html+=`<div class="com-section-lbl" style="margin-top:22px">Mis amigos <span style="font-size:9px;padding:1px 7px;border-radius:20px;background:rgba(255,255,255,.07);color:var(--t2);font-family:'Space Mono',monospace;margin-left:4px;font-weight:700">${friends.length}</span></div>`;
-    for(const f of friends){
-      const fp=_friendProfiles.get(f.uid)||null;
-      const un=fp?.username||f.username||"usuario";
-      const mC=fp?.mangaCount||0;const aC=fp?.animeCount||0;
-      const allF=[...(fp?.allManga||fp?.topManga||[]).map(s=>({...s,_t:"M"})),
-                  ...(fp?.allAnime||fp?.topAnime||[]).map(s=>({...s,_t:"A"}))];
-      const readingF=allF.filter(s=>s.status==="reading").sort((a,b)=>(b.lastUpdated||0)-(a.lastUpdated||0));
-      const readingCount=readingF.length;
-      const topS=readingF.find(s=>s.cover&&typeof s.cover==="string"&&s.cover.startsWith("http"))||readingF[0]||null;
-      let bannerUrl=topS?.cover&&typeof topS.cover==="string"&&topS.cover.startsWith("http")?topS.cover:"";
-
-      // Si no hay URL directa, buscar en cache o fetchear Jikan
-      if(!bannerUrl&&topS?.title){
-        const _ck=((topS._t==="A"?"anime":"manga")+":"+topS.title).toLowerCase();
-        const _cc=_coverUrlCache.get(_ck);
-        if(_cc&&_cc!=="pending") bannerUrl=_cc;
-        else if(!_cc){
-          fnFetchCoverUrl(topS.title,topS._t==="A"?"anime":"manga").then(url=>{
-            if(url){
-              const el=document.querySelector(`[data-fc-uid="${f.uid}"] .friend-card-banner-img`);
-              if(el){el.style.transition="opacity .5s ease";el.src=url;el.onload=()=>{el.style.opacity="1";};}
-            }
-          });
-        }
-      }
-
-      // Hash color para el banner fallback
-      let _h=0;for(let i=0;i<un.length;i++){_h=(_h*31+un.charCodeAt(i))&0xFFFFFF;}_h=_h%360;
-      const _grad=`linear-gradient(135deg,hsl(${_h},60%,18%) 0%,hsl(${(_h+60)%360},55%,13%) 100%)`;
-
-      // Avatar
-      const _avSrc=fp?.avatarUrl||f.avatarUrl||"";
-      const _avHtml=_avSrc
-        ?`<div class="friend-card-avatar"><img src="${_avSrc}" onerror="this.parentElement.textContent='${un.charAt(0).toUpperCase()}'"></div>`
-        :`<div class="friend-card-avatar" style="background:linear-gradient(135deg,hsl(${_h},60%,38%),hsl(${(_h+50)%360},55%,30%))">${un.charAt(0).toUpperCase()}</div>`;
-
-      html+=`<div class="friend-card" data-fc-uid="${f.uid}" data-view-uid="${f.uid}">
-        <div class="friend-card-banner" style="${bannerUrl?"":"background:"+_grad}">
-          <img class="friend-card-banner-img" src="${bannerUrl||""}" style="opacity:${bannerUrl?1:0}" onerror="this.style.opacity=0">
-          <div class="friend-card-banner-overlay"></div>
-          ${topS?`<div class="friend-card-banner-label">▶ ${topS.title}</div>`:""}
-        </div>
-        <div class="friend-card-content">
-          ${_avHtml}
-          <div class="friend-card-meta">
-            <div class="friend-card-name">@${un}</div>
-            <div class="friend-card-sub">${readingCount} en curso</div>
-          </div>
-          <div class="friend-card-actions">
-            <button onclick="event.stopPropagation();showModal('Eliminar amigo','¿Eliminar a @${un} de tus amigos?','❌',()=>fnRemoveFriend('${f.uid}'))" class="friend-card-remove" title="Eliminar amigo">✕</button>
-          </div>
-        </div>
-        <div class="friend-card-stats">
-          <div class="friend-card-stat"><span class="friend-card-stat-v" style="color:${ac}">${mC}</span><span class="friend-card-stat-l">Manga</span></div>
-          <div class="friend-card-stat"><span class="friend-card-stat-v" style="color:var(--aa)">${aC}</span><span class="friend-card-stat-l">Anime</span></div>
-          <div class="friend-card-stat"><span class="friend-card-stat-v" style="color:var(--suc)">${readingCount}</span><span class="friend-card-stat-l">Leyendo</span></div>
-        </div>
-      </div>`;
-    }
-  } else {
-    html+=`<div class="com-section-lbl" style="margin-top:22px">Mis amigos</div><div class="com-feed-empty">Sin amigos aún<br><span style="font-size:10px;opacity:.6">Búscalos por @username arriba</span></div>`;
   }
 
   html+=`</div>`; // cierre com-panel
@@ -4024,6 +4059,11 @@ function doUpdTotal(sid){const v=parseInt(editTotalVal);if(!v||v<1)return;const 
 // Muestra el log personal + feed de amigos en una sola pantalla
 function renderHistoryTab(root){
   const ac=theme.accentManga||"#63b3ed";
+
+  // Limpiar el contenedor completamente antes de renderizar
+  // Esto evita que al cambiar subtab se apile el contenido en lugar de reemplazarlo
+  root.innerHTML="";
+
   const wrap=document.createElement("div");
   wrap.style.cssText="padding-top:4px";
 
@@ -4034,11 +4074,11 @@ function renderHistoryTab(root){
   const stMe=document.createElement("button");
   stMe.className="hist-subtab"+(histSubTab==="me"?" active":"");
   stMe.textContent="📋 Mi actividad";
-  stMe.onclick=()=>{window._histSubTab="me";renderHistoryTab(root.parentNode||document.getElementById("app"));};
+  stMe.onclick=()=>{window._histSubTab="me";root.innerHTML="";renderHistoryTab(root);};
   const stFr=document.createElement("button");
   stFr.className="hist-subtab"+(histSubTab==="friends"?" active":"");
   stFr.textContent="👥 Mis amigos";
-  stFr.onclick=()=>{window._histSubTab="friends";renderHistoryTab(root.parentNode||document.getElementById("app"));};
+  stFr.onclick=()=>{window._histSubTab="friends";root.innerHTML="";renderHistoryTab(root);};
   stBar.append(stMe,stFr);
   wrap.appendChild(stBar);
 
