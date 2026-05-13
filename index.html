@@ -1947,9 +1947,14 @@ async function _srcJikanPaged(malId, type){
     };
 
     if(lp<=1){
-      // Solo 1 página — el último item es el capítulo más reciente
+      // Solo 1 página — para manga en emisión, d.data.length = número de caps publicados
+      // El campo pagination.items.count también lo confirma.
+      const itemsCount=d.pagination?.items?.count||d.data.length;
       const last=d.data[d.data.length-1];
-      return extractNum(last)||d.data.length;
+      const lastNum=extractNum(last);
+      // Si extractNum obtiene un número mayor que itemsCount, confiar en él (numeración real)
+      // Si no, usar itemsCount como fallback (número de registros = número de caps)
+      return lastNum>0?Math.max(lastNum,itemsCount):itemsCount;
     }
 
     // Múltiples páginas: ir a la última para obtener el capítulo más reciente
@@ -2214,28 +2219,30 @@ async function _srcMangaDexByMalId(malId){
 // emisión), _srcMangaDex y _srcMangaDexByMalId (duplicados con sub-requests).
 // Para anime en emisión el flujo sigue igual (AniList nextAiringEpisode).
 async function _getMangaCount(malId, title, rawCount){
-  // Fuentes en paralelo — la primera que resuelva con dato > 0 gana:
+  // Fuentes en paralelo:
   //
-  // 1. Kitsu via mappings (MAL ID exacto → chapterCount):
-  //    El único método que da el número real para manga EN EMISIÓN.
-  //    Kitsu actualiza chapterCount en tiempo real. Usa el MAL ID como
-  //    clave exacta via /mappings, sin ambigüedad de título.
+  // 1. Kitsu via mappings (MAL ID exacto → chapterCount): fuente más fiable para
+  //    manga en emisión. Actualiza en tiempo real. Sin ambigüedad de título.
   //
-  // 2. Jikan /chapters (fallback para manga FINALIZADO):
-  //    MAL sí registra chapters para manga terminado. Útil cuando Kitsu
-  //    no tiene el mapping registrado (títulos muy nuevos o nicho).
+  // 2. MangaDex feed JP (MAL ID → MDX UUID → último cap en japonés):
+  //    Fuente más actualizada para raws. Funciona incluso cuando Kitsu no tiene
+  //    el mapping. Crítica para manga popular en emisión (Berserk, One Piece, etc).
   //
-  // Ambas corren en paralelo — latencia = max(kitsu, jikan), no suma.
+  // 3. Jikan /chapters paginado: útil para manga finalizado donde MAL tiene
+  //    el listado completo de capítulos. Para emisión, usa d.data.length como conteo.
+  //
+  // Las tres corren en paralelo — latencia = max de las tres, no suma.
 
-  const T = 7000;
+  const T = 8000;
   const t = ms => new Promise(r => setTimeout(()=>r(0), ms));
 
-  const [kitsu, paged] = await Promise.all([
+  const [kitsu, mdx, paged] = await Promise.all([
     Promise.race([_srcKitsu(malId, title), t(T)]),
+    Promise.race([_srcMangaDexByMalId(malId), t(T)]),
     Promise.race([_srcJikanPaged(malId, "manga"), t(T)])
   ]);
 
-  const best = Math.max(rawCount||0, kitsu||0, paged||0);
+  const best = Math.max(rawCount||0, kitsu||0, mdx||0, paged||0);
   if(best > 0) return best;
 
   // Último recurso: Jikan individual (manga finalizado sin lista de capítulos)
@@ -2688,8 +2695,11 @@ function selectJikanResult(item,tabType){
             _updateBadge(fallbackCount,true);
             showToast(`📖 ${fallbackCount} ${_localTabType==="manga"?"caps":"eps"} · en emisión`);
           }else{
-            // Último recurso: placeholder 1, el polling corregirá en 10s
-            _updateBadge(1,true);
+            // No se pudo obtener conteo — NO guardar 1 como total (contamina el dato)
+            // Dejar el badge informativo; el polling de checkJikanUpdates corregirá
+            newTotal="0";
+            const hiddenInp=document.getElementById("add-total");
+            if(hiddenInp)hiddenInp.value="0";
             const badge=document.querySelector(".add-cap-badge");
             if(badge) badge.innerHTML=`<span style="font-size:13px">📡</span><span style="opacity:.7">En emisión — caps se actualizarán solos</span>`;
             showToast("📡 En emisión — el conteo se actualizará automáticamente",3500);
@@ -2704,9 +2714,10 @@ function selectJikanResult(item,tabType){
       }catch(e){
         if(window._pendingJikanId!==_localMalId)return;
         if(_localPublishing){
-          newTotal="1";
+          // Error inesperado: no contaminar con total=1
+          newTotal="0";
           const hiddenInp=document.getElementById("add-total");
-          if(hiddenInp)hiddenInp.value="1";
+          if(hiddenInp)hiddenInp.value="0";
         }
       }
     })();
