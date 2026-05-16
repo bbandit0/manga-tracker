@@ -2243,19 +2243,21 @@ async function _mdxAggregate(mdxId){
 // Funciona incluso cuando no hay scanlations en inglés.
 async function _mdxFeedLatestJP(mdxId){
   try{
-    // Pedir el capítulo más reciente en japonés (translatedLanguage[]=ja o ja-ro)
+    // limit=10 para saltarse caps bonus/extra con chapter=null que aparecen primero
     const url=`https://api.mangadex.org/manga/${mdxId}/feed`+
       `?translatedLanguage[]=ja&translatedLanguage[]=ja-ro`+
-      `&order[chapter]=desc&limit=1&includes[]=none`+
+      `&order[chapter]=desc&limit=10&includes[]=none`+
       `&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic`;
     const res=await fetch(url,{headers:{"Accept":"application/json"}});
     if(!res.ok) return 0;
     const data=(await res.json())?.data||[];
-    if(!data.length) return 0;
-    const chStr=data[0]?.attributes?.chapter;
-    if(!chStr||chStr==="none") return 0;
-    const n=parseFloat(chStr);
-    return Number.isFinite(n)&&n>0?Math.floor(n):0;
+    for(const entry of data){
+      const chStr=entry?.attributes?.chapter;
+      if(!chStr||chStr==="none"||chStr==="") continue;
+      const n=parseFloat(chStr);
+      if(Number.isFinite(n)&&n>0) return Math.floor(n);
+    }
+    return 0;
   }catch(e){return 0;}
 }
 
@@ -2264,17 +2266,20 @@ async function _mdxFeedLatestJP(mdxId){
 // Útil para webtoons y manga que solo tienen scanlation sin raw japonés en MangaDex.
 async function _mdxFeedLatestAny(mdxId){
   try{
+    // limit=10 para saltarse caps bonus/extra con chapter=null que aparecen primero
     const url=`https://api.mangadex.org/manga/${mdxId}/feed`+
-      `?order[chapter]=desc&limit=1&includes[]=none`+
+      `?order[chapter]=desc&limit=10&includes[]=none`+
       `&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic`;
     const res=await fetch(url,{headers:{"Accept":"application/json"}});
     if(!res.ok) return 0;
     const data=(await res.json())?.data||[];
-    if(!data.length) return 0;
-    const chStr=data[0]?.attributes?.chapter;
-    if(!chStr||chStr==="none") return 0;
-    const n=parseFloat(chStr);
-    return Number.isFinite(n)&&n>0?Math.floor(n):0;
+    for(const entry of data){
+      const chStr=entry?.attributes?.chapter;
+      if(!chStr||chStr==="none"||chStr==="") continue;
+      const n=parseFloat(chStr);
+      if(Number.isFinite(n)&&n>0) return Math.floor(n);
+    }
+    return 0;
   }catch(e){return 0;}
 }
 
@@ -2333,13 +2338,16 @@ async function _srcMangaDexByMalId(malId){
 // emisión), _srcMangaDex y _srcMangaDexByMalId (duplicados con sub-requests).
 // Para anime en emisión el flujo sigue igual (AniList nextAiringEpisode).
 async function _getMangaCount(malId, title, rawCount){
-  // AniList/MAL/Kitsu retornan chapters=null para manga EN EMISIÓN por diseño.
-  // La única fuente con el cap. publicado más reciente es MangaDex (agregador activo).
-  // Se ataca por dos vías + Jikan paginado en paralelo para máxima cobertura:
+  // AniList/MAL/Kitsu retornan chapters=null para manga en emisión por diseño.
+  // MangaDex es la única fuente con el capítulo publicado real (agregador activo).
+  // Se ataca por 3 vías en paralelo:
   //
-  // 1. MangaDex por MAL ID  — lookup exacto via links[mal]. Falla ~20% de títulos.
-  // 2. MangaDex por título  — búsqueda textual, cubre casi todos los títulos populares.
-  // 3. Jikan /chapters paginado — cubre manhwa/webtoons donde MangaDex no tiene datos.
+  // 1. MangaDex por MAL ID  — lookup exacto via links[mal]. Más preciso.
+  // 2. MangaDex por título  — búsqueda textual. Cubre títulos sin link MAL.
+  // 3. Jikan /chapters paginado — red de seguridad para manhwa/webtoons.
+  //
+  // _mdxFeedLatestAny ahora pide limit=10 y salta caps bonus con chapter=null,
+  // lo que resuelve el "sin dato" en títulos como Frieren o Dandadan.
 
   const T = 7000;
   const t = ms => new Promise(r => setTimeout(()=>r(0), ms));
