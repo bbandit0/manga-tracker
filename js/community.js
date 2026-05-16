@@ -462,10 +462,10 @@ async function _renderFriendsPanelInner(container){
     // Banner mejorado — pre-calcular estilos para evitar template literals anidados
     const _profBannerFallbackBg=`linear-gradient(135deg,${_b1} 0%,${_b2} 55%,${_b3} 100%)`;
     // FIX: mostrar label siempre (con o sin imagen de banner)
-    const _profileBannerHtml=`<div class="fn-profile-banner-v5" style="position:relative;overflow:hidden;height:120px;background:${_profBannerFallbackBg}">
+    const _profileBannerHtml=`<div class="fn-profile-banner-v5" style="position:relative;overflow:hidden;height:160px;background:${_profBannerFallbackBg}">
       <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.02) 0,rgba(255,255,255,.02) 1px,transparent 1px,transparent 18px),radial-gradient(ellipse 90% 90% at 15% 60%,rgba(104,211,145,.15) 0%,transparent 55%),radial-gradient(ellipse 70% 90% at 88% 20%,rgba(99,179,237,.12) 0%,transparent 55%);z-index:0"></div>
-      <img id="fp-banner-img" src="${_topCoverUrl||''}" onerror="this.style.opacity=0" style="position:absolute;inset:-20px;width:calc(100% + 40px);height:calc(100% + 40px);object-fit:cover;object-position:center 25%;filter:blur(5px) brightness(.45) saturate(1.6);z-index:1;transition:opacity .7s ease;opacity:${_topCoverUrl?'1':'0'}">
-      <div style="position:absolute;inset:0;z-index:2;background:linear-gradient(180deg,rgba(0,0,0,.04) 0%,rgba(0,0,0,.82) 100%)"></div>
+      <img id="fp-banner-img" src="${_topCoverUrl||''}" onerror="this.style.opacity=0" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;object-position:center top;filter:brightness(.45) saturate(1.5);z-index:1;transition:opacity .7s ease;opacity:${_topCoverUrl?'1':'0'}">
+      <div style="position:absolute;inset:0;z-index:2;background:linear-gradient(to bottom,rgba(0,0,0,.05) 0%,rgba(10,14,26,.9) 100%)"></div>
       ${_topS?`<div id="fp-banner-lbl" style="position:absolute;bottom:10px;left:20px;right:20px;display:flex;align-items:center;gap:8px;z-index:3"><span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.75);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 8px rgba(0,0,0,.95)">&#9654; ${_topS.title}</span><span style="font-size:9px;font-family:Space Mono,monospace;color:rgba(255,255,255,.5);background:rgba(0,0,0,.5);padding:1px 6px;border-radius:4px;flex-shrink:0">${_topPct}%</span></div>`:""}
     </div>`;
     // series en común
@@ -519,7 +519,7 @@ async function _renderFriendsPanelInner(container){
           <button style="padding:6px 12px;border:1px solid rgba(231,76,76,.3);background:rgba(231,76,76,.07);color:var(--t3);font-size:10px;border-radius:10px;cursor:pointer;font-weight:600;font-family:'Outfit',sans-serif;transition:.15s" onmouseover="this.style.color='var(--dng)';this.style.borderColor='var(--dng)'" onmouseout="this.style.color='var(--t3)';this.style.borderColor='rgba(231,76,76,.3)'" onclick="showModal('Eliminar amigo','¿Eliminar a @${_pUsername} de tus amigos?','❌',()=>fnRemoveFriend('${vuid}'))">✕ Eliminar</button>
         </div>
         ${_profileBannerHtml}
-        <div style="display:flex;align-items:flex-end;gap:14px;padding:0 20px 16px;margin-top:-32px;position:relative;z-index:1;border-bottom:1px solid rgba(255,255,255,.06)">
+        <div style="display:flex;align-items:flex-end;gap:14px;padding:0 20px 16px;margin-top:-40px;position:relative;z-index:3;border-bottom:1px solid rgba(255,255,255,.06)">
           ${_pAv}
           <div style="flex:1;min-width:0;padding-bottom:2px">
             <div class="fn-profile-name">@${_pUsername}</div>
