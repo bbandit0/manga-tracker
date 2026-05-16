@@ -1,4 +1,3 @@
-<script>
 // FIREBASE — CONFIGURACIÓN PARA SINCRONIZACIÓN CROSS-DEVICE
 // PASOS para habilitar sync entre celular y PC:
 //
