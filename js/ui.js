@@ -267,10 +267,18 @@ async function _srcAniListByTitle(title, type){
   }catch(e){return 0;}
 }
 
-// ── CORS Proxy — necesario para MangaDex desde GitHub Pages ─────────────────
-// MangaDex bloquea CORS directo. corsproxy.io actúa de intermediario gratuito.
-const _PROXY = "https://corsproxy.io/?url=";
-function _proxied(url){ return _PROXY + encodeURIComponent(url); }
+// ── Netlify Function — proxy para MangaDex sin CORS ─────────────────────────
+// Llama a netlify/functions/mangadex.js que hace el fetch server-side
+const _NETLIFY_MDX = "/.netlify/functions/mangadex";
+async function _fetchNetlifyMDX(malId, title, type){
+  try{
+    const params = new URLSearchParams({malId, title: title||"", type: type||"manga"});
+    const res = await fetch(`${_NETLIFY_MDX}?${params}`);
+    if(!res.ok) return 0;
+    const d = await res.json();
+    return d?.count || 0;
+  }catch(e){ return 0; }
+}
 
 // ── Fuente 4: MangaDex — obtener MangaDex UUID a partir de MAL ID ─────────────
 // Retorna el UUID de MangaDex o null si no se encuentra
@@ -447,15 +455,14 @@ async function _getMangaCount(malId, title, rawCount){
   const t = ms => new Promise(r => setTimeout(()=>r(0), ms));
 
   // MangaDex via proxy CORS + AniList como respaldo.
-  // MAL bloquea CORS. MangaDex funciona via corsproxy.io.
-  const [mdxById, mdxByTitle, anilist, paged] = await Promise.all([
-    Promise.race([_srcMangaDexByMalId(malId), t(T)]),
-    Promise.race([_srcMangaDex(malId, title), t(T)]),
-    Promise.race([_srcAniList(malId, "manga"), t(T)]),
-    Promise.race([_srcJikanPaged(malId, "manga"), t(T)])
+  // Netlify Function hace el fetch a MangaDex server-side sin CORS.
+  // AniList como respaldo para series fuera de MangaDex.
+  const [netlify, anilist] = await Promise.all([
+    Promise.race([_fetchNetlifyMDX(malId, title, "manga"), t(T)]),
+    Promise.race([_srcAniList(malId, "manga"), t(T)])
   ]);
 
-  const best = Math.max(rawCount||0, mdxById||0, mdxByTitle||0, anilist||0, paged||0);
+  const best = Math.max(rawCount||0, netlify||0, anilist||0);
   if(best > 0) return best;
 
   // Último recurso: Jikan individual (útil solo para manga finalizado)
@@ -478,12 +485,12 @@ async function getBestCount(malId, type, rawCount, title){
   if(type==="manga"){
     return _getMangaCount(malId,title,rawCount);
   }else{
-    const [mal,j1,al]=await Promise.all([
-      Promise.race([_srcMAL(malId,"anime"),t(T)]),
+    const [netlify,j1,al]=await Promise.all([
+      Promise.race([_fetchNetlifyMDX(malId,"","anime"),t(T)]),
       Promise.race([_srcJikanIndividual(malId,"anime"),t(T)]),
       Promise.race([_srcAniList(malId,"anime"),t(T)])
     ]);
-    return Math.max(rawCount||0,mal||0,j1||0,al||0);
+    return Math.max(rawCount||0,netlify||0,j1||0,al||0);
   }
 }
 
