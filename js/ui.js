@@ -438,29 +438,43 @@ async function _srcMangaDexByMalId(malId){
 // emisión), _srcMangaDex y _srcMangaDexByMalId (duplicados con sub-requests).
 // Para anime en emisión el flujo sigue igual (AniList nextAiringEpisode).
 async function _getMangaCount(malId, title, rawCount){
-  // ── Diagnóstico y solución ───────────────────────────────────────────────────
-  // AniList/MAL/Kitsu retornan chapters=null para manga en emisión por diseño.
-  // La fuente correcta es MangaDex (agregador activo). Se usan 3 vías en paralelo:
+  // ── Orquestador de conteo de capítulos ───────────────────────────────────────
+  // Jikan/MAL/AniList retornan chapters=null para manga en emisión.
+  // MangaDex es la fuente activa mas confiable (actualizada por scanlators).
   //
-  // 1. _srcMangaDexByMalId: lookup por links[mal] → feed JP + aggregate + feed any
-  //    Bug fix: aggregate ya NO descarta el volumen "none" que contiene los caps
-  //    más recientes sin volumen asignado (ej: Dandadan 200+, Frieren 120+).
-  //
-  // 2. _srcMangaDex: lookup por título → mismo pipeline
-  //    Cubre el ~20% de títulos sin link MAL en MangaDex.
-  //
-  // 3. _srcJikanPaged: red de seguridad para manhwa/webtoons fuera de MangaDex.
+  // Cadena de fallback (mayor a menor confiabilidad):
+  //  1. Netlify Function (MangaDex server-side, sin restricciones CORS)
+  //  2. MangaDex client-side via links[mal] — fallback si Netlify falla/no deployada
+  //  3. MangaDex por titulo — cubre el ~20% sin link MAL registrado
+  //  4. Kitsu — buena cobertura para manga finalizado
+  //  5. Jikan individual — ultimo recurso, solo util para manga finalizado
 
   const T = 7000;
+  const Tshort = 5000;
   const t = ms => new Promise(r => setTimeout(()=>r(0), ms));
 
-  // MangaDex via proxy CORS + AniList como respaldo.
-  // Netlify Function maneja MangaDex + AniList + Jikan server-side sin CORS.
+  // Fuente 1: Netlify Function (MangaDex server-side)
   const netlify = await Promise.race([_fetchNetlifyMDX(malId, title, "manga"), t(T)]);
-  const best = Math.max(rawCount||0, netlify||0);
-  if(best > 0) return best;
+  const afterNetlify = Math.max(rawCount||0, netlify||0);
+  if(afterNetlify > 0) return afterNetlify;
 
-  // Último recurso: Jikan individual (útil solo para manga finalizado)
+  // Fuente 2+3: MangaDex client-side en paralelo (si Netlify fallo o no esta deployada)
+  try{
+    const [mdxById, mdxByTitle] = await Promise.all([
+      Promise.race([_srcMangaDexByMalId(malId), t(Tshort)]),
+      title ? Promise.race([_srcMangaDex(malId, title), t(Tshort)]) : Promise.resolve(0)
+    ]);
+    const mdxBest = Math.max(mdxById||0, mdxByTitle||0);
+    if(mdxBest > 0) return Math.max(rawCount||0, mdxBest);
+  }catch(e){}
+
+  // Fuente 4: Kitsu
+  try{
+    const kitsu = await Promise.race([_srcKitsu(malId, title), t(Tshort)]);
+    if(kitsu > 0) return Math.max(rawCount||0, kitsu);
+  }catch(e){}
+
+  // Fuente 5: Jikan individual (ultimo recurso)
   try{
     const jd = await Promise.race([
       _jikanFetch("https://api.jikan.moe/v4/manga/" + malId),
@@ -552,20 +566,53 @@ async function searchJikan(query,tabType){
       return true;
     });
 
-    // ── FILTRO 2: relevancia mínima — excluir resultados claramente no relacionados ──
-    // Jikan ordena por relevancia pero puede colar series sin relación al final
+    // ── SCORER DE RELEVANCIA — ranking en vez de filtro binario ──────────────────
+    // Problema anterior: filtro estricto descartaba títulos válidos como "Kagurabachi"
+    // (score bajo en MAL por ser reciente, título japonés en kanji sin coincidencia
+    // con romaji). Solución: asignar puntaje y ordenar — nunca descartar si Jikan
+    // ya devolvió el resultado (confiar en el motor de búsqueda de MAL/Jikan).
+    //
+    // Sistema de puntos (acumulativo):
+    //  +100  match exacto en cualquier título (máxima confianza)
+    //  +60   título empieza con el query (el usuario sabe lo que busca)
+    //  +40   query contiene el título (título es substring del query)
+    //  +20   match parcial: query aparece en alguna variante del título
+    //  +10   cada palabra del query encontrada individualmente en el título
+    //   +5   score de popularidad MAL >= 7 (desempate entre iguales)
+    //  -20   penalización si NINGUNA palabra del query aparece en ningún título
+    //         (resultado muy fuera de contexto — se baja pero NO se elimina)
     const queryNorm=query.trim().toLowerCase().replace(/[!！]/g,"").replace(/\s+/g," ");
-    const relevantFiltered=filtered.filter(item=>{
-      const en=(item.title_english||"").toLowerCase().replace(/[!！]/g,"");
-      const ja=(item.title||"").toLowerCase().replace(/[!！]/g,"");
-      const enSyn=(item.title_synonyms||[]).join(" ").toLowerCase();
-      // Mantener si el query aparece en cualquier variante del título
-      return en.includes(queryNorm)||ja.includes(queryNorm)||enSyn.includes(queryNorm)
-        ||queryNorm.includes(en.slice(0,Math.max(4,en.length-4)))
-        ||(item.score&&item.score>7&&(en.startsWith(queryNorm)||ja.startsWith(queryNorm)));
-    });
-    // Si el filtro elimina todo, usar los originales (búsqueda muy específica)
-    const workList=relevantFiltered.length>0?relevantFiltered:filtered;
+    const queryWords=queryNorm.split(/\s+/).filter(w=>w.length>=2);
+    function _scoreItem(item){
+      const en=(item.title_english||"").toLowerCase().replace(/[!！]/g,"").trim();
+      const ja=(item.title||"").toLowerCase().replace(/[!！]/g,"").trim();
+      const syn=(item.title_synonyms||[]).map(s=>s.toLowerCase()).join(" ");
+      const allTitles=[en,ja,...(item.title_synonyms||[]).map(s=>s.toLowerCase())].filter(Boolean);
+      let score=0;
+      // Match exacto — máxima prioridad
+      if(allTitles.some(t=>t===queryNorm)) score+=100;
+      // Empieza con el query
+      else if(allTitles.some(t=>t.startsWith(queryNorm))) score+=60;
+      // El query incluye el título (query más largo que el título, ej: "spy x family" vs "spy")
+      else if(allTitles.some(t=>t.length>=3&&queryNorm.includes(t))) score+=40;
+      // Match parcial: query aparece dentro del título
+      else if(allTitles.some(t=>t.includes(queryNorm))) score+=20;
+      // Palabras individuales — clave para títulos compuestos y errores de tipeo leves
+      if(queryWords.length>0){
+        const allText=allTitles.join(" ")+" "+syn;
+        const matched=queryWords.filter(w=>allText.includes(w));
+        score+=matched.length*10;
+        // Penalizar si no hay absolutamente ninguna coincidencia de palabras
+        if(matched.length===0) score-=20;
+      }
+      // Desempate: popularidad MAL (no penaliza series nuevas, solo ayuda a las conocidas)
+      if(item.score>=7) score+=5;
+      return score;
+    }
+    // Ordenar por score descendente — Jikan ya filtra por relevancia en su lado,
+    // este scorer solo reordena y baja al fondo los resultados menos probables.
+    const workList=[...filtered].map(item=>({...item,_relevScore:_scoreItem(item)}))
+      .sort((a,b)=>b._relevScore-a._relevScore);
 
     // ── AGRUPACIÓN por título japonés ────────────────────────────────────────────
     // Estrategia: el título japonés es la clave más estable entre temporadas.
