@@ -452,41 +452,52 @@ async function _safeCall(fn){
 }
 
 async function _getMangaCount(malId, title, rawCount){
-  // ── Orquestador: prioridad estricta MangaDex > Kitsu/Jikan ───────────────────
+  // ── Orquestador: prioridad estricta — 3 grupos con early-exit ────────────────
   //
-  // GRUPO A (MangaDex) — autoritativo para manga en emision:
-  //   Netlify + MangaDex directo en paralelo. El primero en responder > 0 gana.
-  //   Si ninguno responde en 5s, pasa al Grupo B.
-  //   Kitsu/Jikan quedan fuera de este grupo porque devuelven valores incorrectos
-  //   para series en emision (ej: Spy x Family → Kitsu retorna 4 en vez de 134+).
+  // GRUPO A — Netlify Function (proxy MangaDex server-side):
+  //   Es la unica fuente 100% confiable para manga en emision.
+  //   MangaDex bloquea CORS desde el browser, por eso necesita el proxy.
+  //   Timeout de 5s. Si responde > 0, retorna inmediatamente.
   //
-  // GRUPO B (Kitsu + Jikan) — fallback para manga finalizado sin datos en MangaDex.
-  //   Solo se ejecuta si Grupo A retorna 0. Timeout de 3s.
+  // GRUPO B — Kitsu via mapping MAL→Kitsu (CORS abierto, funciona sin proxy):
+  //   Solo si Netlify falla (desarrollo local, funcion no deployada, etc).
+  //   Kitsu mantiene chapterCount actualizado para la mayoria de titulos.
+  //   ATENCION: para algunos mangas en emision Kitsu puede tener datos incorrectos
+  //   (ej: Spy x Family → 4 en vez de 134). Se usa solo como ultimo recurso.
+  //   Tambien intenta Jikan para manga finalizado (chapters no es null si termino).
+  //   Timeout de 4s.
   //
-  // Tiempo total: tipico 1-3s (MangaDex responde). Maximo 8s (ambos grupos agotan timeout).
+  // Sin CORS directo a MangaDex feeds/aggregate — esos endpoints requieren proxy.
+  // rawCount de Jikan siempre es 0 o incorrecto para manga en emision → ignorar.
 
   const t = ms => new Promise(r => setTimeout(()=>r(0), ms));
 
-  // GRUPO A: MangaDex — early-exit al primer valor positivo
+  // ── GRUPO A: Netlify Function — MangaDex server-side (fuente autoritativa) ───
   const grupoA = await new Promise(resolve=>{
     let done=false;
     const ok = v => { if(!done && Number(v)>0){ done=true; resolve(Number(v)); }};
     _safeCall(()=>_fetchNetlifyMDX(malId, title, "manga")).then(ok);
-    _safeCall(()=>_srcMangaDexByMalId(malId)).then(ok);
-    if(title) _safeCall(()=>_srcMangaDex(malId, title)).then(ok);
     t(5000).then(()=>{ if(!done){ done=true; resolve(0); }});
   });
 
   if(grupoA > 0) return Math.max(rawCount||0, grupoA);
 
-  // GRUPO B: Kitsu + Jikan — solo para manga finalizado
+  // ── GRUPO B: Kitsu + Jikan — fallback sin proxy (manga finalizado principalmente) ──
   const grupoB = await new Promise(resolve=>{
     let done=false;
     const ok = v => { if(!done && Number(v)>0){ done=true; resolve(Number(v)); }};
+    // Kitsu: mejor para manga en emision entre los que no requieren proxy
     _safeCall(()=>_srcKitsu(malId, title)).then(ok);
+    // Jikan individual: confiable solo para manga finalizado (chapters != null)
     _safeCall(()=>_jikanFetch("https://api.jikan.moe/v4/manga/"+malId)
-      .then(jd=>jd?.data?.chapters||0)).then(ok);
-    t(3000).then(()=>{ if(!done){ done=true; resolve(0); }});
+      .then(jd=>{
+        const cnt=jd?.data?.chapters||0;
+        // Solo confiar en Jikan si el manga esta finalizado (publishing===false)
+        // Para manga en emision publishing===true y chapters===null → retornar 0
+        if(cnt>0 && jd?.data?.publishing===false) return cnt;
+        return 0;
+      })).then(ok);
+    t(4000).then(()=>{ if(!done){ done=true; resolve(0); }});
   });
 
   return Math.max(rawCount||0, grupoB);
