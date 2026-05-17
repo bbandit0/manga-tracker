@@ -81,27 +81,35 @@ html::after{
 }.app{max-width:720px;margin:0 auto;padding:0 0 100px;min-height:100vh}.app>*:not(.hdr){padding-left:18px;padding-right:18px}
 .hdr{position:relative;display:flex;align-items:flex-end;justify-content:flex-end;margin-bottom:0;height:clamp(180px,26vw,240px);border-radius:0 0 20px 20px;overflow:hidden;border-bottom:1px solid rgba(99,179,237,.25);background:#07090f;container-type:inline-size}@media(max-width:600px){
 .hdr{
-  height:auto;
-  min-height:clamp(160px,52vw,220px);
+  height:clamp(160px,52vw,220px);
+  min-height:160px;
   border-radius:0 0 16px 16px;
   flex-direction:column;
   align-items:flex-start;
   justify-content:space-between;
   padding:18px 14px 14px;
-  overflow:hidden
+  overflow:hidden;
+  position:relative
 }
-.hdr .cthm,.hdr img.banner-img{
-  object-fit:cover;
-  object-position:center 30%;
-  transform:none!important;
+/* Banner image: absolute fill — never participates in flex flow */
+.hdr img.banner-img{
+  position:absolute!important;
+  inset:0!important;
   width:100%!important;
-  height:100%!important
+  height:100%!important;
+  object-fit:cover!important;
+  object-position:center 30%!important;
+  transform:none!important;
+  z-index:0!important
 }
+/* Logo y botones deben quedar sobre la imagen */
 .logo{
   padding:0;
   gap:10px;
   justify-content:flex-start;
-  width:100%
+  width:100%;
+  position:relative;
+  z-index:2
 }
 .logo-icon{
   width:42px;
@@ -119,7 +127,9 @@ html::after{
   width:100%;
   justify-content:flex-end;
   background:rgba(0,0,0,.25);
-  border-color:rgba(255,255,255,.08)
+  border-color:rgba(255,255,255,.08);
+  position:relative;
+  z-index:2
 }}.hdr::before{content:'';position:absolute;inset:0;background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.018) 0,rgba(255,255,255,.018) 1px,transparent 1px,transparent 52px),repeating-linear-gradient(0deg,rgba(255,255,255,.01) 0,rgba(255,255,255,.01) 1px,transparent 1px,transparent 52px);pointer-events:none}.hdr::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 80% at 20% 50%,rgba(99,179,237,.05) 0%,transparent 65%),radial-gradient(ellipse 50% 60% at 85% 30%,rgba(90,180,240,.06) 0%,transparent 65%),linear-gradient(0deg,rgba(8,8,16,.25) 0%,transparent 40%);pointer-events:none}.logo{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--t3);display:flex;align-items:center;gap:14px;position:relative;z-index:2;padding:20px}.logo-icon{width:50px;height:50px;border-radius:16px;background:linear-gradient(135deg,#1a6fa8 0%,var(--am) 45%,var(--aa) 100%);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;box-shadow:0 8px 30px rgba(99,179,237,.35),0 0 0 1px rgba(255,255,255,.12) inset}.logo-icon::after{content:'';position:absolute;inset:1px;border-radius:15px;background:linear-gradient(135deg,rgba(255,255,255,.2) 0%,transparent 55%)}.logo span{letter-spacing:3px;color:var(--t2)}.hdr-r{position:relative;z-index:2;display:flex;gap:5px;align-items:center;margin-left:auto;padding:8px 10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:12px;margin-right:16px;margin-top:auto;margin-bottom:20px;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 /* Botón Comunidad destacado */
 .com-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:10px;border:1px solid rgba(104,211,145,.35);background:linear-gradient(135deg,rgba(104,211,145,.12),rgba(52,211,153,.07));color:#68d391;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s ease;white-space:nowrap;letter-spacing:.2px}
