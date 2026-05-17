@@ -191,6 +191,27 @@ async function _srcKitsu(malId, title){
   }catch(e){}
   return 0;
 }
+// ── Fuente MAL oficial — usa Client ID público, permite CORS desde browser ────
+const _MAL_CLIENT_ID = "a8e801021a38e1c65ef54090732c48b7";
+async function _srcMAL(malId, type){
+  if(!malId) return 0;
+  try{
+    const ep = type === "manga" ? "manga" : "anime";
+    const field = type === "manga" ? "num_chapters" : "num_episodes";
+    const url = `https://api.myanimelist.net/v2/${ep}/${malId}?fields=num_chapters,num_volumes,num_episodes,status`;
+    const res = await fetch(url, {
+      headers: { "X-MAL-CLIENT-ID": _MAL_CLIENT_ID }
+    });
+    if(!res.ok) return 0;
+    const d = await res.json();
+    const cnt = d?.[field] || 0;
+    if(cnt > 0) return cnt;
+    // Para manga en emisión num_chapters=0: estimar desde volúmenes
+    if(type === "manga" && d?.num_volumes > 0) return d.num_volumes * 8;
+    return 0;
+  }catch(e){ return 0; }
+}
+
 // ── Fuente 3: AniList GraphQL ─────────────────────────────────────────────────
 async function _srcAniList(malId, type){
   try{
@@ -420,15 +441,15 @@ async function _getMangaCount(malId, title, rawCount){
   const T = 7000;
   const t = ms => new Promise(r => setTimeout(()=>r(0), ms));
 
-  // AniList permite CORS desde GitHub Pages — es la fuente primaria para manga en emisión.
-  // MangaDex bloquea requests externos (CORS). Kitsu devuelve null para emisión.
-  const [anilist, anilistTitle, paged] = await Promise.all([
+  // MAL API oficial es la fuente primaria — permite CORS desde browser con Client ID.
+  // AniList como segundo respaldo. MangaDex bloqueado por CORS desde GitHub Pages.
+  const [mal, anilist, paged] = await Promise.all([
+    Promise.race([_srcMAL(malId, "manga"), t(T)]),
     Promise.race([_srcAniList(malId, "manga"), t(T)]),
-    Promise.race([_srcAniListByTitle(title, "manga"), t(T)]),
     Promise.race([_srcJikanPaged(malId, "manga"), t(T)])
   ]);
 
-  const best = Math.max(rawCount||0, anilist||0, anilistTitle||0, paged||0);
+  const best = Math.max(rawCount||0, mal||0, anilist||0, paged||0);
   if(best > 0) return best;
 
   // Último recurso: Jikan individual (útil solo para manga finalizado)
@@ -451,12 +472,12 @@ async function getBestCount(malId, type, rawCount, title){
   if(type==="manga"){
     return _getMangaCount(malId,title,rawCount);
   }else{
-    const [j1,j2,al]=await Promise.all([
+    const [mal,j1,al]=await Promise.all([
+      Promise.race([_srcMAL(malId,"anime"),t(T)]),
       Promise.race([_srcJikanIndividual(malId,"anime"),t(T)]),
-      Promise.race([_srcJikanPaged(malId,"anime"),t(T)]),
       Promise.race([_srcAniList(malId,"anime"),t(T)])
     ]);
-    return Math.max(rawCount||0,j1||0,j2||0,al||0);
+    return Math.max(rawCount||0,mal||0,j1||0,al||0);
   }
 }
 
