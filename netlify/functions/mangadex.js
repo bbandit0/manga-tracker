@@ -21,9 +21,35 @@ exports.handler = async function(event) {
   const ep = type === "manga" ? "manga" : "anime";
   const field = type === "manga" ? "chapters" : "episodes";
 
-  // Helper: obtener el capítulo más alto desde el feed de un manga en MangaDex
+  // ── AniList GraphQL ──────────────────────────────────────────────────────────
+  async function srcAniList(id){
+    try{
+      const mediaType = type === "manga" ? "MANGA" : "ANIME";
+      const fields = type === "manga"
+        ? "chapters volumes status"
+        : "episodes status nextAiringEpisode{episode}";
+      const query = `{Media(idMal:${id},type:${mediaType}){${fields}}}`;
+      const res = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: {"Content-Type":"application/json","Accept":"application/json"},
+        body: JSON.stringify({query})
+      });
+      if(!res.ok) return 0;
+      const json = await res.json();
+      const media = json?.data?.Media;
+      if(!media) return 0;
+      if(type === "manga"){
+        if(media.chapters > 0) return media.chapters;
+        if(media.volumes > 0) return media.volumes * 8;
+        return 0;
+      }
+      if(media.nextAiringEpisode?.episode > 0) return media.nextAiringEpisode.episode - 1;
+      return media.episodes || 0;
+    }catch(e){ return 0; }
+  }
+
+  // ── MangaDex helpers ─────────────────────────────────────────────────────────
   async function getFeedCount(mdxId){
-    // Feed japonés primero (más preciso para manga original)
     const feedJP = await fetch(
       `https://api.mangadex.org/manga/${mdxId}/feed?translatedLanguage[]=ja&translatedLanguage[]=ja-ro&order[chapter]=desc&limit=10&includes[]=none&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic`,
       { headers: { "Accept": "application/json" } }
@@ -37,7 +63,6 @@ exports.handler = async function(event) {
         if(Number.isFinite(n) && n > 0) return Math.floor(n);
       }
     }
-    // Feed cualquier idioma como fallback
     const feedAny = await fetch(
       `https://api.mangadex.org/manga/${mdxId}/feed?order[chapter]=desc&limit=10&includes[]=none&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic`,
       { headers: { "Accept": "application/json" } }
@@ -54,43 +79,41 @@ exports.handler = async function(event) {
     return 0;
   }
 
-  // Helper: procesar un item de MangaDex y retornar el conteo
   async function processItem(item){
     const mdxId = item.id;
     const lastChapter = item.attributes?.lastChapter;
-    // Si tiene lastChapter definido (manga finalizado), usarlo directamente
     if(lastChapter && lastChapter !== "none" && lastChapter !== "" && lastChapter !== null){
       const n = Math.floor(parseFloat(lastChapter));
       if(n > 0) return { count: n, source: "mangadex-last" };
     }
-    // Para manga en emisión: usar el feed
     const feedCount = await getFeedCount(mdxId);
     if(feedCount > 0) return { count: feedCount, source: "mangadex-feed" };
     return null;
   }
 
   try {
-    // ── Intento 1: buscar por MAL ID en links de MangaDex ──
-    const byMalUrl = `https://api.mangadex.org/manga?links[mal]=${malId}&limit=5&includes[]=none&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic`;
-    const byMalRes = await fetch(byMalUrl, { headers: { "Accept": "application/json" } });
+    // ── Intento 1: MangaDex por MAL ID ──
+    const byMalRes = await fetch(
+      `https://api.mangadex.org/manga?links[mal]=${malId}&limit=5&includes[]=none&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic`,
+      { headers: { "Accept": "application/json" } }
+    );
     if(byMalRes.ok){
-      const byMalData = await byMalRes.json();
-      const items = byMalData?.data || [];
+      const items = (await byMalRes.json())?.data || [];
       for(const item of items){
         const result = await processItem(item);
         if(result) return { statusCode: 200, headers, body: JSON.stringify(result) };
       }
     }
 
-    // ── Intento 2: buscar por título en MangaDex ──
+    // ── Intento 2: MangaDex por título ──
     if(title){
-      const byTitleUrl = `https://api.mangadex.org/manga?title=${encodeURIComponent(title)}&limit=5&includes[]=none&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&order[relevance]=desc`;
-      const byTitleRes = await fetch(byTitleUrl, { headers: { "Accept": "application/json" } });
+      const byTitleRes = await fetch(
+        `https://api.mangadex.org/manga?title=${encodeURIComponent(title)}&limit=5&includes[]=none&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&order[relevance]=desc`,
+        { headers: { "Accept": "application/json" } }
+      );
       if(byTitleRes.ok){
-        const byTitleData = await byTitleRes.json();
-        const items = byTitleData?.data || [];
+        const items = (await byTitleRes.json())?.data || [];
         for(const item of items){
-          // Verificar que el link MAL coincide o que el título es similar
           const itemMalId = item.attributes?.links?.mal;
           const titleMatch = (item.attributes?.title?.en || "").toLowerCase().includes(title.toLowerCase().slice(0,8));
           if(String(itemMalId) === String(malId) || titleMatch){
@@ -98,7 +121,6 @@ exports.handler = async function(event) {
             if(result) return { statusCode: 200, headers, body: JSON.stringify(result) };
           }
         }
-        // Si no hay coincidencia exacta, intentar con el primer resultado
         if(items.length > 0){
           const result = await processItem(items[0]);
           if(result) return { statusCode: 200, headers, body: JSON.stringify(result) };
@@ -106,32 +128,18 @@ exports.handler = async function(event) {
       }
     }
 
-    // ── Intento 3: Jikan individual como último recurso ──
+    // ── Intento 3: AniList ──
+    const alCount = await srcAniList(malId);
+    if(alCount > 0){
+      return { statusCode: 200, headers, body: JSON.stringify({ count: alCount, source: "anilist" }) };
+    }
+
+    // ── Intento 4: Jikan como último recurso ──
     const jikanRes = await fetch(`https://api.jikan.moe/v4/${ep}/${malId}`);
     if(jikanRes.ok){
       const jikanData = await jikanRes.json();
       const cnt = jikanData?.data?.[field] || 0;
       if(cnt > 0) return { statusCode: 200, headers, body: JSON.stringify({ count: cnt, source: "jikan" }) };
-      // Para manga en emisión, intentar paginado
-      if(type === "manga"){
-        const pagedRes = await fetch(`https://api.jikan.moe/v4/manga/${malId}/chapters?page=1`);
-        if(pagedRes.ok){
-          const pagedData = await pagedRes.json();
-          const total = pagedData?.pagination?.items?.total || 0;
-          const lastPage = pagedData?.pagination?.last_visible_page || 1;
-          if(total > 0) return { statusCode: 200, headers, body: JSON.stringify({ count: total, source: "jikan-paged" }) };
-          if(lastPage > 1){
-            const lastRes = await fetch(`https://api.jikan.moe/v4/manga/${malId}/chapters?page=${lastPage}`);
-            if(lastRes.ok){
-              const lastData = await lastRes.json();
-              const lastEntry = lastData?.data?.[lastData.data.length - 1];
-              const chStr = lastEntry?.chapter || lastEntry?.title || "";
-              const n = parseFloat(String(chStr).match(/\d+/)?.[0] || "0");
-              if(n > 0) return { statusCode: 200, headers, body: JSON.stringify({ count: Math.floor(n), source: "jikan-paged-last" }) };
-            }
-          }
-        }
-      }
     }
 
     return { statusCode: 200, headers, body: JSON.stringify({ count: 0, source: "none" }) };
