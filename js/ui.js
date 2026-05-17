@@ -43,7 +43,7 @@ async function _srcJikanIndividual(malId, type){
         return _getMangaCount(malId,null,0);
       }else{
         // Para anime en emision: AniList nextAiringEpisode es la fuente mas precisa
-        const alCnt=await _srcAniList(malId,type);
+        const alCnt=await _fetchNetlifyMDX(malId,"",type);
         return alCnt||0;
       }
     }
@@ -455,14 +455,9 @@ async function _getMangaCount(malId, title, rawCount){
   const t = ms => new Promise(r => setTimeout(()=>r(0), ms));
 
   // MangaDex via proxy CORS + AniList como respaldo.
-  // Netlify Function hace el fetch a MangaDex server-side sin CORS.
-  // AniList como respaldo para series fuera de MangaDex.
-  const [netlify, anilist] = await Promise.all([
-    Promise.race([_fetchNetlifyMDX(malId, title, "manga"), t(T)]),
-    Promise.race([_srcAniList(malId, "manga"), t(T)])
-  ]);
-
-  const best = Math.max(rawCount||0, netlify||0, anilist||0);
+  // Netlify Function maneja MangaDex + AniList + Jikan server-side sin CORS.
+  const netlify = await Promise.race([_fetchNetlifyMDX(malId, title, "manga"), t(T)]);
+  const best = Math.max(rawCount||0, netlify||0);
   if(best > 0) return best;
 
   // Último recurso: Jikan individual (útil solo para manga finalizado)
@@ -485,12 +480,11 @@ async function getBestCount(malId, type, rawCount, title){
   if(type==="manga"){
     return _getMangaCount(malId,title,rawCount);
   }else{
-    const [netlify,j1,al]=await Promise.all([
+    const [netlify,j1]=await Promise.all([
       Promise.race([_fetchNetlifyMDX(malId,"","anime"),t(T)]),
-      Promise.race([_srcJikanIndividual(malId,"anime"),t(T)]),
-      Promise.race([_srcAniList(malId,"anime"),t(T)])
+      Promise.race([_srcJikanIndividual(malId,"anime"),t(T)])
     ]);
-    return Math.max(rawCount||0,netlify||0,j1||0,al||0);
+    return Math.max(rawCount||0,netlify||0,j1||0);
   }
 }
 
@@ -675,12 +669,12 @@ async function searchJikan(query,tabType){
         best=await _getMangaCount(item.mal_id,title,rawCnt);
       }else if(isMultiSeason&&isAiring&&item._latestMalId){
         const prevSeasonEps=(item._accEps||0)-(rawCnt||0);
-        const latestEps=await _srcAniList(item._latestMalId,searchType);
+        const latestEps=await _fetchNetlifyMDX(item._latestMalId,"",searchType);
         const latestBest=latestEps>0?latestEps:rawCnt||0;
         best=prevSeasonEps+latestBest;
       }else if(isMultiSeason&&!isAiring){
         best=item._accEps||rawCnt||0;
-        const alTotal=await _srcAniList(item.mal_id,searchType);
+        const alTotal=await _fetchNetlifyMDX(item.mal_id,"",searchType);
         if(alTotal>best) best=alTotal;
       }else{
         best=await getBestCount(item.mal_id,searchType,rawCnt,title);
@@ -871,13 +865,13 @@ function selectJikanResult(item,tabType){
           // Multi-temporada en emisión: eps anteriores + eps de la temporada activa via AniList
           const rawCnt=tabType==="manga"?(item.chapters||0):(item.episodes||0);
           const prevSeasonEps=(item._accEps||0)-(rawCnt||0);
-          const latestEps=await _srcAniList(item._latestMalId,_localTabType);
+          const latestEps=await _fetchNetlifyMDX(item._latestMalId,"",_localTabType);
           const latestBest=latestEps>0?latestEps:(rawCnt||0);
           best=prevSeasonEps+latestBest;
         }else if(_isMultiSeason&&!_localPublishing){
           // Multi-temporada completa: usar _accEps o confirmar con AniList
           best=item._accEps||0;
-          const alTotal=await _srcAniList(item.mal_id,_localTabType);
+          const alTotal=await _fetchNetlifyMDX(item.mal_id,"",_localTabType);
           if(alTotal>best) best=alTotal;
         }else{
           best=await getBestCount(_localMalId,_localTabType,knownCount,_title);
@@ -977,7 +971,7 @@ async function checkJikanUpdates(){
             }
           }catch(e2){
             if(tabKey==="anime"){
-              const alCnt=await _srcAniList(series.jikanId,tabKey);
+              const alCnt=await _fetchNetlifyMDX(series.jikanId,"",tabKey);
               if(alCnt>0) count=alCnt;
             }
           }
