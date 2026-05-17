@@ -267,6 +267,11 @@ async function _srcAniListByTitle(title, type){
   }catch(e){return 0;}
 }
 
+// ── CORS Proxy — necesario para MangaDex desde GitHub Pages ─────────────────
+// MangaDex bloquea CORS directo. corsproxy.io actúa de intermediario gratuito.
+const _PROXY = "https://corsproxy.io/?url=";
+function _proxied(url){ return _PROXY + encodeURIComponent(url); }
+
 // ── Fuente 4: MangaDex — obtener MangaDex UUID a partir de MAL ID ─────────────
 // Retorna el UUID de MangaDex o null si no se encuentra
 async function _mdxGetId(malId, title){
@@ -276,7 +281,7 @@ async function _mdxGetId(malId, title){
       "links%5Bmal%5D="+encodeURIComponent(String(malId))+"&limit=5&includes%5B%5D=none"+
       "&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive"+
       "&contentRating%5B%5D=erotica&contentRating%5B%5D=pornographic";
-    const res=await fetch(url,{headers:{"Accept":"application/json"}});
+    const res=await fetch(_proxied(url),{headers:{"Accept":"application/json"}});
     if(res.ok){
       const items=(await res.json())?.data||[];
       if(items.length) return items[0].id;
@@ -289,7 +294,7 @@ async function _mdxGetId(malId, title){
     const url=`https://api.mangadex.org/manga?title=${q}&limit=20&includes[]=none`+
       `&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic`+
       `&order[relevance]=desc`;
-    const res=await fetch(url,{headers:{"Accept":"application/json"}});
+    const res=await fetch(_proxied(url),{headers:{"Accept":"application/json"}});
     if(!res.ok) return null;
     const items=(await res.json())?.data||[];
     const malStr=String(malId);
@@ -305,7 +310,7 @@ async function _mdxGetId(malId, title){
 // ── Fuente 4b: MangaDex aggregate — capítulos publicados (todas las traducciones) ──
 async function _mdxAggregate(mdxId){
   try{
-    const aggRes=await fetch(`https://api.mangadex.org/manga/${mdxId}/aggregate`,
+    const aggRes=await fetch(_proxied(`https://api.mangadex.org/manga/${mdxId}/aggregate`),
       {headers:{"Accept":"application/json"}});
     if(!aggRes.ok) return 0;
     const vols=(await aggRes.json())?.volumes||{};
@@ -335,7 +340,7 @@ async function _mdxFeedLatestJP(mdxId){
       `?translatedLanguage[]=ja&translatedLanguage[]=ja-ro`+
       `&order[chapter]=desc&limit=10&includes[]=none`+
       `&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic`;
-    const res=await fetch(url,{headers:{"Accept":"application/json"}});
+    const res=await fetch(_proxied(url),{headers:{"Accept":"application/json"}});
     if(!res.ok) return 0;
     const data=(await res.json())?.data||[];
     for(const entry of data){
@@ -357,7 +362,7 @@ async function _mdxFeedLatestAny(mdxId){
     const url=`https://api.mangadex.org/manga/${mdxId}/feed`+
       `?order[chapter]=desc&limit=10&includes[]=none`+
       `&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic`;
-    const res=await fetch(url,{headers:{"Accept":"application/json"}});
+    const res=await fetch(_proxied(url),{headers:{"Accept":"application/json"}});
     if(!res.ok) return 0;
     const data=(await res.json())?.data||[];
     for(const entry of data){
@@ -395,7 +400,7 @@ async function _srcMangaDexByMalId(malId){
       "links%5Bmal%5D="+encodeURIComponent(String(malId))+"&limit=5&includes%5B%5D=none"+
       "&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive"+
       "&contentRating%5B%5D=erotica&contentRating%5B%5D=pornographic";
-    const res=await fetch(url,{headers:{"Accept":"application/json"}});
+    const res=await fetch(_proxied(url),{headers:{"Accept":"application/json"}});
     if(!res.ok) return 0;
     const items=(await res.json())?.data||[];
     if(!items.length) return 0;
@@ -441,15 +446,16 @@ async function _getMangaCount(malId, title, rawCount){
   const T = 7000;
   const t = ms => new Promise(r => setTimeout(()=>r(0), ms));
 
-  // MAL API oficial es la fuente primaria — permite CORS desde browser con Client ID.
-  // AniList como segundo respaldo. MangaDex bloqueado por CORS desde GitHub Pages.
-  const [mal, anilist, paged] = await Promise.all([
-    Promise.race([_srcMAL(malId, "manga"), t(T)]),
+  // MangaDex via proxy CORS + AniList como respaldo.
+  // MAL bloquea CORS. MangaDex funciona via corsproxy.io.
+  const [mdxById, mdxByTitle, anilist, paged] = await Promise.all([
+    Promise.race([_srcMangaDexByMalId(malId), t(T)]),
+    Promise.race([_srcMangaDex(malId, title), t(T)]),
     Promise.race([_srcAniList(malId, "manga"), t(T)]),
     Promise.race([_srcJikanPaged(malId, "manga"), t(T)])
   ]);
 
-  const best = Math.max(rawCount||0, mal||0, anilist||0, paged||0);
+  const best = Math.max(rawCount||0, mdxById||0, mdxByTitle||0, anilist||0, paged||0);
   if(best > 0) return best;
 
   // Último recurso: Jikan individual (útil solo para manga finalizado)
