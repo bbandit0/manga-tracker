@@ -500,31 +500,28 @@ async function _getMangaCount(malId, title, rawCount){
 
   const t = ms => new Promise(r => setTimeout(()=>r(0), ms));
 
-  // Lanzar todas las fuentes en paralelo desde el inicio
-  const pProxy  = _safeCall(()=>_fetchNetlifyMDX(malId, title, "manga"));
-  const pKitsu  = _safeCall(()=>_srcKitsu(malId, title));
-  const pJikan  = _safeCall(()=>_jikanFetch("https://api.jikan.moe/v4/manga/"+malId).then(jd=>{
-    // Jikan: solo confiar si manga finalizado (chapters no es null cuando termino)
+  // Lanzar proxy y fallbacks en paralelo desde el inicio
+  // El worker v6 hace todas sus llamadas en paralelo internamente,
+  // tipicamente responde en 1-3s. Timeout de 9s para cubrir casos lentos.
+  const pProxy = _safeCall(()=>_fetchNetlifyMDX(malId, title, "manga"));
+  const pKitsu = _safeCall(()=>_srcKitsu(malId, title));
+  const pJikan = _safeCall(()=>_jikanFetch("https://api.jikan.moe/v4/manga/"+malId).then(jd=>{
     const cnt=jd?.data?.chapters||0;
     return (cnt>0 && jd?.data?.publishing===false) ? cnt : 0;
   }));
 
-  // Esperar resultado del proxy con timeout de 5s
-  const proxyResult = await Promise.race([pProxy, t(5000)]);
-
-  // Proxy retorno un conteo real → usar inmediatamente
+  // Esperar proxy con timeout de 9s — el worker v6 es paralelo internamente
+  // y deberia responder en 1-3s en condiciones normales
+  const proxyResult = await Promise.race([pProxy, t(9000)]);
   if(proxyResult > 0) return Math.max(rawCount||0, proxyResult);
 
-  // Proxy retorno -1 (manga en emision, MangaDex lo conoce pero necesita feed via proxy)
-  // o retorno 0 (no encontrado / proxy no configurado).
-  // En ambos casos: esperar Kitsu y Jikan con timeout adicional de 4s desde ahora.
+  // Proxy fallo o no configurado: usar Kitsu + Jikan como fallback
   const [kitsuResult, jikanResult] = await Promise.all([
     Promise.race([pKitsu, t(4000)]),
     Promise.race([pJikan, t(4000)])
   ]);
 
-  const best = Math.max(rawCount||0, kitsuResult||0, jikanResult||0);
-  return best;
+  return Math.max(rawCount||0, kitsuResult||0, jikanResult||0);
 }
 
 
