@@ -1827,10 +1827,10 @@ function p28RenderContinueRow(root){
 // ── P2.8: ONBOARDING EXAMPLES (lista vacía) ──
 const P28_EXAMPLES={
   manga:[
-    {title:"Jujutsu Kaisen",type:"manga",jikanId:113138,chapters:265,tags:["Shōnen","Acción","Sobrenatural"],color:"rgba(99,179,237,.14)",textColor:"#63b3ed",icon:"呪"},
-    {title:"Berserk",type:"manga",jikanId:2,chapters:364,tags:["Seinen","Acción","Horror","Fantasy"],color:"rgba(231,76,76,.12)",textColor:"#e74c4c",icon:"⚔"},
-    {title:"One Piece",type:"manga",jikanId:13,chapters:1,tags:["Shōnen","Acción","Fantasy"],publishing:true,color:"rgba(104,211,145,.12)",textColor:"#68d391",icon:"⚓"},
-    {title:"Chainsaw Man",type:"manga",jikanId:116778,chapters:97,tags:["Shōnen","Acción","Horror"],color:"rgba(251,191,36,.12)",textColor:"#fbbf24",icon:"🔥"},
+    {title:"Jujutsu Kaisen",type:"manga",jikanId:113138,chapters:0,publishing:true,tags:["Shōnen","Acción","Sobrenatural"],color:"rgba(99,179,237,.14)",textColor:"#63b3ed",icon:"呪"},
+    {title:"Berserk",type:"manga",jikanId:2,chapters:0,publishing:true,tags:["Seinen","Acción","Horror","Fantasy"],color:"rgba(231,76,76,.12)",textColor:"#e74c4c",icon:"⚔"},
+    {title:"One Piece",type:"manga",jikanId:13,chapters:0,publishing:true,tags:["Shōnen","Acción","Fantasy"],color:"rgba(104,211,145,.12)",textColor:"#68d391",icon:"⚓"},
+    {title:"Chainsaw Man",type:"manga",jikanId:116778,chapters:0,publishing:true,tags:["Shōnen","Acción","Horror"],color:"rgba(251,191,36,.12)",textColor:"#fbbf24",icon:"🔥"},
   ],
   anime:[
     {title:"Fullmetal Alchemist: Brotherhood",type:"anime",jikanId:5114,episodes:64,tags:["Shōnen","Acción","Fantasy"],color:"rgba(249,115,22,.12)",textColor:"#f97316",icon:"⚗"},
@@ -1849,28 +1849,34 @@ function p28RenderOnboardingExamples(root,type){
   examples.forEach(ex=>{
     const card=document.createElement("div");
     card.className="onb-ex-card";
-    const totalLabel=ex.chapters?`${ex.chapters} caps`:ex.episodes?`${ex.episodes} eps`:"En curso";
+    const totalLabel=ex.publishing?(ex.type==="manga"?"📡 En emisión":"📡 En emisión"):ex.episodes?`${ex.episodes} eps`:"En curso";
     card.innerHTML=`<div class="onb-ex-ico" style="background:${ex.color};color:${ex.textColor};font-size:20px">${ex.icon}</div><div class="onb-ex-info"><div class="onb-ex-name">${ex.title}</div><div class="onb-ex-type">${ex.type==="manga"?"📚 MANGA":"🎬 ANIME"} · ${totalLabel}</div><div class="onb-ex-add" style="color:var(--am);font-weight:600">＋ Agregar</div></div>`;
     card.addEventListener("click",async()=>{
       const now=Date.now();
-      const total=ex.chapters||ex.episodes||1;
       const newId=now.toString();
-      data[ex.type].push(migrate({id:newId,title:ex.title,total:total,completed:[],cover:"",coverIsUrl:true,status:"reading",tags:ex.tags||[],notes:"",score:0,favorite:false,lastUpdated:now,createdAt:now,startDate:"",endDate:"",seasons:[],characters:[],jikanId:ex.jikanId||null,jikanPublishing:ex.publishing||false}));
-      save();render();showToast(`"${ex.title}" agregado ✓`);
-      // FIX: Fetch portada desde Jikan en background y actualizar
+      // Agregar con total=0 primero, luego actualizar con el real
+      data[ex.type].push(migrate({id:newId,title:ex.title,total:0,completed:[],cover:"",coverIsUrl:true,status:"reading",tags:ex.tags||[],notes:"",score:0,favorite:false,lastUpdated:now,createdAt:now,startDate:"",endDate:"",seasons:[],characters:[],jikanId:ex.jikanId||null,jikanPublishing:true}));
+      save();render();showToast(`"${ex.title}" agregado — cargando datos...`);
+      // Obtener portada y capítulos reales en background
       if(ex.jikanId){
         const ep=ex.type==="manga"?"manga":"anime";
         try{
-          const res=await fetch(`https://api.jikan.moe/v4/${ep}/${ex.jikanId}`);
-          if(!res.ok)throw new Error(`HTTP ${res.status}`);
-          const json=await res.json();
-          const imgUrl=json.data?.images?.jpg?.large_image_url||json.data?.images?.jpg?.image_url||"";
-          const chapCount=ex.type==="manga"?(json.data?.chapters||0):(json.data?.episodes||0);
+          // Portada desde Jikan
+          const jRes=await fetch(`https://api.jikan.moe/v4/${ep}/${ex.jikanId}`);
+          if(jRes.ok){
+            const json=await jRes.json();
+            const imgUrl=json.data?.images?.jpg?.large_image_url||json.data?.images?.jpg?.image_url||"";
+            const series=data[ex.type].find(s=>s.id===newId);
+            if(series&&imgUrl){series.cover=imgUrl;series.coverIsUrl=true;save();render();}
+          }
+          // Total real desde Netlify Function
+          const realTotal=await _fetchNetlifyMDX(ex.jikanId,ex.title,ex.type);
           const series=data[ex.type].find(s=>s.id===newId);
-          if(series){
-            if(imgUrl){series.cover=imgUrl;series.coverIsUrl=true;}
-            if(chapCount>0&&chapCount>series.total){series.total=chapCount;}
+          if(series&&realTotal>0){
+            series.total=realTotal;
+            series.jikanPublishing=true;
             save();render();
+            showToast(`"${ex.title}" — ${realTotal} caps ✓`);
           }
         }catch(e){}
       }
