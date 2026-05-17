@@ -452,47 +452,44 @@ async function _safeCall(fn){
 }
 
 async function _getMangaCount(malId, title, rawCount){
-  // ── Orquestador de conteo de capitulos — todas las fuentes en PARALELO ────────
+  // ── Orquestador: prioridad estricta MangaDex > Kitsu/Jikan ───────────────────
   //
-  // Problema anterior: cadena secuencial con timeouts largos (7+5+5+4s = 21s max).
-  // Con 6 items en paralelo y _proxied potencialmente indefinido, el Promise.all
-  // de enriquecimiento bloqueaba hasta agotar todos los timeouts → freeze de UI.
+  // GRUPO A (MangaDex) — autoritativo para manga en emision:
+  //   Netlify + MangaDex directo en paralelo. El primero en responder > 0 gana.
+  //   Si ninguno responde en 5s, pasa al Grupo B.
+  //   Kitsu/Jikan quedan fuera de este grupo porque devuelven valores incorrectos
+  //   para series en emision (ej: Spy x Family → Kitsu retorna 4 en vez de 134+).
   //
-  // Solucion: lanzar TODAS las fuentes simultaneamente con un timeout global de 6s.
-  // La primera que retorne un numero > 0 gana. Si todas fallan antes del timeout,
-  // se retorna rawCount. Sin bloqueo, sin esperas encadenadas.
+  // GRUPO B (Kitsu + Jikan) — fallback para manga finalizado sin datos en MangaDex.
+  //   Solo se ejecuta si Grupo A retorna 0. Timeout de 3s.
   //
-  // Fuentes (en paralelo):
-  //  A. Netlify Function — MangaDex server-side sin CORS (mas confiable para emision)
-  //  B. _srcMangaDexByMalId — MangaDex client-side via links[mal] (fallback sin Netlify)
-  //  C. _srcMangaDex — MangaDex por titulo (cubre manga sin link MAL)
-  //  D. _srcKitsu — Kitsu via MAL mapping (buena cobertura para finalizado)
-  //  E. Jikan individual — ultimo recurso para manga finalizado
+  // Tiempo total: tipico 1-3s (MangaDex responde). Maximo 8s (ambos grupos agotan timeout).
 
-  const GLOBAL_TIMEOUT = 6000;
   const t = ms => new Promise(r => setTimeout(()=>r(0), ms));
 
-  // Promise.race entre todas las fuentes + timeout global.
-  // _safeCall() evita que un ReferenceError (ej: _proxied no definido en este scope)
-  // rechace la Promise y rompa el race — simplemente retorna 0 y las demas siguen.
-  const sources = [
-    _safeCall(()=>_fetchNetlifyMDX(malId, title, "manga")),
-    _safeCall(()=>_srcMangaDexByMalId(malId)),
-    title ? _safeCall(()=>_srcMangaDex(malId, title)) : Promise.resolve(0),
-    _safeCall(()=>_srcKitsu(malId, title)),
-    _safeCall(()=>{
-      return _jikanFetch("https://api.jikan.moe/v4/manga/"+malId)
-        .then(jd=>jd?.data?.chapters||0);
-    }),
-    t(GLOBAL_TIMEOUT) // guardian: resuelve a 0 si todas las fuentes se demoran mas de 6s
-  ];
+  // GRUPO A: MangaDex — early-exit al primer valor positivo
+  const grupoA = await new Promise(resolve=>{
+    let done=false;
+    const ok = v => { if(!done && Number(v)>0){ done=true; resolve(Number(v)); }};
+    _safeCall(()=>_fetchNetlifyMDX(malId, title, "manga")).then(ok);
+    _safeCall(()=>_srcMangaDexByMalId(malId)).then(ok);
+    if(title) _safeCall(()=>_srcMangaDex(malId, title)).then(ok);
+    t(5000).then(()=>{ if(!done){ done=true; resolve(0); }});
+  });
 
-  // Esperar a que TODAS terminen (o el guardian dispare) y tomar el maximo.
-  // Esto es mas robusto que Promise.race porque no nos perdemos una fuente rapida
-  // que llega justo despues de otra — tomamos el mejor valor de las que llegan a tiempo.
-  const results = await Promise.all(sources);
-  const best = Math.max(rawCount||0, ...results.map(v=>Number(v)||0));
-  return best;
+  if(grupoA > 0) return Math.max(rawCount||0, grupoA);
+
+  // GRUPO B: Kitsu + Jikan — solo para manga finalizado
+  const grupoB = await new Promise(resolve=>{
+    let done=false;
+    const ok = v => { if(!done && Number(v)>0){ done=true; resolve(Number(v)); }};
+    _safeCall(()=>_srcKitsu(malId, title)).then(ok);
+    _safeCall(()=>_jikanFetch("https://api.jikan.moe/v4/manga/"+malId)
+      .then(jd=>jd?.data?.chapters||0)).then(ok);
+    t(3000).then(()=>{ if(!done){ done=true; resolve(0); }});
+  });
+
+  return Math.max(rawCount||0, grupoB);
 }
 
 
