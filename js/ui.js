@@ -868,36 +868,95 @@ function renderJikanDrop(tabType){
     return;
   }
 
-  // ── Construcción inicial del dropdown ──
+  // ── Construcción inicial del dropdown — visual upgrade ──
   if(!jikanResults.length)return;
   const drop=document.createElement("div");
   drop.className="jikan-drop";
   drop.id="jikan-drop";
+  drop.style.cssText=[
+    "position:absolute;left:0;right:0;top:calc(100% + 6px)",
+    "background:linear-gradient(160deg,rgba(12,17,32,.98) 0%,rgba(16,22,42,.97) 100%)",
+    "border:1px solid rgba(255,255,255,.1)",
+    "border-radius:14px",
+    "box-shadow:0 20px 60px rgba(0,0,0,.6),0 4px 16px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.06)",
+    "overflow:hidden;z-index:1000;max-height:360px;overflow-y:auto"
+  ].join(";");
+
+  const dropHdr=document.createElement("div");
+  dropHdr.style.cssText="padding:8px 14px 7px;font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--t3);text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.05);background:rgba(255,255,255,.02)";
+  dropHdr.textContent="Resultados en MyAnimeList \u2014 "+(tab_==="manga"?"Manga":"Anime");
+  drop.appendChild(dropHdr);
+
+  if(!document.getElementById("jikan-pulse-style")){
+    const st=document.createElement("style");
+    st.id="jikan-pulse-style";
+    st.textContent="@keyframes jikan-pulse{0%,100%{opacity:1}50%{opacity:.4}}";
+    document.head.appendChild(st);
+  }
+
   jikanResults.forEach(item=>{
     const row=document.createElement("div");
     row.className="jikan-item";
     row.setAttribute("data-malid", item.mal_id||"");
+    row.style.cssText="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;transition:background .15s;border-bottom:1px solid rgba(255,255,255,.04);position:relative";
+    row.addEventListener("mouseenter",()=>{row.style.background="rgba(255,255,255,.04)";});
+    row.addEventListener("mouseleave",()=>{row.style.background="transparent";});
+
     const thumb=item.images?.jpg?.image_url||"";
-    // Usar _anyAiring para el badge: refleja si cualquier temporada del grupo está activa
     const pub=tab_==="manga"?item.publishing:(item._anyAiring||item.airing);
     const _getYear=str=>str?new Date(str).getFullYear()||null:null;
     const yearStart=(item.published?.prop?.from?.year)||(item.aired?.prop?.from?.year)||_getYear(item.published?.from)||_getYear(item.aired?.from)||null;
     const yearEnd=(item.published?.prop?.to?.year)||(item.aired?.prop?.to?.year)||_getYear(item.published?.to)||_getYear(item.aired?.to)||null;
-    let yearHTML="";
-    if(yearStart){
-      yearHTML=pub
-        ?`<span style="font-size:9px;color:var(--t3);margin-left:4px">${yearStart}–</span>`
-        :yearEnd&&yearEnd!==yearStart
-          ?`<span style="font-size:9px;color:var(--t3);margin-left:4px">${yearStart}–${yearEnd}</span>`
-          :`<span style="font-size:9px;color:var(--t3);margin-left:4px">${yearStart}</span>`;
+
+    const thumbEl=document.createElement("div");
+    thumbEl.style.cssText="width:38px;height:54px;border-radius:7px;overflow:hidden;flex-shrink:0;background:rgba(255,255,255,.06);box-shadow:0 2px 8px rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.08)";
+    if(thumb){
+      const img=document.createElement("img");
+      img.src=thumb;img.loading="lazy";
+      img.style.cssText="width:100%;height:100%;object-fit:cover;display:block";
+      thumbEl.appendChild(img);
+    }else{
+      thumbEl.style.cssText+="display:flex;align-items:center;justify-content:center;font-size:18px;opacity:.4";
+      thumbEl.textContent=tab_==="manga"?"📚":"🎬";
     }
-    const countHTML=_jikanCountHTML(item,tab_);
-    const badgeHTML=pub
-      ?`<span class="jikan-badge pub"><span class="jikan-dot"></span>En emisión</span>`
-      :`<span class="jikan-badge fin">✓ Finalizado</span>`;
-    // Mostrar título en inglés si está disponible (_displayTitle), sino el original
+
+    const info=document.createElement("div");
+    info.style.cssText="flex:1;min-width:0";
+
     const displayTitle=item._displayTitle||item.title_english||item.title;
-    row.innerHTML=`${thumb?`<img class="jikan-thumb" src="${thumb}" loading="lazy">`:`<div class="jikan-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--t3)">?</div>`}<div class="jikan-info"><div class="jikan-title">${displayTitle}</div><div class="jikan-meta">${countHTML}${badgeHTML}${yearHTML}</div></div>`;
+    const titleEl=document.createElement("div");
+    titleEl.style.cssText="font-size:13px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'Outfit',sans-serif;letter-spacing:.01em;margin-bottom:4px";
+    titleEl.textContent=displayTitle;
+
+    const metaEl=document.createElement("div");
+    metaEl.className="jikan-meta";
+    metaEl.style.cssText="display:flex;align-items:center;gap:6px;flex-wrap:wrap";
+
+    const badgeEl=document.createElement("span");
+    if(pub){
+      badgeEl.style.cssText="display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:rgba(52,211,153,.12);color:#34d399;border:1px solid rgba(52,211,153,.25);letter-spacing:.03em";
+      const dot=document.createElement("span");
+      dot.style.cssText="width:5px;height:5px;border-radius:50%;background:#34d399;display:inline-block;box-shadow:0 0 4px #34d399;animation:jikan-pulse 1.4s infinite";
+      badgeEl.append(dot,document.createTextNode("En emisi\u00f3n"));
+    }else{
+      badgeEl.style.cssText="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:600;padding:2px 7px;border-radius:20px;background:rgba(255,255,255,.06);color:var(--t3);border:1px solid rgba(255,255,255,.08)";
+      badgeEl.textContent="\u2713 Finalizado";
+    }
+    metaEl.appendChild(badgeEl);
+
+    if(yearStart){
+      const yrEl=document.createElement("span");
+      yrEl.style.cssText="font-size:10px;color:var(--t3);font-family:'Space Mono',monospace";
+      yrEl.textContent=pub?`${yearStart}\u2013`:(yearEnd&&yearEnd!==yearStart)?`${yearStart}\u2013${yearEnd}`:`${yearStart}`;
+      metaEl.appendChild(yrEl);
+    }
+
+    const countWrap=document.createElement("span");
+    countWrap.innerHTML=_jikanCountHTML(item,tab_);
+    metaEl.appendChild(countWrap);
+
+    info.append(titleEl,metaEl);
+    row.append(thumbEl,info);
     row.onclick=()=>{selectJikanResult(item,tab_);removeJikanDrop();};
     drop.appendChild(row);
   });
@@ -1599,8 +1658,92 @@ const tb=h("div","tb");const tbl=h("div","tb-l");const sbar=h("div","sb");sbar.i
 // Filters
 const fbar=h("div","fbar");fbar.appendChild(h("button",`fchip${animeCls}${showFavsOnly?" on":""}`,`★ Fav`,{onclick:()=>{showFavsOnly=!showFavsOnly;render();}}));fbar.appendChild(h("div","fsep"));[{key:"all",label:"Todos"},...STATUSES].forEach(s=>{const dispLabel=s.key==="reading"&&tab==="anime"?"👁️ Viendo":s.icon?s.icon+" "+s.label:s.label;fbar.appendChild(h("button",`fchip${animeCls}${filterStatus===s.key?" on":""}`,dispLabel,{onclick:()=>{filterStatus=s.key;render();}}));});const usedTags=[...new Set(list.flatMap(s=>s.tags||[]))].sort();if(usedTags.length>0){fbar.appendChild(h("div","fsep"));usedTags.forEach(t=>{fbar.appendChild(h("button",`fchip${animeCls}${filterTag===t?" on":""}`,t,{onclick:()=>{filterTag=filterTag===t?"all":t;render();}}));});}root.appendChild(fbar);
 // Add
-const addS=h("div","add");const addHdr=h("div","add-header");const addHdrL=h("div","add-header-left");addHdrL.append(h("div","add-header-icon",tab==="manga"?"\u{1F4DA}":"\u{1F3AC}"),h("span","add-header-title","➕ Agregar "+(tab==="manga"?"manga":"anime")+" — busca aquí"));const addResetBtn=h("button","add-reset-btn","Limpiar");addResetBtn.onclick=()=>{newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;jikanResults=[];render();};addHdr.append(addHdrL,addResetBtn);addS.appendChild(addHdr);const addBody=h("div","add-body");addS.appendChild(addBody);const titleRow=h("div","add-title-row");const titleWrap=h("div","jikan-wrap");const sIcon=document.createElement("span");sIcon.className="add-title-icon";sIcon.textContent="🔍";const ti=h("input","",null,{placeholder:"Buscar en MyAnimeList...",id:"add-title",value:newTitle,autocomplete:"off",autocorrect:"off",autocapitalize:"off",spellcheck:"false"});ti.oninput=e=>{newTitle=e.target.value;clearTimeout(jikanSearchTimeout);if(e.target.value.length>=2){sIcon.textContent="⏳";jikanSearchTimeout=setTimeout(()=>{searchJikan(e.target.value,tab).finally(()=>{sIcon.textContent="🔍";});},500);}else{jikanResults=[];removeJikanDrop();sIcon.textContent="🔍";}};ti.onkeydown=e=>{if(e.key==="Enter"){jikanResults=[];removeJikanDrop();doAdd();}if(e.key==="Escape"){jikanResults=[];removeJikanDrop();}};// El dropdown Jikan se construye en renderJikanDrop(), no en render(), para preservar foco del input
-titleWrap.append(sIcon,ti);titleRow.appendChild(titleWrap);addBody.appendChild(titleRow);
+const addS=h("div","add");
+
+// ── Header del buscador — visual upgrade ──
+const addHdr=h("div","add-header");
+addHdr.style.cssText=`
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px 12px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(135deg,rgba(${tab==="manga"?"99,119,237":"52,211,153"},.08) 0%,transparent 60%);
+`;
+const addHdrL=h("div","add-header-left");
+addHdrL.style.cssText="display:flex;align-items:center;gap:10px";
+
+// Icono con glow
+const addIconWrap=document.createElement("div");
+addIconWrap.style.cssText=`
+  width:36px;height:36px;border-radius:10px;
+  background:linear-gradient(135deg,${tab==="manga"?"rgba(99,119,237,.25)":"rgba(52,211,153,.25)"} 0%,${tab==="manga"?"rgba(99,119,237,.08)":"rgba(52,211,153,.08)"} 100%);
+  border:1px solid ${tab==="manga"?"rgba(99,119,237,.3)":"rgba(52,211,153,.3)"};
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  box-shadow:0 0 12px ${tab==="manga"?"rgba(99,119,237,.15)":"rgba(52,211,153,.15)"};
+`;
+addIconWrap.textContent=tab==="manga"?"📚":"🎬";
+
+const addHdrText=document.createElement("div");
+const addHdrTitle=document.createElement("div");
+addHdrTitle.style.cssText="font-size:13px;font-weight:700;color:var(--t1);letter-spacing:.01em";
+addHdrTitle.textContent="➕ Agregar "+(tab==="manga"?"manga":"anime");
+const addHdrSub=document.createElement("div");
+addHdrSub.style.cssText="font-size:10px;color:var(--t3);margin-top:1px";
+addHdrSub.textContent="Busca directamente en MyAnimeList";
+addHdrText.append(addHdrTitle,addHdrSub);
+addHdrL.append(addIconWrap,addHdrText);
+
+const addResetBtn=h("button","add-reset-btn","Limpiar");
+addResetBtn.style.cssText="font-size:11px;padding:5px 11px;border-radius:8px;opacity:.7";
+addResetBtn.onclick=()=>{newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;jikanResults=[];render();};
+addHdr.append(addHdrL,addResetBtn);
+addS.appendChild(addHdr);
+
+const addBody=h("div","add-body");
+addS.appendChild(addBody);
+
+// ── Input de búsqueda — visual upgrade ──
+const titleRow=h("div","add-title-row");
+const titleWrap=h("div","jikan-wrap");
+titleWrap.style.cssText="position:relative;";
+
+// Contenedor del input con icono integrado
+const inputShell=document.createElement("div");
+inputShell.style.cssText=`
+  display:flex;align-items:center;gap:0;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:12px;
+  padding:0 14px;
+  transition:border-color .2s,box-shadow .2s;
+`;
+inputShell.addEventListener("focusin",()=>{
+  inputShell.style.borderColor=tab==="manga"?"rgba(99,119,237,.5)":"rgba(52,211,153,.5)";
+  inputShell.style.boxShadow=`0 0 0 3px ${tab==="manga"?"rgba(99,119,237,.1)":"rgba(52,211,153,.1)"}`;
+});
+inputShell.addEventListener("focusout",()=>{
+  inputShell.style.borderColor="rgba(255,255,255,.1)";
+  inputShell.style.boxShadow="none";
+});
+
+const sIcon=document.createElement("span");
+sIcon.className="add-title-icon";
+sIcon.style.cssText="font-size:15px;opacity:.5;flex-shrink:0;margin-right:8px;transition:opacity .2s";
+sIcon.textContent="🔍";
+
+const ti=h("input","",null,{placeholder:"Buscar en MyAnimeList...",id:"add-title",value:newTitle,autocomplete:"off",autocorrect:"off",autocapitalize:"off",spellcheck:"false"});
+ti.style.cssText=`
+  flex:1;background:none;border:none;outline:none;
+  color:var(--t1);font-size:13px;
+  font-family:'Outfit',sans-serif;
+  padding:12px 0;
+`;
+ti.oninput=e=>{newTitle=e.target.value;clearTimeout(jikanSearchTimeout);if(e.target.value.length>=2){sIcon.textContent="⏳";sIcon.style.opacity="1";jikanSearchTimeout=setTimeout(()=>{searchJikan(e.target.value,tab).finally(()=>{sIcon.textContent="🔍";sIcon.style.opacity=".5";});},500);}else{jikanResults=[];removeJikanDrop();sIcon.textContent="🔍";sIcon.style.opacity=".5";}};
+ti.onkeydown=e=>{if(e.key==="Enter"){jikanResults=[];removeJikanDrop();doAdd();}if(e.key==="Escape"){jikanResults=[];removeJikanDrop();}};
+
+inputShell.append(sIcon,ti);
+titleWrap.appendChild(inputShell);
+titleRow.appendChild(titleWrap);
+addBody.appendChild(titleRow);
 const row2=h("div","add-row2");
 // FIX BUG #1: Si ya hay un jikanId seleccionado, el usuario NO debe ingresar caps manualmente.
 // Mostrar un badge informativo en lugar del input. Si aún no hay jikanId (ingreso manual),
@@ -2816,5 +2959,197 @@ if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(
     _pxTicking=false;
   }
   document.addEventListener('scroll',function(){if(!_pxTicking){requestAnimationFrame(_pxUpdate);_pxTicking=true;}},{passive:true});
+})();
+
+// ── CSS PATCH: Banner mobile fix + Search UI upgrade ──────────────────────────
+(function(){
+  if(document.getElementById("mangu-ui-patch"))return;
+  const style=document.createElement("style");
+  style.id="mangu-ui-patch";
+  style.textContent=`
+
+/* ═══════════════════════════════════════════════════════
+   BANNER MOBILE FIX
+   Problema: el banner se corta en pantallas angostas porque
+   las imágenes de fondo y los elementos internos tienen
+   anchos fijos o no colapsan bien en viewports < 420px.
+   ═══════════════════════════════════════════════════════ */
+
+/* Contenedor raíz del banner — fuerza contención */
+.hero, .banner, .app-banner, [class*="hero"], [class*="banner"] {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Imagen de fondo del banner: nunca overflow */
+.hero img, .banner img,
+.hero-bg, .banner-bg,
+[class*="hero"] img,
+[class*="banner"] img {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+
+/* Fix específico para el banner de MANGU que se ve en la screenshot:
+   layout horizontal con logo + mini dashboard + portadas */
+@media (max-width: 480px) {
+  /* El bloque hero/banner principal */
+  .hero, .banner, #app-hero, #mangu-hero,
+  [class*="hero-wrap"], [class*="banner-wrap"] {
+    min-height: auto !important;
+    height: auto !important;
+    padding: 16px 14px 14px !important;
+  }
+
+  /* Las portadas flotantes de la derecha — ocultar en mobile muy pequeño
+     para no romper el layout, o reducir su tamaño */
+  .hero-covers, .banner-covers,
+  [class*="hero-cover"], [class*="banner-cover"] {
+    display: none !important;
+  }
+
+  /* El mini-dashboard dentro del banner */
+  .hero-stats, .banner-stats,
+  [class*="hero-stat"], [class*="banner-stat"] {
+    font-size: 10px !important;
+    gap: 6px !important;
+  }
+
+  /* Texto del banner */
+  .hero-title, .banner-title,
+  [class*="hero-title"], [class*="banner-title"] {
+    font-size: clamp(22px, 7vw, 36px) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Nav pills del banner — permitir scroll horizontal en lugar de overflow */
+  .hero nav, .banner nav,
+  [class*="hero"] nav, [class*="banner"] nav,
+  .nav-pills, [class*="nav-pill"] {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    flex-wrap: nowrap !important;
+    scrollbar-width: none !important;
+    padding-bottom: 2px !important;
+  }
+  .hero nav::-webkit-scrollbar,
+  .banner nav::-webkit-scrollbar,
+  .nav-pills::-webkit-scrollbar { display: none !important; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   SEARCH UI UPGRADE
+   Mejoras al buscador: jikan-drop, genre chips, status pills
+   ═══════════════════════════════════════════════════════ */
+
+/* Sección add — bordes y fondo coherentes con el resto de la app */
+.add {
+  border-radius: 16px !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  background: linear-gradient(160deg, rgba(255,255,255,.03) 0%, rgba(255,255,255,.01) 100%) !important;
+  overflow: hidden !important;
+  margin-bottom: 16px !important;
+}
+
+/* Chips de género — upgrade visual */
+.genre-chip {
+  font-size: 11px !important;
+  padding: 5px 11px !important;
+  border-radius: 20px !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  background: rgba(255,255,255,.04) !important;
+  color: var(--t2) !important;
+  cursor: pointer !important;
+  transition: all .15s !important;
+  font-family: 'Outfit', sans-serif !important;
+  letter-spacing: .01em !important;
+}
+.genre-chip:hover {
+  background: rgba(255,255,255,.08) !important;
+  border-color: rgba(255,255,255,.2) !important;
+  color: var(--t1) !important;
+}
+.genre-chip.on {
+  background: rgba(99,119,237,.2) !important;
+  border-color: rgba(99,119,237,.45) !important;
+  color: #a5b4fc !important;
+}
+.genre-chip.anime-on {
+  background: rgba(52,211,153,.15) !important;
+  border-color: rgba(52,211,153,.4) !important;
+  color: #6ee7b7 !important;
+}
+
+/* Status pills — más definidos */
+.add-status-pill {
+  font-size: 11px !important;
+  padding: 6px 13px !important;
+  border-radius: 20px !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  background: rgba(255,255,255,.04) !important;
+  color: var(--t2) !important;
+  cursor: pointer !important;
+  transition: all .15s !important;
+  font-family: 'Outfit', sans-serif !important;
+}
+
+/* Genre label y status label */
+.add-genres-label, .add-status-label {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: .1em !important;
+  text-transform: uppercase !important;
+  color: var(--t3) !important;
+  margin-bottom: 8px !important;
+}
+
+/* Scrollbar del dropdown */
+.jikan-drop::-webkit-scrollbar { width: 4px; }
+.jikan-drop::-webkit-scrollbar-track { background: transparent; }
+.jikan-drop::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.15);
+  border-radius: 4px;
+}
+
+/* Conteo de caps en el dropdown */
+.jikan-chapters-count {
+  font-size: 10px !important;
+  font-family: 'Space Mono', monospace !important;
+  color: var(--t2) !important;
+  background: rgba(255,255,255,.06) !important;
+  padding: 2px 7px !important;
+  border-radius: 12px !important;
+}
+
+/* Botón add-cover */
+.add-cover-btn {
+  border-radius: 10px !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  background: rgba(255,255,255,.04) !important;
+  color: var(--t2) !important;
+  font-size: 12px !important;
+  transition: all .15s !important;
+}
+.add-cover-btn:hover {
+  background: rgba(255,255,255,.08) !important;
+  color: var(--t1) !important;
+}
+
+/* Divider interno */
+.add-divider {
+  border: none !important;
+  border-top: 1px solid rgba(255,255,255,.06) !important;
+  margin: 12px 0 !important;
+}
+  `;
+  document.head.appendChild(style);
 })();
 
