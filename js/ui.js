@@ -195,8 +195,6 @@ async function _srcKitsu(malId, title){
 async function _srcAniList(malId, type){
   try{
     const mediaType=type==="manga"?"MANGA":"ANIME";
-    // Para manga en emisión: pedir chapters (puede ser null) + status
-    // Para anime en emisión: nextAiringEpisode da el ep actual con precisión
     const fields=type==="manga"
       ?"chapters volumes status"
       :"episodes status nextAiringEpisode{episode}";
@@ -210,7 +208,39 @@ async function _srcAniList(malId, type){
     const json=await res.json();
     const media=json?.data?.Media;
     if(!media) return 0;
-    if(type==="manga") return media.chapters||0;
+    if(type==="manga"){
+      if(media.chapters>0) return media.chapters;
+      if(media.volumes>0) return media.volumes*8;
+      return 0;
+    }
+    if(media.nextAiringEpisode?.episode>0) return media.nextAiringEpisode.episode-1;
+    return media.episodes||0;
+  }catch(e){return 0;}
+}
+
+// ── AniList por título — fallback cuando MAL ID no matchea ──────────────────
+async function _srcAniListByTitle(title, type){
+  if(!title) return 0;
+  try{
+    const mediaType=type==="manga"?"MANGA":"ANIME";
+    const fields=type==="manga"
+      ?"chapters volumes status"
+      :"episodes status nextAiringEpisode{episode}";
+    const query=`{Media(search:${JSON.stringify(title)},type:${mediaType}){${fields}}}`;
+    const res=await fetch("https://graphql.anilist.co",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Accept":"application/json"},
+      body:JSON.stringify({query})
+    });
+    if(!res.ok) return 0;
+    const json=await res.json();
+    const media=json?.data?.Media;
+    if(!media) return 0;
+    if(type==="manga"){
+      if(media.chapters>0) return media.chapters;
+      if(media.volumes>0) return media.volumes*8;
+      return 0;
+    }
     if(media.nextAiringEpisode?.episode>0) return media.nextAiringEpisode.episode-1;
     return media.episodes||0;
   }catch(e){return 0;}
@@ -390,14 +420,15 @@ async function _getMangaCount(malId, title, rawCount){
   const T = 7000;
   const t = ms => new Promise(r => setTimeout(()=>r(0), ms));
 
-  const [mdxById, mdxByTitle, paged, kitsu] = await Promise.all([
-    Promise.race([_srcMangaDexByMalId(malId), t(T)]),
-    Promise.race([_srcMangaDex(malId, title), t(T)]),
-    Promise.race([_srcJikanPaged(malId, "manga"), t(T)]),
-    Promise.race([_srcKitsu(malId, title), t(T)])
+  // AniList permite CORS desde GitHub Pages — es la fuente primaria para manga en emisión.
+  // MangaDex bloquea requests externos (CORS). Kitsu devuelve null para emisión.
+  const [anilist, anilistTitle, paged] = await Promise.all([
+    Promise.race([_srcAniList(malId, "manga"), t(T)]),
+    Promise.race([_srcAniListByTitle(title, "manga"), t(T)]),
+    Promise.race([_srcJikanPaged(malId, "manga"), t(T)])
   ]);
 
-  const best = Math.max(rawCount||0, mdxById||0, mdxByTitle||0, paged||0, kitsu||0);
+  const best = Math.max(rawCount||0, anilist||0, anilistTitle||0, paged||0);
   if(best > 0) return best;
 
   // Último recurso: Jikan individual (útil solo para manga finalizado)
