@@ -390,13 +390,14 @@ async function _getMangaCount(malId, title, rawCount){
   const T = 7000;
   const t = ms => new Promise(r => setTimeout(()=>r(0), ms));
 
-  const [mdxById, mdxByTitle, paged] = await Promise.all([
+  const [mdxById, mdxByTitle, paged, kitsu] = await Promise.all([
     Promise.race([_srcMangaDexByMalId(malId), t(T)]),
     Promise.race([_srcMangaDex(malId, title), t(T)]),
-    Promise.race([_srcJikanPaged(malId, "manga"), t(T)])
+    Promise.race([_srcJikanPaged(malId, "manga"), t(T)]),
+    Promise.race([_srcKitsu(malId, title), t(T)])
   ]);
 
-  const best = Math.max(rawCount||0, mdxById||0, mdxByTitle||0, paged||0);
+  const best = Math.max(rawCount||0, mdxById||0, mdxByTitle||0, paged||0, kitsu||0);
   if(best > 0) return best;
 
   // Último recurso: Jikan individual (útil solo para manga finalizado)
