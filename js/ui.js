@@ -2616,10 +2616,27 @@ function _onbSet(k,v){let saved=false;try{localStorage.setItem(k,v);saved=true;}
 (function(){
   if(_onbGet("mat-onboarding-done"))return;
   const steps=[
-    {icon:"🎌",title:"¡Bienvenido a Mangu!",desc:"Tu tracker personal de manga y anime, 100% gratis y sin anuncios. Lleva el progreso de todo lo que lees o ves en un solo lugar."},
-    {icon:"🔍",title:"Portadas automáticas desde MAL",desc:"Escribe cualquier título en el campo de agregar — las portadas, géneros y número de capítulos se rellenan solos desde MyAnimeList. Sin publicidad, sin límites."},
-    {icon:"⚡",title:"Dopamina garantizada",desc:"Marca capítulos con +1, acumula rachas diarias 🔥, completa series y desbloquea confetti 🎉. Usa el botón ⚡ para acceso rápido desde cualquier pantalla."},
-    {icon:"📊",title:"Tu progreso, tu historia",desc:"El dashboard muestra tiempo invertido, géneros favoritos y más. Sincroniza con Google para acceder desde cualquier dispositivo."}
+    {
+      icon:"🎌",
+      title:"¡Bienvenido a Mangu!",
+      desc:"Tu tracker personal de manga y anime, 100% gratis y sin anuncios. Lleva el progreso de todo lo que lees o ves en un solo lugar.",
+      accent:"#63b3ed",
+      glow:"rgba(99,179,237,.15)"
+    },
+    {
+      icon:"🔍",
+      title:"Portadas automáticas desde MAL",
+      desc:"Escribe cualquier título y las portadas, géneros y capítulos se rellenan solos desde MyAnimeList.",
+      accent:"#a78bfa",
+      glow:"rgba(167,139,250,.15)"
+    },
+    {
+      icon:"📊",
+      title:"Tu progreso, tu historia",
+      desc:"Dashboard con tiempo invertido, géneros favoritos y más. Sincroniza con Google para acceder desde cualquier dispositivo.",
+      accent:"#34d399",
+      glow:"rgba(52,211,153,.15)"
+    }
   ];
   let step=0;
   function showStep(){
@@ -2629,9 +2646,57 @@ function _onbSet(k,v){let saved=false;try{localStorage.setItem(k,v);saved=true;}
     ov.className="onb-overlay";
     ov.id="onb-overlay";
     const s=steps[step];
+    const isLast=step===steps.length-1;
     const dotsHtml=steps.map((_,i)=>`<div class="onb-dot${i===step?" active":i<step?" done":""}"></div>`).join("");
-    const ac=theme?.accentManga||"#e74c6f";
-    ov.innerHTML=`<div class="onb-box"><div class="onb-steps">${dotsHtml}</div><div class="onb-icon">${s.icon}</div><div class="onb-title">${s.title}</div><div class="onb-desc">${s.desc}</div><div class="onb-btns"><button class="onb-btn-skip" id="onb-skip">Saltar</button><button class="onb-btn-next" id="onb-next" style="background:${ac}">${step===steps.length-1?"🚀 ¡Empezar!":"Siguiente →"}</button></div></div>`;
+    ov.innerHTML=`
+      <div class="onb-box" style="
+        background:linear-gradient(160deg,rgba(10,14,26,.98) 0%,rgba(15,20,40,.96) 100%);
+        border:1px solid ${s.accent}33;
+        box-shadow:0 0 60px ${s.glow},0 24px 60px rgba(0,0,0,.7);
+        border-radius:24px;
+        padding:32px 28px 28px;
+        max-width:400px;
+        width:100%;
+        position:relative;
+        overflow:hidden;
+      ">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${s.accent},transparent)"></div>
+        <div class="onb-steps" style="margin-bottom:24px">${dotsHtml}</div>
+        <div style="
+          width:72px;height:72px;border-radius:20px;
+          background:${s.glow};
+          border:1px solid ${s.accent}44;
+          display:flex;align-items:center;justify-content:center;
+          font-size:34px;margin:0 auto 20px;
+          box-shadow:0 8px 24px ${s.glow};
+        ">${s.icon}</div>
+        <div class="onb-title" style="
+          font-size:20px;font-weight:800;color:#fff;
+          text-align:center;margin-bottom:12px;
+          letter-spacing:-.4px;
+        ">${s.title}</div>
+        <div class="onb-desc" style="
+          font-size:13px;color:rgba(255,255,255,.55);
+          text-align:center;line-height:1.7;margin-bottom:28px;
+        ">${s.desc}</div>
+        <div class="onb-btns" style="display:flex;gap:10px;justify-content:center">
+          <button class="onb-btn-skip" id="onb-skip" style="
+            padding:10px 20px;border:1px solid rgba(255,255,255,.1);
+            background:rgba(255,255,255,.05);color:rgba(255,255,255,.4);
+            border-radius:12px;cursor:pointer;font-size:13px;
+            font-family:'Outfit',sans-serif;transition:.15s;
+          ">Saltar</button>
+          <button class="onb-btn-next" id="onb-next" style="
+            padding:10px 24px;border:none;
+            background:linear-gradient(135deg,${s.accent},${s.accent}bb);
+            color:#fff;border-radius:12px;cursor:pointer;
+            font-size:13px;font-weight:700;
+            font-family:'Outfit',sans-serif;
+            box-shadow:0 4px 20px ${s.glow};
+            transition:.15s;
+          ">${isLast?"🚀 ¡Empezar!":"Siguiente →"}</button>
+        </div>
+      </div>`;
     document.body.appendChild(ov);
     ov.querySelector("#onb-skip").onclick=()=>{ov.remove();_onbSet("mat-onboarding-done","1");};
     ov.querySelector("#onb-next").onclick=()=>{
