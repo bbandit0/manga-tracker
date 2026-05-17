@@ -1,6 +1,14 @@
 // Función central para obtener el número del último capítulo/episodio publicado.
 // Intenta múltiples endpoints y nunca pide al usuario si puede evitarlo.
 
+// ── Guard: _proxied puede estar definido en app.js (proxy CORS para MangaDex).
+// Si no existe en este contexto, usar la URL directa — MangaDex admite CORS desde
+// browsers para sus endpoints publicos. Si hay restriccion CORS, _safeCall() lo
+// captura y retorna 0 sin romper el flujo.
+if(typeof _proxied === "undefined"){
+  window._proxied = url => url;
+}
+
 // ── Helper: fetch con timeout + retry automático en 429 (rate limit Jikan) ──
 async function _jikanFetch(url, timeoutMs=8000, _retries=2){
   for(let attempt=0;attempt<=_retries;attempt++){
@@ -437,54 +445,54 @@ async function _srcMangaDexByMalId(malId){
 // Eliminadas: Jikan paged (parseo frágil), AniList (retorna null para manga en
 // emisión), _srcMangaDex y _srcMangaDexByMalId (duplicados con sub-requests).
 // Para anime en emisión el flujo sigue igual (AniList nextAiringEpisode).
-async function _getMangaCount(malId, title, rawCount){
-  // ── Orquestador de conteo de capítulos ───────────────────────────────────────
-  // Jikan/MAL/AniList retornan chapters=null para manga en emisión.
-  // MangaDex es la fuente activa mas confiable (actualizada por scanlators).
-  //
-  // Cadena de fallback (mayor a menor confiabilidad):
-  //  1. Netlify Function (MangaDex server-side, sin restricciones CORS)
-  //  2. MangaDex client-side via links[mal] — fallback si Netlify falla/no deployada
-  //  3. MangaDex por titulo — cubre el ~20% sin link MAL registrado
-  //  4. Kitsu — buena cobertura para manga finalizado
-  //  5. Jikan individual — ultimo recurso, solo util para manga finalizado
+// ── Helper: ejecuta fn() de forma segura — captura ReferenceError si la funcion
+// no esta definida en este archivo (ej: _proxied vive en app.js) y retorna 0.
+async function _safeCall(fn){
+  try{ return await fn(); }catch(e){ return 0; }
+}
 
-  const T = 7000;
-  const Tshort = 5000;
+async function _getMangaCount(malId, title, rawCount){
+  // ── Orquestador de conteo de capitulos — todas las fuentes en PARALELO ────────
+  //
+  // Problema anterior: cadena secuencial con timeouts largos (7+5+5+4s = 21s max).
+  // Con 6 items en paralelo y _proxied potencialmente indefinido, el Promise.all
+  // de enriquecimiento bloqueaba hasta agotar todos los timeouts → freeze de UI.
+  //
+  // Solucion: lanzar TODAS las fuentes simultaneamente con un timeout global de 6s.
+  // La primera que retorne un numero > 0 gana. Si todas fallan antes del timeout,
+  // se retorna rawCount. Sin bloqueo, sin esperas encadenadas.
+  //
+  // Fuentes (en paralelo):
+  //  A. Netlify Function — MangaDex server-side sin CORS (mas confiable para emision)
+  //  B. _srcMangaDexByMalId — MangaDex client-side via links[mal] (fallback sin Netlify)
+  //  C. _srcMangaDex — MangaDex por titulo (cubre manga sin link MAL)
+  //  D. _srcKitsu — Kitsu via MAL mapping (buena cobertura para finalizado)
+  //  E. Jikan individual — ultimo recurso para manga finalizado
+
+  const GLOBAL_TIMEOUT = 6000;
   const t = ms => new Promise(r => setTimeout(()=>r(0), ms));
 
-  // Fuente 1: Netlify Function (MangaDex server-side)
-  const netlify = await Promise.race([_fetchNetlifyMDX(malId, title, "manga"), t(T)]);
-  const afterNetlify = Math.max(rawCount||0, netlify||0);
-  if(afterNetlify > 0) return afterNetlify;
+  // Promise.race entre todas las fuentes + timeout global.
+  // _safeCall() evita que un ReferenceError (ej: _proxied no definido en este scope)
+  // rechace la Promise y rompa el race — simplemente retorna 0 y las demas siguen.
+  const sources = [
+    _safeCall(()=>_fetchNetlifyMDX(malId, title, "manga")),
+    _safeCall(()=>_srcMangaDexByMalId(malId)),
+    title ? _safeCall(()=>_srcMangaDex(malId, title)) : Promise.resolve(0),
+    _safeCall(()=>_srcKitsu(malId, title)),
+    _safeCall(()=>{
+      return _jikanFetch("https://api.jikan.moe/v4/manga/"+malId)
+        .then(jd=>jd?.data?.chapters||0);
+    }),
+    t(GLOBAL_TIMEOUT) // guardian: resuelve a 0 si todas las fuentes se demoran mas de 6s
+  ];
 
-  // Fuente 2+3: MangaDex client-side en paralelo (si Netlify fallo o no esta deployada)
-  try{
-    const [mdxById, mdxByTitle] = await Promise.all([
-      Promise.race([_srcMangaDexByMalId(malId), t(Tshort)]),
-      title ? Promise.race([_srcMangaDex(malId, title), t(Tshort)]) : Promise.resolve(0)
-    ]);
-    const mdxBest = Math.max(mdxById||0, mdxByTitle||0);
-    if(mdxBest > 0) return Math.max(rawCount||0, mdxBest);
-  }catch(e){}
-
-  // Fuente 4: Kitsu
-  try{
-    const kitsu = await Promise.race([_srcKitsu(malId, title), t(Tshort)]);
-    if(kitsu > 0) return Math.max(rawCount||0, kitsu);
-  }catch(e){}
-
-  // Fuente 5: Jikan individual (ultimo recurso)
-  try{
-    const jd = await Promise.race([
-      _jikanFetch("https://api.jikan.moe/v4/manga/" + malId),
-      t(4000)
-    ]);
-    const cnt = jd?.data?.chapters||0;
-    if(cnt > 0) return Math.max(rawCount||0, cnt);
-  }catch(e){}
-
-  return rawCount||0;
+  // Esperar a que TODAS terminen (o el guardian dispare) y tomar el maximo.
+  // Esto es mas robusto que Promise.race porque no nos perdemos una fuente rapida
+  // que llega justo despues de otra — tomamos el mejor valor de las que llegan a tiempo.
+  const results = await Promise.all(sources);
+  const best = Math.max(rawCount||0, ...results.map(v=>Number(v)||0));
+  return best;
 }
 
 
@@ -771,20 +779,23 @@ function _jikanCountHTML(item, tab_){
   const enrichmentDone = item._latestChapter !== undefined;
   const hasMultiSeasons=(item._seasonCount||1)>1;
   // Prioridad de conteo:
-  // 1) _latestChapter: resultado del enrichment async (fuente más precisa)
-  // 2) _accEps: solo si el enrichment ya terminó (evitar mostrar número pre-OVA-filtrado)
-  // 3) rawCount: lo que vino de Jikan directamente (solo para series de 1 temporada)
+  // 1) _latestChapter: resultado del enrichment async (fuente más precisa) — siempre preferido
+  // 2) rawCount: solo si la serie NO está en emisión y el enrichment no terminó.
+  //    IMPORTANTE: para manga/anime en emisión, Jikan devuelve chapters=null o un valor
+  //    incorrecto (ej: Spy x Family muestra "2" que corresponde a volumes, no chapters).
+  //    Nunca mostrar rawCount como placeholder para series en emisión.
   let displayCount=0;
   if(item._latestChapter>0){
     displayCount=item._latestChapter;
   }else if(enrichmentDone){
-    // Enrichment terminó pero devolvió 0 — no mostrar _accEps (puede estar inflado)
+    // Enrichment terminó pero devolvió 0 — no mostrar nada
     displayCount=0;
-  }else if(!hasMultiSeasons&&rawCount>0){
-    // Serie de 1 temporada: mostrar rawCount mientras se carga
+  }else if(!hasMultiSeasons&&rawCount>0&&!pub){
+    // Solo mostrar rawCount como placeholder si: 1 temporada, tiene valor, y NO está en emisión
+    // Para series en emisión: rawCount de Jikan es unreliable → mostrar "buscando..."
     displayCount=rawCount;
   }
-  // Para multi-temporada sin enriquecimiento aún: no mostrar número (puede estar mal)
+  // Para multi-temporada o en emisión sin enriquecimiento: mostrar "buscando..."
   if(displayCount>0){
     const label=pub
       ? `${chapLabel} <b>${displayCount}</b> <span style="opacity:.55;font-size:8px">últ.</span>`
