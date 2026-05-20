@@ -69,59 +69,84 @@ async function _srcJikanPaged(malId, type){
     const d=await _jikanFetch(`https://api.jikan.moe/v4/${ep}/${malId}/${field}?page=1`);
     if(!d||!Array.isArray(d.data)||!d.data.length) return 0;
 
-    // Si la paginación conoce el total (manga finalizado): usarlo directamente
-    const tot=d.pagination?.items?.total||0;
-    if(tot>0) return tot;
+    if(type==="manga"){
+      // Para manga: pagination.items.total es confiable (MAL lo actualiza al publicar)
+      const tot=d.pagination?.items?.total||0;
+      if(tot>0) return tot;
 
-    // Para manga en emisión: pagination.items.total es null → ir a última página
+      // Manga en emisión: pagination.items.total es null → ir a última página
+      const lp=d.pagination?.last_visible_page||1;
+      const extractNum=(entry)=>{
+        if(!entry) return 0;
+        const candidates=[entry.chapter, entry.chapters, entry.number, entry.no];
+        for(const v of candidates){
+          if(v===null||v===undefined||v==="none"||v==="") continue;
+          const n=parseFloat(String(v));
+          if(Number.isFinite(n)&&n>0) return Math.floor(n);
+        }
+        const txt=String(entry.title||entry.name||"");
+        const m=txt.match(/(?:chapter|cap(?:[ií]tulo)?|episode|ep)\.?\s*#?\s*(\d+(?:\.\d+)?)/i);
+        if(m) return Math.floor(parseFloat(m[1]))||0;
+        const m2=txt.match(/\b(\d{1,4}(?:\.\d+)?)\b/);
+        if(m2) return Math.floor(parseFloat(m2[1]))||0;
+        return 0;
+      };
+      if(lp<=1){
+        const itemsCount=d.pagination?.items?.count||d.data.length;
+        const last=d.data[d.data.length-1];
+        const lastNum=extractNum(last);
+        return lastNum>0?Math.max(lastNum,itemsCount):itemsCount;
+      }
+      const dL=await _jikanFetch(`https://api.jikan.moe/v4/${ep}/${malId}/${field}?page=${lp}`);
+      if(dL?.data?.length){
+        const totL=dL.pagination?.items?.total||0;
+        if(totL>0) return totL;
+        const last=dL.data[dL.data.length-1];
+        const n=extractNum(last);
+        if(n>0) return n;
+        return (lp-1)*100+dL.data.length;
+      }
+      return (lp-1)*100+d.data.length;
+    }
+
+    // ── ANIME ────────────────────────────────────────────────────────────────
+    // IMPORTANTE: para anime en emisión, pagination.items.total = total planificado
+    // de la temporada (incluye eps futuros no emitidos). NO usar ese valor.
+    // Contar solo episodios realmente emitidos: registros donde aired.from != null.
+    // Jikan solo incluye en la lista episodios que MAL ya registró como emitidos,
+    // pero con anime de plataformas como Amazon algunos eps pueden aparecer en MAL
+    // antes de emitirse localmente. Por eso filtramos por aired.from.
+    //
+    // Estrategia: acumular todas las páginas contando solo eps con aired.from válido.
+    // Si aired.from no está disponible (datos incompletos), usar d.data.length como
+    // estimación conservadora del total de esa página.
     const lp=d.pagination?.last_visible_page||1;
 
-    // Helper robusto: extrae el número de capítulo/episodio de un entry de Jikan
-    const extractNum=(entry)=>{
-      if(!entry) return 0;
-      // Para manga: campo "chapter" (string numérico como "166")
-      // Para anime: campo "episode" (number o string)
-      // NOTA: entry.mal_id es el ID del registro en la lista de caps de MAL, NO el número
-      // de capítulo — no debe usarse como candidato (genera números incorrectos en emisión).
-      const candidates=type==="manga"
-        ?[entry.chapter, entry.chapters, entry.number, entry.no]
-        :[entry.episode, entry.episodes, entry.number, entry.no];
-      for(const v of candidates){
-        if(v===null||v===undefined||v==="none"||v==="") continue;
-        const n=parseFloat(String(v));
-        if(Number.isFinite(n)&&n>0) return Math.floor(n);
+    // Contar eps emitidos en la primera página
+    const countAired=(entries)=>{
+      // Si los entries tienen el campo aired.from, contar solo los emitidos
+      const hasAiredData=entries.some(e=>e.aired?.from||e.aired_string);
+      if(hasAiredData){
+        const now=Date.now();
+        return entries.filter(e=>{
+          const from=e.aired?.from;
+          if(!from) return false;
+          return new Date(from).getTime()<=now;
+        }).length;
       }
-      // Fallback: extraer número del título (ej: "Chapter 166" → 166)
-      const txt=String(entry.title||entry.name||"");
-      const m=txt.match(/(?:chapter|cap(?:[ií]tulo)?|episode|ep)\.?\s*#?\s*(\d+(?:\.\d+)?)/i);
-      if(m) return Math.floor(parseFloat(m[1]))||0;
-      // Fallback numérico genérico (solo si no hay otra opción)
-      const m2=txt.match(/\b(\d{1,4}(?:\.\d+)?)\b/);
-      if(m2) return Math.floor(parseFloat(m2[1]))||0;
-      return 0;
+      // Sin datos de aired: contar todos (asumimos que Jikan solo lista emitidos)
+      return entries.length;
     };
 
     if(lp<=1){
-      // Solo 1 página — para manga en emisión, d.data.length = número de caps publicados
-      // El campo pagination.items.count también lo confirma.
-      const itemsCount=d.pagination?.items?.count||d.data.length;
-      const last=d.data[d.data.length-1];
-      const lastNum=extractNum(last);
-      // Si extractNum obtiene un número mayor que itemsCount, confiar en él (numeración real)
-      // Si no, usar itemsCount como fallback (número de registros = número de caps)
-      return lastNum>0?Math.max(lastNum,itemsCount):itemsCount;
+      return countAired(d.data);
     }
 
-    // Múltiples páginas: ir a la última para obtener el capítulo más reciente
+    // Múltiples páginas: ir a la última y sumar (páginas completas * 100 + última)
+    // Para anime corto (12 eps) siempre será 1 página, este path es para series largas
     const dL=await _jikanFetch(`https://api.jikan.moe/v4/${ep}/${malId}/${field}?page=${lp}`);
     if(dL?.data?.length){
-      const totL=dL.pagination?.items?.total||0;
-      if(totL>0) return totL;
-      const last=dL.data[dL.data.length-1];
-      const n=extractNum(last);
-      if(n>0) return n;
-      // Fallback aritmético: (páginas-1)*100 + items en última página
-      return (lp-1)*100+dL.data.length;
+      return (lp-1)*100+countAired(dL.data);
     }
     return (lp-1)*100+d.data.length;
   }catch(e){return 0;}
@@ -213,7 +238,13 @@ async function _srcMAL(malId, type){
     if(!res.ok) return 0;
     const d = await res.json();
     const cnt = d?.[field] || 0;
-    if(cnt > 0) return cnt;
+    // Para anime: num_episodes es el total planificado de la temporada.
+    // Si el anime está en emisión (currently_airing), ese valor incluye eps futuros
+    // → no usar para no inflar el conteo. Solo es confiable cuando está finalizado.
+    if(cnt > 0){
+      if(type === "anime" && d?.status === "currently_airing") return 0;
+      return cnt;
+    }
     // Para manga en emisión num_chapters=0: estimar desde volúmenes
     if(type === "manga" && d?.num_volumes > 0) return d.num_volumes * 8;
     return 0;
@@ -1487,7 +1518,15 @@ async function checkJikanUpdates(){
           if(json){
             const jkCnt=tabKey==="manga"?json.data?.chapters:json.data?.episodes;
             stillPub=tabKey==="manga"?(json.data?.publishing!==false):(json.data?.airing!==false);
-            count=jkCnt||0;
+            // IMPORTANTE: para anime en emisión, data.episodes es el total PLANIFICADO
+            // (ej: temporada de 12 eps aunque solo 7 hayan emitido).
+            // Solo usar data.episodes si la serie ya finalizó (airing===false).
+            // Para manga en emisión, chapters también puede ser null → mismo criterio.
+            if(tabKey==="anime"){
+              count = (!stillPub && jkCnt>0) ? jkCnt : 0;
+            }else{
+              count = jkCnt||0;
+            }
           }
         }catch(e1){}
         // Si Jikan endpoint individual no trae número (típico en anime/manga en emisión,
