@@ -331,9 +331,21 @@ async function _searchAniList(query){
     if(!items.length) return null;
 
     // Normalizar cada resultado al formato interno de MANGU
+    // Pre-pasar para registrar qué IDs serán absorbidos como relaciones,
+    // así evitamos que la S2 aparezca también como entrada independiente.
+    const absorbedIds=new Set();
+    for(const m of items){
+      for(const edge of (m.relations?.edges||[])){
+        if(!["SEQUEL","PREQUEL"].includes(edge.relationType)) continue;
+        if(edge.node?.type!=="ANIME") continue;
+        if(edge.node?.id) absorbedIds.add(edge.node.id);
+      }
+    }
     const results=[];
     for(const m of items){
       if(!m.idMal) continue; // sin MAL ID no podemos hacer polling posterior
+      // Si este resultado ya fue absorbido como secuela/precuela de otro, omitir
+      if(absorbedIds.has(m.id)) continue;
 
       // ── Calcular episodios acumulados incluyendo secuelas ──────────────────
       // Solo sumar SEQUEL y PREQUEL de tipo ANIME para no contaminar con OVA/Movie
@@ -1981,7 +1993,7 @@ titleWrap.style.cssText="position:relative;";
 // Contenedor del input con icono integrado
 const inputShell=document.createElement("div");
 inputShell.style.cssText=`
-  display:flex;align-items:center;gap:0;
+  display:flex;align-items:center;gap:8px;
   background:rgba(255,255,255,.05);
   border:1px solid rgba(255,255,255,.1);
   border-radius:12px;
@@ -1999,7 +2011,7 @@ inputShell.addEventListener("focusout",()=>{
 
 const sIcon=document.createElement("span");
 sIcon.className="add-title-icon";
-sIcon.style.cssText="font-size:15px;opacity:.5;flex-shrink:0;margin-right:8px;transition:opacity .2s";
+sIcon.style.cssText="font-size:15px;opacity:.5;flex-shrink:0;transition:opacity .2s";
 sIcon.textContent="🔍";
 
 const ti=h("input","",null,{placeholder:"Buscar en MyAnimeList...",id:"add-title",value:newTitle,autocomplete:"off",autocorrect:"off",autocapitalize:"off",spellcheck:"false"});
