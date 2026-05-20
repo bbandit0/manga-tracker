@@ -753,7 +753,9 @@ async function searchJikan(query,tabType){
         best=await _getMangaCount(item.mal_id,title,rawCnt);
       }else if(isMultiSeason&&isAiring&&item._latestMalId){
         const prevSeasonEps=(item._accEps||0)-(rawCnt||0);
-        const latestEps=await _fetchNetlifyMDX(item._latestMalId,"",searchType);
+        // AniList directo primero (CORS abierto, nextAiringEpisode es la fuente más fiable para anime en emisión)
+        let latestEps=await _srcAniList(item._latestMalId,searchType);
+        if(!latestEps) latestEps=await _fetchNetlifyMDX(item._latestMalId,"",searchType);
         const latestBest=latestEps>0?latestEps:rawCnt||0;
         best=prevSeasonEps+latestBest;
       }else if(isMultiSeason&&!isAiring){
@@ -1011,7 +1013,9 @@ function selectJikanResult(item,tabType){
           // Multi-temporada en emisión: eps anteriores + eps de la temporada activa via AniList
           const rawCnt=tabType==="manga"?(item.chapters||0):(item.episodes||0);
           const prevSeasonEps=(item._accEps||0)-(rawCnt||0);
-          const latestEps=await _fetchNetlifyMDX(item._latestMalId,"",_localTabType);
+          // AniList directo primero (CORS abierto, nextAiringEpisode es la fuente más fiable para anime en emisión)
+          let latestEps=await _srcAniList(item._latestMalId,_localTabType);
+          if(!latestEps) latestEps=await _fetchNetlifyMDX(item._latestMalId,"",_localTabType);
           const latestBest=latestEps>0?latestEps:(rawCnt||0);
           best=prevSeasonEps+latestBest;
         }else if(_isMultiSeason&&!_localPublishing){
@@ -1112,7 +1116,9 @@ async function checkJikanUpdates(){
               const best=await _getMangaCount(series.jikanId,series.title,0);
               if(best>0) count=best;
             }else{
-              const best=await getBestCount(series.jikanId,tabKey,0,series.title);
+              // AniList directo primero (CORS abierto, más fiable para anime multi-temporada en emisión)
+              let best=await _srcAniList(series.jikanId,tabKey);
+              if(!best) best=await getBestCount(series.jikanId,tabKey,0,series.title);
               if(best>0) count=best;
             }
           }catch(e2){
