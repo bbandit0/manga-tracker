@@ -242,7 +242,16 @@ async function _srcAniList(malId, type){
       if(media.volumes>0) return media.volumes*8;
       return 0;
     }
+    // ── ANIME ────────────────────────────────────────────────────────────────
+    // nextAiringEpisode.episode = próximo ep a emitir → los emitidos = episode-1
     if(media.nextAiringEpisode?.episode>0) return media.nextAiringEpisode.episode-1;
+    // IMPORTANTE: si la serie está en RELEASING pero AniList no tiene nextAiringEpisode
+    // registrado, media.episodes es el TOTAL PLANIFICADO de la temporada, no los emitidos.
+    // Retornar ese valor causaría actualizar el total antes de que los eps estén disponibles
+    // (bug confirmado con Nippon Sangoku: planificado=12, emitidos reales=7).
+    // En este caso retornar 0 para que el polling use Jikan como fuente de verdad.
+    if(media.status==="RELEASING") return 0;
+    // Serie finalizada: media.episodes es el total definitivo, es confiable.
     return media.episodes||0;
   }catch(e){return 0;}
 }
@@ -271,6 +280,8 @@ async function _srcAniListByTitle(title, type){
       return 0;
     }
     if(media.nextAiringEpisode?.episode>0) return media.nextAiringEpisode.episode-1;
+    // Mismo fix que _srcAniList: no retornar total planificado para series en emisión
+    if(media.status==="RELEASING") return 0;
     return media.episodes||0;
   }catch(e){return 0;}
 }
@@ -1363,12 +1374,18 @@ function selectJikanResult(item,tabType){
         const _title=title;
         let best=0;
         if(_localTabType==="anime"&&item._source==="anilist"){
-          // Resultado de AniList: _accEps ya incluye todas las temporadas via relations.
-          // Solo confirmar el conteo de la temporada activa con _srcAniList si está en emisión.
+          // Resultado de AniList: _accEps ya incluye todas las temporadas via BFS.
+          // Para series en emisión, confirmar el conteo real con _srcAniList (nextAiringEpisode).
+          // Si AniList devuelve 0 (RELEASING sin nextAiringEpisode), usar _srcJikanPaged
+          // que lista los episodios realmente emitidos — evita inflar con total planificado.
           if(_localPublishing&&item._latestMalId){
-            const latestEps=await _srcAniList(item._latestMalId,"anime");
-            const prevEps=(item._accEps||0)-(item.episodes||0);
-            const confirmed=prevEps+(latestEps||item.episodes||0);
+            let latestEps=await _srcAniList(item._latestMalId,"anime");
+            if(!latestEps) latestEps=await _srcJikanPaged(item._latestMalId,"anime");
+            // _accEps del BFS ya es la suma de todos los items[], no solo la temporada raíz.
+            // Para calcular prevEps: _accEps - eps del propio item raíz (no item.episodes que es S1).
+            // Usar directamente Math.max para no inflar si latestEps < lo que ya calculamos.
+            const prevEps=(item._accEps||0)-((itemMainEps?.get?.(item._alId)?.eps)||item.episodes||0);
+            const confirmed=latestEps>0?prevEps+latestEps:(item._accEps||0);
             best=Math.max(item._accEps||0,confirmed);
           }else{
             best=item._accEps||0;
@@ -1473,8 +1490,8 @@ async function checkJikanUpdates(){
             count=jkCnt||0;
           }
         }catch(e1){}
-        // Si Jikan endpoint individual no trae número (típico en manga/anime en emisión),
-        // usar la función específica por tipo.
+        // Si Jikan endpoint individual no trae número (típico en anime/manga en emisión,
+        // donde data.episodes es null), usar la función específica por tipo.
         if(!count || count<1){
           try{
             if(tabKey==="manga"){
@@ -1482,13 +1499,20 @@ async function checkJikanUpdates(){
               const best=await _getMangaCount(series.jikanId,series.title,0);
               if(best>0) count=best;
             }else{
-              // Para anime: AniList primero (nextAiringEpisode exacto), luego getBestCount
+              // Para anime en emisión:
+              // 1) AniList nextAiringEpisode (episodios EMITIDOS reales) — retorna 0
+              //    si AniList no tiene nextAiringEpisode registrado (no infla con total planificado)
+              // 2) _srcJikanPaged: endpoint /anime/{id}/episodes lista eps emitidos reales
+              //    → fuente más fiable cuando AniList no tiene el dato de schedule
+              // 3) getBestCount como último fallback
               let best=await _srcAniList(series.jikanId,tabKey);
+              if(!best) best=await _srcJikanPaged(series.jikanId,tabKey);
               if(!best) best=await getBestCount(series.jikanId,tabKey,0,series.title);
               if(best>0) count=best;
             }
           }catch(e2){
             if(tabKey==="anime"){
+              // Fallback de emergencia: solo AniList con nextAiringEpisode (ya no infla)
               const alCnt=await _srcAniList(series.jikanId,tabKey);
               if(alCnt>0) count=alCnt;
             }
@@ -1525,9 +1549,13 @@ async function checkUpToDateNewChapters(){
     for(const series of pubSeries){
       if(nextChapter(series)!==null)continue;
       try{
-        // AniList primero para anime (más preciso para series en emisión)
+        // AniList primero para anime (nextAiringEpisode = eps emitidos reales).
+        // Si AniList retorna 0 (RELEASING sin nextAiringEpisode registrado),
+        // usar _srcJikanPaged que lista los episodios realmente emitidos.
         let best=tabKey==="anime"
-          ? await _srcAniList(series.jikanId,tabKey)||await getBestCount(series.jikanId,tabKey,series.total,series.title)
+          ? await _srcAniList(series.jikanId,tabKey)
+            ||await _srcJikanPaged(series.jikanId,tabKey)
+            ||await getBestCount(series.jikanId,tabKey,series.total,series.title)
           : await getBestCount(series.jikanId,tabKey,series.total,series.title);
         if(best&&best>series.total){
           const newCaps=best-series.total;
