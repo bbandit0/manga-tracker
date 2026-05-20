@@ -275,6 +275,159 @@ async function _srcAniListByTitle(title, type){
   }catch(e){return 0;}
 }
 
+// ── Búsqueda primaria de anime via AniList GraphQL ───────────────────────────
+// AniList modela secuelas explícitamente en `relations`, lo que permite obtener
+// el total acumulado real de episodios de toda la franquicia en una sola query.
+// Ventajas sobre Jikan/MAL para este uso:
+//   · nextAiringEpisode.episode-1 = episodios emitidos exactos para series en emisión
+//   · relations permite sumar temporadas sin depender de agrupación por título
+//   · CORS abierto, sin rate limit estricto (unlike Jikan 3 req/s)
+//   · status RELEASING / FINISHED es más fiable que airing:bool de MAL
+//
+// Retorna array de objetos normalizados compatibles con el formato que espera
+// renderJikanDrop y selectJikanResult (campos _displayTitle, _accEps, _anyAiring,
+// _seasonCount, _latestMalId, _latestChapter, mal_id, images, genres, etc.)
+async function _searchAniList(query){
+  try{
+    const gql=`
+    query($q:String){
+      Page(page:1,perPage:10){
+        media(search:$q,type:ANIME,sort:[SEARCH_MATCH]){
+          idMal
+          id
+          title{ romaji english native }
+          episodes
+          status
+          nextAiringEpisode{ episode }
+          coverImage{ large medium }
+          genres
+          averageScore
+          relations{
+            edges{
+              relationType(version:2)
+              node{
+                idMal
+                id
+                type
+                status
+                episodes
+                nextAiringEpisode{ episode }
+                title{ romaji english }
+              }
+            }
+          }
+        }
+      }
+    }`;
+    const res=await fetch("https://graphql.anilist.co",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Accept":"application/json"},
+      body:JSON.stringify({query:gql,variables:{q:query}}),
+      signal:AbortSignal.timeout(7000)
+    });
+    if(!res.ok) return null;
+    const json=await res.json();
+    const items=json?.data?.Page?.media||[];
+    if(!items.length) return null;
+
+    // Normalizar cada resultado al formato interno de MANGU
+    const results=[];
+    for(const m of items){
+      if(!m.idMal) continue; // sin MAL ID no podemos hacer polling posterior
+
+      // ── Calcular episodios acumulados incluyendo secuelas ──────────────────
+      // Solo sumar SEQUEL y PREQUEL de tipo ANIME para no contaminar con OVA/Movie
+      let accEps=0;
+      let anyAiring=false;
+      let latestMalId=m.idMal;
+      let latestALId=m.id;
+      let seasonCount=1;
+
+      // Episodios de la entrada principal
+      const mainEps=m.nextAiringEpisode?.episode>0
+        ? m.nextAiringEpisode.episode-1
+        : (m.episodes||0);
+      const mainAiring=(m.status==="RELEASING");
+      accEps+=mainEps;
+      if(mainAiring) anyAiring=true;
+
+      // Recorrer relaciones para acumular temporadas
+      const seenIds=new Set([m.id]);
+      for(const edge of (m.relations?.edges||[])){
+        const rel=edge.relationType;
+        const node=edge.node;
+        // Solo SEQUEL/PREQUEL de tipo ANIME — excluir SIDE_STORY, SPIN_OFF, MUSIC, etc.
+        if(!["SEQUEL","PREQUEL"].includes(rel)) continue;
+        if(node.type!=="ANIME") continue;
+        if(seenIds.has(node.id)) continue;
+        seenIds.add(node.id);
+
+        const nodeEps=node.nextAiringEpisode?.episode>0
+          ? node.nextAiringEpisode.episode-1
+          : (node.episodes||0);
+        const nodeAiring=(node.status==="RELEASING");
+
+        accEps+=nodeEps;
+        seasonCount++;
+        if(nodeAiring){
+          anyAiring=true;
+          // latestMalId = la temporada actualmente en emisión
+          if(node.idMal) latestMalId=node.idMal;
+          latestALId=node.id;
+        }
+      }
+
+      // ── Mapear géneros AniList → tags internos de MANGU ───────────────────
+      const AL_GENRE_MAP={
+        "Action":"Acción","Adventure":"Acción","Comedy":"Comedia","Horror":"Horror",
+        "Romance":"Romance","Sci-Fi":"Sci-Fi","Fantasy":"Fantasy","Mecha":"Mecha",
+        "Slice of Life":"Slice of Life","Sports":"Deportes","Supernatural":"Sobrenatural",
+        "Thriller":"Thriller","Mystery":"Thriller","Psychological":"Psicológico",
+        "Drama":"Drama","Ecchi":"Ecchi","Historical":"Histórico","Music":"Música",
+        "School":"Escolar","Isekai":"Isekai"
+      };
+      const genres=(m.genres||[])
+        .map(g=>AL_GENRE_MAP[g]||g)
+        .filter((g,i,a)=>a.indexOf(g)===i); // deduplicar
+
+      const displayTitle=m.title?.english||m.title?.romaji||"";
+
+      results.push({
+        // Campos MAL-compatibles que usa el resto del código
+        mal_id:m.idMal,
+        _alId:m.id,
+        title:m.title?.romaji||displayTitle,
+        title_english:m.title?.english||"",
+        _displayTitle:displayTitle,
+        episodes:m.episodes||0,
+        airing:mainAiring,
+        // Imagen: AniList usa coverImage.large (similar resolución a MAL large_image_url)
+        images:{jpg:{
+          large_image_url:m.coverImage?.large||"",
+          image_url:m.coverImage?.medium||""
+        }},
+        // Géneros en formato compatible con JIKAN_MAP de selectJikanResult
+        genres:genres.map(g=>({name:g})),
+        themes:[],
+        demographics:[],
+        score:(m.averageScore||0)/10, // AniList usa 0-100, MAL usa 0-10
+        // Campos internos de agrupación multi-temporada
+        _accEps:accEps,
+        _anyAiring:anyAiring,
+        _seasonCount:seasonCount,
+        _latestMalId:latestMalId,
+        _latestALId:latestALId,
+        // _latestChapter se rellena en la fase de enrichment
+        _latestChapter:undefined,
+        // Fecha de emisión (no siempre disponible en AniList sin campos extra)
+        aired:{prop:{from:{year:null},to:{year:null}}},
+        _source:"anilist"
+      });
+    }
+    return results.length?results:null;
+  }catch(e){ return null; }
+}
+
 // ── Proxy MangaDex — soporta Netlify Functions, Cloudflare Worker, o corsproxy ──
 // Configura _MDX_PROXY_URL segun tu plataforma de hosting:
 //   GitHub Pages + Cloudflare Worker: "https://TU_WORKER.TU_USUARIO.workers.dev"
@@ -531,11 +684,15 @@ async function getBestCount(malId, type, rawCount, title){
   if(type==="manga"){
     return _getMangaCount(malId,title,rawCount);
   }else{
-    const [netlify,j1]=await Promise.all([
-      Promise.race([_fetchNetlifyMDX(malId,"","anime"),t(T)]),
-      Promise.race([_srcJikanIndividual(malId,"anime"),t(T)])
+    // AniList primero: CORS abierto, nextAiringEpisode es la fuente más precisa para anime en emisión
+    const al=await Promise.race([_srcAniList(malId,"anime"),t(T)]);
+    if(al>0) return Math.max(rawCount||0,al);
+    // Fallback: Jikan individual + proxy en paralelo
+    const [j1,netlify]=await Promise.all([
+      Promise.race([_srcJikanIndividual(malId,"anime"),t(T)]),
+      Promise.race([_fetchNetlifyMDX(malId,"","anime"),t(T)])
     ]);
-    return Math.max(rawCount||0,netlify||0,j1||0);
+    return Math.max(rawCount||0,j1||0,netlify||0);
   }
 }
 
@@ -575,49 +732,75 @@ function jikanExtractPublishedNumber(entry,type){
   return 0;
 }
 
-// Controlador de búsqueda activa para cancelar peticiones en vuelo (Fix #3 + #11)
+// Controlador de búsqueda activa para cancelar peticiones en vuelo
 let _jikanSearchAbort=null;
 
-async function searchJikan(query,tabType){
-  if(!query||query.length<2){jikanResults=[];removeJikanDrop();return;}
-  if(_jikanSearchAbort){_jikanSearchAbort.abort();_jikanSearchAbort=null;}
-  const ctrl=new AbortController();
-  _jikanSearchAbort=ctrl;
-  const searchType=tabType;
-  const ep=searchType==="manga"?"manga":"anime";
+// ── searchAnime: AniList primario + Jikan fallback ────────────────────────────
+// Para manga sigue usando Jikan (searchJikan lo bifurca por tipo).
+// AniList maneja secuelas explícitamente via relations{edges{relationType,node}},
+// eliminando la dependencia de agrupación frágil por título japonés.
+async function _searchAnime(query, ctrl){
+  // ── FASE 1: AniList ─────────────────────────────────────────────────────────
+  const alResults=await _searchAniList(query);
+  if(ctrl.signal.aborted) return;
+
+  if(alResults&&alResults.length>=1){
+    jikanResults=alResults;
+    renderJikanDrop("anime");
+
+    // ── FASE 2: enriquecer conteo con _srcAniList por MAL ID ─────────────────
+    // _searchAniList ya calculó _accEps desde relations, pero para series en
+    // emisión conviene confirmar con nextAiringEpisode del MAL ID más reciente
+    // (la query de búsqueda solo pide relaciones de primer nivel).
+    const snap=[...alResults];
+    await Promise.all(snap.map(async item=>{
+      if(ctrl.signal.aborted) return;
+      try{
+        let best=0;
+        const isAiring=item._anyAiring;
+        const accEps=item._accEps||0;
+
+        if(isAiring&&item._latestMalId){
+          // Confirmar eps de la temporada activa con _srcAniList usando MAL ID exacto
+          const latestEps=await _srcAniList(item._latestMalId,"anime");
+          // Eps acumulados = todas las temporadas anteriores + eps confirmados de la activa
+          const prevEps=accEps-(item.episodes||0); // accEps incluye la S principal; restar sus eps
+          best=prevEps+(latestEps||item.episodes||0);
+          // Si best es menor que lo que ya calculamos por relations, confiar en relations
+          if(best<accEps) best=accEps;
+        }else{
+          best=accEps;
+        }
+
+        if(ctrl.signal.aborted) return;
+        const live=jikanResults.find(x=>x.mal_id===item.mal_id);
+        if(!live) return;
+        if(best>0) live._latestChapter=best;
+        else live._latestChapter=accEps||0;
+      }catch(e){}
+      if(!ctrl.signal.aborted) renderJikanDrop("anime");
+    }));
+    return; // AniList tuvo resultados, no necesitamos Jikan
+  }
+
+  // ── FASE 1b: AniList no devolvió resultados → fallback a Jikan ──────────────
+  await _searchJikanAnime(query, ctrl);
+}
+
+// ── _searchJikanAnime: lógica Jikan original para anime (fallback) ────────────
+async function _searchJikanAnime(query, ctrl){
   try{
-    const res=await fetch(`https://api.jikan.moe/v4/${ep}?q=${encodeURIComponent(query)}&limit=20`,{signal:ctrl.signal});
-    if(ctrl.signal.aborted)return;
+    const res=await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=20`,{signal:ctrl.signal});
+    if(ctrl.signal.aborted) return;
     if(!res.ok){jikanResults=[];return;}
     const json=await res.json();
     const raw=(json.data||[]);
 
-    // ── FILTRO 1: excluir OVAs, películas, especiales, música ──────────────────
-    // Solo queremos TV (temporadas canónicas) y manga principal (no doujin, one-shot)
-    const EXCLUDED_TYPES_ANIME=new Set(["OVA","Movie","Special","ONA","Music","CM","PV"]);
-    const EXCLUDED_TYPES_MANGA=new Set(["Doujin","One-shot","Novel","Light Novel"]);
-    const filtered=raw.filter(item=>{
-      const t=(item.type||"").trim();
-      if(searchType==="anime") return !EXCLUDED_TYPES_ANIME.has(t);
-      if(searchType==="manga") return !EXCLUDED_TYPES_MANGA.has(t);
-      return true;
-    });
+    // Filtro: excluir tipos que son ruido pero conservar ONA (Netflix, etc.)
+    const EXCLUDED=new Set(["OVA","Movie","Special","Music","CM","PV"]);
+    const filtered=raw.filter(item=>!EXCLUDED.has((item.type||"").trim()));
 
-    // ── SCORER DE RELEVANCIA — ranking en vez de filtro binario ──────────────────
-    // Problema anterior: filtro estricto descartaba títulos válidos como "Kagurabachi"
-    // (score bajo en MAL por ser reciente, título japonés en kanji sin coincidencia
-    // con romaji). Solución: asignar puntaje y ordenar — nunca descartar si Jikan
-    // ya devolvió el resultado (confiar en el motor de búsqueda de MAL/Jikan).
-    //
-    // Sistema de puntos (acumulativo):
-    //  +100  match exacto en cualquier título (máxima confianza)
-    //  +60   título empieza con el query (el usuario sabe lo que busca)
-    //  +40   query contiene el título (título es substring del query)
-    //  +20   match parcial: query aparece en alguna variante del título
-    //  +10   cada palabra del query encontrada individualmente en el título
-    //   +5   score de popularidad MAL >= 7 (desempate entre iguales)
-    //  -20   penalización si NINGUNA palabra del query aparece en ningún título
-    //         (resultado muy fuera de contexto — se baja pero NO se elimina)
+    // Scorer de relevancia
     const queryNorm=query.trim().toLowerCase().replace(/[!！]/g,"").replace(/\s+/g," ");
     const queryWords=queryNorm.split(/\s+/).filter(w=>w.length>=2);
     function _scoreItem(item){
@@ -626,73 +809,49 @@ async function searchJikan(query,tabType){
       const syn=(item.title_synonyms||[]).map(s=>s.toLowerCase()).join(" ");
       const allTitles=[en,ja,...(item.title_synonyms||[]).map(s=>s.toLowerCase())].filter(Boolean);
       let score=0;
-      // Match exacto — máxima prioridad
       if(allTitles.some(t=>t===queryNorm)) score+=100;
-      // Empieza con el query
       else if(allTitles.some(t=>t.startsWith(queryNorm))) score+=60;
-      // El query incluye el título (query más largo que el título, ej: "spy x family" vs "spy")
       else if(allTitles.some(t=>t.length>=3&&queryNorm.includes(t))) score+=40;
-      // Match parcial: query aparece dentro del título
       else if(allTitles.some(t=>t.includes(queryNorm))) score+=20;
-      // Palabras individuales — clave para títulos compuestos y errores de tipeo leves
       if(queryWords.length>0){
         const allText=allTitles.join(" ")+" "+syn;
         const matched=queryWords.filter(w=>allText.includes(w));
         score+=matched.length*10;
-        // Penalizar si no hay absolutamente ninguna coincidencia de palabras
         if(matched.length===0) score-=20;
       }
-      // Desempate: popularidad MAL (no penaliza series nuevas, solo ayuda a las conocidas)
       if(item.score>=7) score+=5;
       return score;
     }
-    // Ordenar por score descendente — Jikan ya filtra por relevancia en su lado,
-    // este scorer solo reordena y baja al fondo los resultados menos probables.
     const workList=[...filtered].map(item=>({...item,_relevScore:_scoreItem(item)}))
       .sort((a,b)=>b._relevScore-a._relevScore);
 
-    // ── AGRUPACIÓN por título japonés ────────────────────────────────────────────
-    // Estrategia: el título japonés es la clave más estable entre temporadas.
-    // "ハイキュー!!" es idéntico en T1, T2, T3, T4 — pero el título inglés
-    // ("Haikyu!! To the Top", "Haikyu!! Final Arc") varía por subtítulos narrativos.
-    // Para series sin título japonés (raras) o western, usar inglés como fallback.
-    //
-    // Limpieza del base: quitar números de temporada, subtítulos de cour, sufijos
-    // narrativos conocidos, y cualquier cosa después de "::" o "—".
+    // Agrupación por título japonés base
     function _baseTitle(t){
       return (t||"")
-        // Patrones de temporada explícitos
         .replace(/\s*[:·]\s*(season|part|cour|temporada)\s*[\dIVX]+.*/i,"")
         .replace(/\s*(2nd|3rd|4th|5th|6th|\d+th|second|third|fourth|fifth|sixth)\s+(season|cour|part).*/i,"")
         .replace(/\s*season\s*[\dIVX]+.*/i,"")
         .replace(/\s*\d+(st|nd|rd|th)\s*season.*/i,"")
         .replace(/\s*:\s*(the\s+)?(final|last|first|new)\s+(season|chapter|arc|stage|war|part).*/i,"")
         .replace(/\s*\(?season\)?.*/i,"")
-        // Patrones de cour y partes
         .replace(/\s*[\-:]\s*\d+(st|nd|rd|th)[\-\s]*cour.*/i,"")
         .replace(/\s+\d+(st|nd|rd|th)[\-\s]*cour.*/i,"")
         .replace(/\s*:?\s*(final arc|the final|the beginning|new generation|next generation).*/i,"")
-        // Subtítulos narrativos de Haikyu y similares
         .replace(/\s*:?\s*(to the top|to the next|vs\..+).*/i,"")
-        // Números romanos al final (II, III, IV…) — no I solo (falsos positivos)
         .replace(/\s+[IVX]{2,4}$/,"")
-        // Número suelto al final "Bleach 2", "Naruto 4"
         .replace(/\s+\d+$/,"")
         .trim().toLowerCase();
     }
 
-    // Para el display mostrar siempre el título inglés si existe, o japonés transliterado
-    const seen=new Map(); // base → index en deduped
+    const seen=new Map();
     const deduped=[];
     for(const item of workList){
       const titleEn=(item.title_english||"").trim();
       const titleJa=(item.title||"").trim();
-      // Clave de agrupación: título japonés primero (más estable entre temporadas),
-      // fallback a inglés si no hay japonés
       const keyForGrouping=titleJa||titleEn;
       const base=_baseTitle(keyForGrouping);
-      const itemEps=searchType==="manga"?(item.chapters||0):(item.episodes||0);
-      const isAiring=searchType==="manga"?item.publishing:item.airing;
+      const itemEps=item.episodes||0;
+      const isAiring=item.airing;
       if(!seen.has(base)){
         if(deduped.length<6){
           seen.set(base,deduped.length);
@@ -703,8 +862,151 @@ async function searchJikan(query,tabType){
           cloned._anyAiring=isAiring||false;
           cloned._latestMalId=item.mal_id;
           deduped.push(cloned);
-        } else seen.set(base,-1);
-      } else {
+        }else seen.set(base,-1);
+      }else{
+        const idx=seen.get(base);
+        if(idx>=0&&deduped[idx]){
+          deduped[idx]._accEps=(deduped[idx]._accEps||0)+itemEps;
+          deduped[idx]._seasonCount=(deduped[idx]._seasonCount||1)+1;
+          if(isAiring){
+            deduped[idx]._anyAiring=true;
+            deduped[idx].airing=true;
+            deduped[idx]._latestMalId=item.mal_id;
+          }
+        }
+      }
+    }
+    jikanResults=deduped;
+  }catch(e){
+    if(!ctrl.signal.aborted) jikanResults=[];
+    return;
+  }
+  if(ctrl.signal.aborted) return;
+  renderJikanDrop("anime");
+
+  // Enriquecer con conteo real (secuencial por rate limit Jikan)
+  const snap=[...jikanResults];
+  const sortedAnime=[...snap.filter(x=>x.airing),...snap.filter(x=>!x.airing)];
+  for(let i=0;i<sortedAnime.length;i++){
+    if(ctrl.signal.aborted) return;
+    const item=sortedAnime[i];
+    if(!item.mal_id) continue;
+    const rawCnt=item.episodes||0;
+    const isMultiSeason=(item._seasonCount||1)>1;
+    const isAiring=item.airing;
+    let best=0;
+    try{
+      if(isMultiSeason&&isAiring&&item._latestMalId){
+        const prevSeasonEps=(item._accEps||0)-(rawCnt||0);
+        let latestEps=await _srcAniList(item._latestMalId,"anime");
+        if(!latestEps) latestEps=await _fetchNetlifyMDX(item._latestMalId,"","anime");
+        best=prevSeasonEps+(latestEps||rawCnt||0);
+        if(best<(item._accEps||0)) best=item._accEps||0;
+      }else if(isMultiSeason&&!isAiring){
+        best=item._accEps||rawCnt||0;
+        const alTotal=await _srcAniList(item.mal_id,"anime");
+        if(alTotal>best) best=alTotal;
+      }else{
+        best=await getBestCount(item.mal_id,"anime",rawCnt,"");
+      }
+    }catch(e){}
+    if(ctrl.signal.aborted) return;
+    const live=jikanResults.find(x=>x.mal_id===item.mal_id);
+    if(live){live._latestChapter=best;renderJikanDrop("anime");}
+    if(i<sortedAnime.length-1&&!ctrl.signal.aborted){
+      await new Promise(r=>setTimeout(r,400));
+    }
+  }
+}
+
+async function searchJikan(query,tabType){
+  if(!query||query.length<2){jikanResults=[];removeJikanDrop();return;}
+  if(_jikanSearchAbort){_jikanSearchAbort.abort();_jikanSearchAbort=null;}
+  const ctrl=new AbortController();
+  _jikanSearchAbort=ctrl;
+  const searchType=tabType;
+
+  if(searchType==="anime"){
+    // Anime: AniList como fuente primaria, Jikan como fallback
+    try{
+      await _searchAnime(query,ctrl);
+    }catch(e){
+      if(!ctrl.signal.aborted) jikanResults=[];
+    }
+    if(!ctrl.signal.aborted) _jikanSearchAbort=null;
+    return;
+  }
+
+  // ── MANGA: lógica original con Jikan ────────────────────────────────────────
+  const ep="manga";
+  try{
+    const res=await fetch(`https://api.jikan.moe/v4/${ep}?q=${encodeURIComponent(query)}&limit=20`,{signal:ctrl.signal});
+    if(ctrl.signal.aborted)return;
+    if(!res.ok){jikanResults=[];return;}
+    const json=await res.json();
+    const raw=(json.data||[]);
+    const EXCLUDED_TYPES_MANGA=new Set(["Doujin","One-shot","Novel","Light Novel"]);
+    const filtered=raw.filter(item=>!EXCLUDED_TYPES_MANGA.has((item.type||"").trim()));
+    const queryNorm=query.trim().toLowerCase().replace(/[!！]/g,"").replace(/\s+/g," ");
+    const queryWords=queryNorm.split(/\s+/).filter(w=>w.length>=2);
+    function _scoreItem(item){
+      const en=(item.title_english||"").toLowerCase().replace(/[!！]/g,"").trim();
+      const ja=(item.title||"").toLowerCase().replace(/[!！]/g,"").trim();
+      const syn=(item.title_synonyms||[]).map(s=>s.toLowerCase()).join(" ");
+      const allTitles=[en,ja,...(item.title_synonyms||[]).map(s=>s.toLowerCase())].filter(Boolean);
+      let score=0;
+      if(allTitles.some(t=>t===queryNorm)) score+=100;
+      else if(allTitles.some(t=>t.startsWith(queryNorm))) score+=60;
+      else if(allTitles.some(t=>t.length>=3&&queryNorm.includes(t))) score+=40;
+      else if(allTitles.some(t=>t.includes(queryNorm))) score+=20;
+      if(queryWords.length>0){
+        const allText=allTitles.join(" ")+" "+syn;
+        const matched=queryWords.filter(w=>allText.includes(w));
+        score+=matched.length*10;
+        if(matched.length===0) score-=20;
+      }
+      if(item.score>=7) score+=5;
+      return score;
+    }
+    const workList=[...filtered].map(item=>({...item,_relevScore:_scoreItem(item)}))
+      .sort((a,b)=>b._relevScore-a._relevScore);
+    function _baseTitle(t){
+      return (t||"")
+        .replace(/\s*[:·]\s*(season|part|cour|temporada)\s*[\dIVX]+.*/i,"")
+        .replace(/\s*(2nd|3rd|4th|5th|6th|\d+th|second|third|fourth|fifth|sixth)\s+(season|cour|part).*/i,"")
+        .replace(/\s*season\s*[\dIVX]+.*/i,"")
+        .replace(/\s*\d+(st|nd|rd|th)\s*season.*/i,"")
+        .replace(/\s*:\s*(the\s+)?(final|last|first|new)\s+(season|chapter|arc|stage|war|part).*/i,"")
+        .replace(/\s*\(?season\)?.*/i,"")
+        .replace(/\s*[\-:]\s*\d+(st|nd|rd|th)[\-\s]*cour.*/i,"")
+        .replace(/\s+\d+(st|nd|rd|th)[\-\s]*cour.*/i,"")
+        .replace(/\s*:?\s*(final arc|the final|the beginning|new generation|next generation).*/i,"")
+        .replace(/\s*:?\s*(to the top|to the next|vs\..+).*/i,"")
+        .replace(/\s+[IVX]{2,4}$/,"")
+        .replace(/\s+\d+$/,"")
+        .trim().toLowerCase();
+    }
+    const seen=new Map();
+    const deduped=[];
+    for(const item of workList){
+      const titleEn=(item.title_english||"").trim();
+      const titleJa=(item.title||"").trim();
+      const keyForGrouping=titleJa||titleEn;
+      const base=_baseTitle(keyForGrouping);
+      const itemEps=item.chapters||0;
+      const isAiring=item.publishing;
+      if(!seen.has(base)){
+        if(deduped.length<6){
+          seen.set(base,deduped.length);
+          const cloned=Object.assign({},item);
+          if(titleEn) cloned._displayTitle=titleEn;
+          cloned._accEps=itemEps;
+          cloned._seasonCount=1;
+          cloned._anyAiring=isAiring||false;
+          cloned._latestMalId=item.mal_id;
+          deduped.push(cloned);
+        }else seen.set(base,-1);
+      }else{
         const idx=seen.get(base);
         if(idx>=0&&deduped[idx]){
           deduped[idx]._accEps=(deduped[idx]._accEps||0)+itemEps;
@@ -723,76 +1025,24 @@ async function searchJikan(query,tabType){
     return;
   }
   if(ctrl.signal.aborted)return;
-
-  // Mostrar dropdown inmediatamente con lo que tiene Jikan
   renderJikanDrop(searchType);
-
-  // Enriquecer items con conteo real — estrategia diferenciada por tipo:
-  //
-  // MANGA: MangaDex no tiene rate limit estricto → paralelismo total (todos a la vez).
-  //   Cada item lanza _getMangaCount independientemente y actualiza el dropdown
-  //   tan pronto llega su resultado. El usuario ve los números aparecer de a uno
-  //   en ~2-5s en lugar de esperar 6×(API+400ms) = ~15s+.
-  //
-  // ANIME: Jikan tiene rate limit de 3 req/s → concurrencia 1 + pausa 400ms.
-  //   Se mantiene el flujo secuencial original para no recibir 429.
-
+  // Manga: todos en paralelo (MangaDex sin rate limit estricto)
   const snap=[...jikanResults];
-
-  async function _enrichItem(item){
+  await Promise.all(snap.map(async item=>{
     if(ctrl.signal.aborted)return;
     if(!item.mal_id)return;
-    const rawCnt=searchType==="manga"?(item.chapters||0):(item.episodes||0);
+    const rawCnt=item.chapters||0;
     const title=item._displayTitle||item.title_english||item.title||'';
-    const isMultiSeason=(item._seasonCount||1)>1;
-    const isAiring=searchType==="manga"?item.publishing:item.airing;
     let best=0;
     try{
-      if(searchType==="manga"){
-        // Manga: siempre _getMangaCount (MangaDex links[mal] → feed JP/any → Jikan)
-        best=await _getMangaCount(item.mal_id,title,rawCnt);
-      }else if(isMultiSeason&&isAiring&&item._latestMalId){
-        const prevSeasonEps=(item._accEps||0)-(rawCnt||0);
-        // AniList directo primero (CORS abierto, nextAiringEpisode es la fuente más fiable para anime en emisión)
-        let latestEps=await _srcAniList(item._latestMalId,searchType);
-        if(!latestEps) latestEps=await _fetchNetlifyMDX(item._latestMalId,"",searchType);
-        const latestBest=latestEps>0?latestEps:rawCnt||0;
-        best=prevSeasonEps+latestBest;
-      }else if(isMultiSeason&&!isAiring){
-        best=item._accEps||rawCnt||0;
-        const alTotal=await _fetchNetlifyMDX(item.mal_id,"",searchType);
-        if(alTotal>best) best=alTotal;
-      }else{
-        best=await getBestCount(item.mal_id,searchType,rawCnt,title);
-        if(!best){
-          try{best=await jikanGetLatestCount(item.mal_id,searchType,false);}catch(e2){}
-        }
-      }
+      best=await _getMangaCount(item.mal_id,title,rawCnt);
     }catch(e){}
     if(ctrl.signal.aborted)return;
     const live=jikanResults.find(x=>x.mal_id===item.mal_id);
     if(!live)return;
     live._latestChapter=best;
     renderJikanDrop(searchType);
-  }
-
-  if(searchType==="manga"){
-    // Manga: todos en paralelo — MangaDex no tiene rate limit como Jikan
-    await Promise.all(snap.map(item=>_enrichItem(item)));
-  }else{
-    // Anime: secuencial con pausa para respetar rate limit de Jikan (3 req/s)
-    const sortedAnime=[
-      ...snap.filter(x=>x.airing),
-      ...snap.filter(x=>!x.airing)
-    ];
-    for(let i=0;i<sortedAnime.length;i++){
-      if(ctrl.signal.aborted)return;
-      await _enrichItem(sortedAnime[i]);
-      if(i<sortedAnime.length-1&&!ctrl.signal.aborted){
-        await new Promise(r=>setTimeout(r,400));
-      }
-    }
-  }
+  }));
   _jikanSearchAbort=null;
 }
 
@@ -1009,19 +1259,32 @@ function selectJikanResult(item,tabType){
       try{
         const _title=title;
         let best=0;
-        if(_isMultiSeason&&_localPublishing&&item._latestMalId){
-          // Multi-temporada en emisión: eps anteriores + eps de la temporada activa via AniList
+        if(_localTabType==="anime"&&item._source==="anilist"){
+          // Resultado de AniList: _accEps ya incluye todas las temporadas via relations.
+          // Solo confirmar el conteo de la temporada activa con _srcAniList si está en emisión.
+          if(_localPublishing&&item._latestMalId){
+            const latestEps=await _srcAniList(item._latestMalId,"anime");
+            const prevEps=(item._accEps||0)-(item.episodes||0);
+            const confirmed=prevEps+(latestEps||item.episodes||0);
+            best=Math.max(item._accEps||0,confirmed);
+          }else{
+            best=item._accEps||0;
+          }
+          // Si el conteo de relations resultó 0, fallback a getBestCount
+          if(!best) best=await getBestCount(_localMalId,_localTabType,knownCount,_title);
+        }else if(_isMultiSeason&&_localPublishing&&item._latestMalId){
+          // Multi-temporada en emisión (resultado Jikan fallback)
           const rawCnt=tabType==="manga"?(item.chapters||0):(item.episodes||0);
           const prevSeasonEps=(item._accEps||0)-(rawCnt||0);
-          // AniList directo primero (CORS abierto, nextAiringEpisode es la fuente más fiable para anime en emisión)
           let latestEps=await _srcAniList(item._latestMalId,_localTabType);
           if(!latestEps) latestEps=await _fetchNetlifyMDX(item._latestMalId,"",_localTabType);
           const latestBest=latestEps>0?latestEps:(rawCnt||0);
           best=prevSeasonEps+latestBest;
+          if(best<(item._accEps||0)) best=item._accEps||0;
         }else if(_isMultiSeason&&!_localPublishing){
-          // Multi-temporada completa: usar _accEps o confirmar con AniList
+          // Multi-temporada completa (resultado Jikan fallback)
           best=item._accEps||0;
-          const alTotal=await _fetchNetlifyMDX(item.mal_id,"",_localTabType);
+          const alTotal=await _srcAniList(item.mal_id,_localTabType);
           if(alTotal>best) best=alTotal;
         }else{
           best=await getBestCount(_localMalId,_localTabType,knownCount,_title);
@@ -1112,18 +1375,18 @@ async function checkJikanUpdates(){
         if(!count || count<1){
           try{
             if(tabKey==="manga"){
-              // Para manga: Kitsu → MangaDex feed JP (2 fuentes, secuencial, rápido)
+              // Para manga: Kitsu → MangaDex feed JP
               const best=await _getMangaCount(series.jikanId,series.title,0);
               if(best>0) count=best;
             }else{
-              // AniList directo primero (CORS abierto, más fiable para anime multi-temporada en emisión)
+              // Para anime: AniList primero (nextAiringEpisode exacto), luego getBestCount
               let best=await _srcAniList(series.jikanId,tabKey);
               if(!best) best=await getBestCount(series.jikanId,tabKey,0,series.title);
               if(best>0) count=best;
             }
           }catch(e2){
             if(tabKey==="anime"){
-              const alCnt=await _fetchNetlifyMDX(series.jikanId,"",tabKey);
+              const alCnt=await _srcAniList(series.jikanId,tabKey);
               if(alCnt>0) count=alCnt;
             }
           }
@@ -1159,7 +1422,10 @@ async function checkUpToDateNewChapters(){
     for(const series of pubSeries){
       if(nextChapter(series)!==null)continue;
       try{
-        const best=await getBestCount(series.jikanId,tabKey,series.total,series.title);
+        // AniList primero para anime (más preciso para series en emisión)
+        let best=tabKey==="anime"
+          ? await _srcAniList(series.jikanId,tabKey)||await getBestCount(series.jikanId,tabKey,series.total,series.title)
+          : await getBestCount(series.jikanId,tabKey,series.total,series.title);
         if(best&&best>series.total){
           const newCaps=best-series.total;
           series.total=best;
