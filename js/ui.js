@@ -330,9 +330,8 @@ async function _searchAniList(query){
     const items=json?.data?.Page?.media||[];
     if(!items.length) return null;
 
-    // Normalizar cada resultado al formato interno de MANGU
-    // Pre-pasar para registrar qué IDs serán absorbidos como relaciones,
-    // así evitamos que la S2 aparezca también como entrada independiente.
+    // ── Pre-pase: registrar IDs que serán absorbidos como relación de otro resultado
+    // Evita que S2 aparezca como card separada cuando ya fue sumada via relations de S1
     const absorbedIds=new Set();
     for(const m of items){
       for(const edge of (m.relations?.edges||[])){
@@ -341,21 +340,29 @@ async function _searchAniList(query){
         if(edge.node?.id) absorbedIds.add(edge.node.id);
       }
     }
-    const results=[];
+
+    // ── Normalizar cada resultado al formato interno de MANGU ─────────────────
+    const AL_GENRE_MAP={
+      "Action":"Acción","Adventure":"Acción","Comedy":"Comedia","Horror":"Horror",
+      "Romance":"Romance","Sci-Fi":"Sci-Fi","Fantasy":"Fantasy","Mecha":"Mecha",
+      "Slice of Life":"Slice of Life","Sports":"Deportes","Supernatural":"Sobrenatural",
+      "Thriller":"Thriller","Mystery":"Thriller","Psychological":"Psicológico",
+      "Drama":"Drama","Ecchi":"Ecchi","Historical":"Histórico","Music":"Música",
+      "School":"Escolar","Isekai":"Isekai"
+    };
+
+    const rawResults=[];
     for(const m of items){
-      if(!m.idMal) continue; // sin MAL ID no podemos hacer polling posterior
-      // Si este resultado ya fue absorbido como secuela/precuela de otro, omitir
+      if(!m.idMal) continue;
+      // Omitir entradas ya absorbidas como secuela/precuela de otro resultado
       if(absorbedIds.has(m.id)) continue;
 
-      // ── Calcular episodios acumulados incluyendo secuelas ──────────────────
-      // Solo sumar SEQUEL y PREQUEL de tipo ANIME para no contaminar con OVA/Movie
       let accEps=0;
       let anyAiring=false;
       let latestMalId=m.idMal;
       let latestALId=m.id;
       let seasonCount=1;
 
-      // Episodios de la entrada principal
       const mainEps=m.nextAiringEpisode?.episode>0
         ? m.nextAiringEpisode.episode-1
         : (m.episodes||0);
@@ -363,49 +370,34 @@ async function _searchAniList(query){
       accEps+=mainEps;
       if(mainAiring) anyAiring=true;
 
-      // Recorrer relaciones para acumular temporadas
       const seenIds=new Set([m.id]);
       for(const edge of (m.relations?.edges||[])){
         const rel=edge.relationType;
         const node=edge.node;
-        // Solo SEQUEL/PREQUEL de tipo ANIME — excluir SIDE_STORY, SPIN_OFF, MUSIC, etc.
         if(!["SEQUEL","PREQUEL"].includes(rel)) continue;
         if(node.type!=="ANIME") continue;
         if(seenIds.has(node.id)) continue;
         seenIds.add(node.id);
-
         const nodeEps=node.nextAiringEpisode?.episode>0
           ? node.nextAiringEpisode.episode-1
           : (node.episodes||0);
         const nodeAiring=(node.status==="RELEASING");
-
         accEps+=nodeEps;
         seasonCount++;
         if(nodeAiring){
           anyAiring=true;
-          // latestMalId = la temporada actualmente en emisión
           if(node.idMal) latestMalId=node.idMal;
           latestALId=node.id;
         }
       }
 
-      // ── Mapear géneros AniList → tags internos de MANGU ───────────────────
-      const AL_GENRE_MAP={
-        "Action":"Acción","Adventure":"Acción","Comedy":"Comedia","Horror":"Horror",
-        "Romance":"Romance","Sci-Fi":"Sci-Fi","Fantasy":"Fantasy","Mecha":"Mecha",
-        "Slice of Life":"Slice of Life","Sports":"Deportes","Supernatural":"Sobrenatural",
-        "Thriller":"Thriller","Mystery":"Thriller","Psychological":"Psicológico",
-        "Drama":"Drama","Ecchi":"Ecchi","Historical":"Histórico","Music":"Música",
-        "School":"Escolar","Isekai":"Isekai"
-      };
       const genres=(m.genres||[])
         .map(g=>AL_GENRE_MAP[g]||g)
-        .filter((g,i,a)=>a.indexOf(g)===i); // deduplicar
+        .filter((g,i,a)=>a.indexOf(g)===i);
 
       const displayTitle=m.title?.english||m.title?.romaji||"";
 
-      results.push({
-        // Campos MAL-compatibles que usa el resto del código
+      rawResults.push({
         mal_id:m.idMal,
         _alId:m.id,
         title:m.title?.romaji||displayTitle,
@@ -413,29 +405,32 @@ async function _searchAniList(query){
         _displayTitle:displayTitle,
         episodes:m.episodes||0,
         airing:mainAiring,
-        // Imagen: AniList usa coverImage.large (similar resolución a MAL large_image_url)
         images:{jpg:{
           large_image_url:m.coverImage?.large||"",
           image_url:m.coverImage?.medium||""
         }},
-        // Géneros en formato compatible con JIKAN_MAP de selectJikanResult
         genres:genres.map(g=>({name:g})),
         themes:[],
         demographics:[],
-        score:(m.averageScore||0)/10, // AniList usa 0-100, MAL usa 0-10
-        // Campos internos de agrupación multi-temporada
+        score:(m.averageScore||0)/10,
         _accEps:accEps,
         _anyAiring:anyAiring,
         _seasonCount:seasonCount,
         _latestMalId:latestMalId,
         _latestALId:latestALId,
-        // _latestChapter se rellena en la fase de enrichment
         _latestChapter:undefined,
-        // Fecha de emisión (no siempre disponible en AniList sin campos extra)
         aired:{prop:{from:{year:null},to:{year:null}}},
         _source:"anilist"
       });
     }
+
+    // ── Ordenar: priorizar resultados con más episodios acumulados
+    // Esto asegura que la serie principal (22+ eps) aparezca antes que
+    // especiales/OVAs (1 ep) aunque AniList los rankee primero por relevancia textual
+    rawResults.sort((a,b)=>(b._accEps||0)-(a._accEps||0));
+
+    // Limitar a 6 resultados para no saturar el dropdown
+    const results=rawResults.slice(0,6);
     return results.length?results:null;
   }catch(e){ return null; }
 }
