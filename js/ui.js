@@ -330,54 +330,104 @@ async function _searchAniList(query){
     const items=json?.data?.Page?.media||[];
     if(!items.length) return null;
 
-    // ── Pre-pase: registrar AniList IDs absorbidos como relación de otro resultado
-    // Evita que S2 aparezca como card separada cuando ya fue sumada via relations de S1.
-    // FIX: construir mapa de relaciones para absorción transitiva (S1→S2→S3).
-    // AniList solo devuelve relaciones de 1er nivel, así que si la query trae S1 y S3,
-    // S3 no aparece en relations de S1 directamente. Solucionamos con dos pasadas:
-    // 1ª pasada: construir mapa bidireccional de todos los edges SEQUEL/PREQUEL entre items
-    // 2ª pasada: BFS desde cada item para absorber toda la cadena
-    const relMap=new Map(); // alId → Set de alIds relacionados directamente
+    // ── Pre-pase: calcular mainEps de cada item individualmente ──────────────
+    // mainEps = episodios del propio item (sin contar relaciones)
+    // Se usará para recalcular _accEps del raíz después del BFS.
+    const itemMainEps=new Map(); // alId → {eps, airing, malId}
+    for(const m of items){
+      const eps=m.nextAiringEpisode?.episode>0
+        ? m.nextAiringEpisode.episode-1
+        : (m.episodes||0);
+      itemMainEps.set(m.id,{
+        eps,
+        airing:(m.status==="RELEASING"),
+        malId:m.idMal,
+        alId:m.id
+      });
+    }
+
+    // ── Construir mapa bidireccional de relaciones entre items[] ─────────────
+    // Solo consideramos edges SEQUEL/PREQUEL entre nodos de tipo ANIME.
+    // El mapa es bidireccional para que el BFS funcione en cualquier dirección.
+    const relMap=new Map();
     for(const m of items){
       if(!relMap.has(m.id)) relMap.set(m.id,new Set());
       for(const edge of (m.relations?.edges||[])){
         if(!["SEQUEL","PREQUEL"].includes(edge.relationType)) continue;
         if(edge.node?.type!=="ANIME") continue;
-        if(edge.node?.id){
-          relMap.get(m.id).add(edge.node.id);
-          if(!relMap.has(edge.node.id)) relMap.set(edge.node.id,new Set());
-          relMap.get(edge.node.id).add(m.id); // bidireccional
-        }
+        const nid=edge.node.id;
+        if(!nid) continue;
+        relMap.get(m.id).add(nid);
+        if(!relMap.has(nid)) relMap.set(nid,new Set());
+        relMap.get(nid).add(m.id);
       }
     }
-    // BFS para encontrar el "raíz" de cada grupo (el de más episodios acumulados o el más antiguo)
-    // Para simplificar: marcar como absorbidos todos excepto el que tenga idMal más bajo (S1)
+
+    // ── BFS: agrupar todos los items conectados por SEQUEL/PREQUEL ───────────
     const allItemIds=new Set(items.map(m=>m.id));
-    const absorbedIds=new Set();
     const visited=new Set();
+    const groups=[]; // cada grupo es un array de alIds
+
     for(const m of items){
-      if(visited.has(m.id)||absorbedIds.has(m.id)) continue;
-      // BFS: encontrar todos los nodos del mismo grupo que existen en items[]
-      const group=[m.id];
+      if(visited.has(m.id)) continue;
+      const group=[];
       const queue=[m.id];
       visited.add(m.id);
       while(queue.length){
         const cur=queue.shift();
+        group.push(cur);
         for(const nb of (relMap.get(cur)||new Set())){
           if(!visited.has(nb)&&allItemIds.has(nb)){
             visited.add(nb);
-            group.push(nb);
             queue.push(nb);
           }
         }
       }
-      if(group.length>1){
-        // El "principal" es el que tenga el menor idMal (primera temporada)
-        // Los demás quedan absorbidos
-        const groupItems=group.map(id=>items.find(x=>x.id===id)).filter(Boolean);
-        groupItems.sort((a,b)=>(a.idMal||99999)-(b.idMal||99999));
-        for(let i=1;i<groupItems.length;i++) absorbedIds.add(groupItems[i].id);
+      groups.push(group);
+    }
+
+    // ── Construir un resultado por grupo ─────────────────────────────────────
+    // El representante del grupo es el item con menor idMal (= S1, la más antigua).
+    // _accEps = suma de mainEps de TODOS los miembros del grupo (sin double-count).
+    const absorbedIds=new Set();
+    const groupRepresentatives=[]; // {rootItem, groupAlIds}
+
+    for(const group of groups){
+      const groupItems=group.map(id=>items.find(x=>x.id===id)).filter(Boolean);
+      // Ordenar por idMal ascendente para elegir S1 como raíz
+      groupItems.sort((a,b)=>(a.idMal||999999)-(b.idMal||999999));
+      const root=groupItems[0];
+      // Marcar el resto como absorbidos
+      for(let i=1;i<groupItems.length;i++) absorbedIds.add(groupItems[i].id);
+
+      // Acumular eps de todos los miembros (cada uno aporta solo sus propios eps)
+      let totalEps=0;
+      let anyAiring=false;
+      let latestMalId=root.idMal;
+      let latestALId=root.id;
+
+      for(const gi of groupItems){
+        const info=itemMainEps.get(gi.id);
+        if(!info) continue;
+        totalEps+=info.eps;
+        if(info.airing){
+          anyAiring=true;
+          // El latestMalId = el item en emisión con mayor idMal (temporada más reciente)
+          if(info.malId&&info.malId>latestMalId){
+            latestMalId=info.malId;
+            latestALId=info.alId;
+          }
+        }
       }
+
+      groupRepresentatives.push({
+        root,
+        totalEps,
+        anyAiring,
+        latestMalId,
+        latestALId,
+        seasonCount:groupItems.length
+      });
     }
 
     const AL_GENRE_MAP={
@@ -390,44 +440,10 @@ async function _searchAniList(query){
     };
 
     const rawResults=[];
-    for(const m of items){
+    for(const {root:m, totalEps, anyAiring, latestMalId, latestALId, seasonCount} of groupRepresentatives){
       if(!m.idMal) continue;
-      if(absorbedIds.has(m.id)) continue; // ya absorbida como secuela de otro resultado
 
-      let accEps=0;
-      let anyAiring=false;
-      let latestMalId=m.idMal;
-      let latestALId=m.id;
-      let seasonCount=1;
-
-      const mainEps=m.nextAiringEpisode?.episode>0
-        ? m.nextAiringEpisode.episode-1
-        : (m.episodes||0);
       const mainAiring=(m.status==="RELEASING");
-      accEps+=mainEps;
-      if(mainAiring) anyAiring=true;
-
-      const seenIds=new Set([m.id]);
-      for(const edge of (m.relations?.edges||[])){
-        const rel=edge.relationType;
-        const node=edge.node;
-        if(!["SEQUEL","PREQUEL"].includes(rel)) continue;
-        if(node.type!=="ANIME") continue;
-        if(seenIds.has(node.id)) continue;
-        seenIds.add(node.id);
-        const nodeEps=node.nextAiringEpisode?.episode>0
-          ? node.nextAiringEpisode.episode-1
-          : (node.episodes||0);
-        const nodeAiring=(node.status==="RELEASING");
-        accEps+=nodeEps;
-        seasonCount++;
-        if(nodeAiring){
-          anyAiring=true;
-          if(node.idMal) latestMalId=node.idMal;
-          latestALId=node.id;
-        }
-      }
-
       const genres=(m.genres||[])
         .map(g=>AL_GENRE_MAP[g]||g)
         .filter((g,i,a)=>a.indexOf(g)===i);
@@ -450,7 +466,7 @@ async function _searchAniList(query){
         themes:[],
         demographics:[],
         score:(m.averageScore||0)/10,
-        _accEps:accEps,
+        _accEps:totalEps,
         _anyAiring:anyAiring,
         _seasonCount:seasonCount,
         _latestMalId:latestMalId,
@@ -461,41 +477,42 @@ async function _searchAniList(query){
       });
     }
 
-    // Ordenar: series principales (más eps acumulados) primero,
-    // especiales/OVAs (pocos eps) al fondo
+    // Ordenar: más episodios acumulados primero (series principales al tope)
     rawResults.sort((a,b)=>(b._accEps||0)-(a._accEps||0));
 
-    // ── Dedup secundario por título base (safety net) ──────────────────────
-    // Captura casos donde la absorción BFS no pudo conectar S3 con S1 porque
-    // AniList solo expone relaciones de 1er nivel y S3 no aparece en items[].
-    // Si dos resultados tienen el mismo título base, fusionarlos sumando _accEps.
+    // ── Dedup secundario por título base (safety net) ──────────────────────────
+    // Captura grupos desconectados de la misma franquicia que el BFS no pudo unir
+    // porque los items intermedios (S2, S3) no aparecen en los resultados de búsqueda.
+    // Ej: AniList devuelve S1 y FinalSeason → BFS los deja separados → dedup los fusiona.
+    // Como son grupos distintos del BFS (sin overlap), SUMAR _accEps es correcto.
     function _alBaseTitle(t){
-      return (t||"")
-        .replace(/\s*[:·]\s*(season|part|cour|temporada)\s*[\dIVX]+.*/i,"")
-        .replace(/\s*(2nd|3rd|4th|5th|\d+th|second|third|fourth|fifth)\s+(season|cour|part).*/i,"")
-        .replace(/\s*season\s*[\dIVX]+.*/i,"")
-        .replace(/\s*\d+(st|nd|rd|th)\s*season.*/i,"")
-        .replace(/\s*:\s*(the\s+)?(final|last|first|new)\s+(season|chapter|arc|stage|war|part).*/i,"")
-        .replace(/\s*:?\s*(final arc|the final|the beginning|new generation).*/i,"")
-        .replace(/\s+[IVX]{2,4}$/,"")
-        .replace(/\s+\d+$/,"")
+      return (t||'')
+        .replace(/\s*[:·]\s*(season|part|cour|temporada)\s*[\dIVX]+.*/i,'')
+        .replace(/\s*(2nd|3rd|4th|5th|\d+th|second|third|fourth|fifth)\s+(season|cour|part).*/i,'')
+        .replace(/\s*season\s*[\dIVX]+.*/i,'')
+        .replace(/\s*\d+(st|nd|rd|th)\s*season.*/i,'')
+        .replace(/\s*:\s*(the\s+)?(final|last|first|new)\s+(season|chapter|arc|stage|war|part).*/i,'')
+        .replace(/\s+(final|last|new|the\s+final)\s+(season|arc|chapter|stage|part|war).*/i,'') // ← sin ':'
+        .replace(/\s*:?\s*(final arc|the final|the beginning|new generation).*/i,'')
+        .replace(/\s+[IVX]{2,4}$/,'')
+        .replace(/\s+\d+$/,'')
         .trim().toLowerCase();
     }
-    const seenBase=new Map(); // baseTitle → index en deduped2
+    const seenBase=new Map();
     const deduped2=[];
     for(const item of rawResults){
-      const titleForBase=item._displayTitle||item.title_english||item.title||"";
+      const titleForBase=item._displayTitle||item.title_english||item.title||'';
       const base=_alBaseTitle(titleForBase);
       if(!seenBase.has(base)){
         seenBase.set(base,deduped2.length);
         deduped2.push(item);
       }else{
-        // Fusionar: sumar eps acumulados al principal
+        // Grupos desconectados de la misma franquicia → sumar eps (no hay overlap)
         const idx=seenBase.get(base);
         const main=deduped2[idx];
         main._accEps=(main._accEps||0)+(item._accEps||0);
         main._seasonCount=(main._seasonCount||1)+(item._seasonCount||1);
-        if(item._anyAiring){
+        if(item._anyAiring&&!main._anyAiring){
           main._anyAiring=true;
           main.airing=true;
           if(item._latestMalId) main._latestMalId=item._latestMalId;
@@ -828,35 +845,38 @@ async function _searchAnime(query, ctrl){
     jikanResults=alResults;
     renderJikanDrop("anime");
 
-    // ── FASE 2: enriquecer conteo con _srcAniList por MAL ID ─────────────────
-    // _searchAniList ya calculó _accEps desde relations, pero para series en
-    // emisión conviene confirmar con nextAiringEpisode del MAL ID más reciente
-    // (la query de búsqueda solo pide relaciones de primer nivel).
+    // ── FASE 2: enriquecer conteo para series en emisión ─────────────────────
+    // _searchAniList ya calculó _accEps desde BFS (suma exacta de todos los miembros).
+    // Para series en emisión, el último item puede estar aún emitiendo y su eps field
+    // podría no estar actualizado. Usamos _srcAniList con _latestMalId para confirmarlo.
     const snap=[...alResults];
     await Promise.all(snap.map(async item=>{
       if(ctrl.signal.aborted) return;
       try{
-        let best=0;
         const isAiring=item._anyAiring;
         const accEps=item._accEps||0;
 
         if(isAiring&&item._latestMalId){
-          // Confirmar eps de la temporada activa con _srcAniList usando MAL ID exacto
+          // Obtener eps confirmados de la temporada activa (la más reciente)
           const latestEps=await _srcAniList(item._latestMalId,"anime");
-          // Eps acumulados = todas las temporadas anteriores + eps confirmados de la activa
-          const prevEps=accEps-(item.episodes||0); // accEps incluye la S principal; restar sus eps
-          best=prevEps+(latestEps||item.episodes||0);
-          // Si best es menor que lo que ya calculamos por relations, confiar en relations
-          if(best<accEps) best=accEps;
+          if(latestEps>0){
+            // _accEps del BFS ya incluye los eps del último item con el valor de episodes field.
+            // Si _srcAniList confirma un número mayor (porque nextAiringEpisode está más actualizado),
+            // usar ese valor. De lo contrario confiar en lo que ya tenemos.
+            const best=Math.max(accEps, latestEps);
+            if(best>0) item._latestChapter=best;
+            else item._latestChapter=accEps;
+          }else{
+            item._latestChapter=accEps;
+          }
         }else{
-          best=accEps;
+          // Serie finalizada: _accEps del BFS es definitivo
+          item._latestChapter=accEps;
         }
 
         if(ctrl.signal.aborted) return;
         const live=jikanResults.find(x=>x.mal_id===item.mal_id);
-        if(!live) return;
-        if(best>0) live._latestChapter=best;
-        else live._latestChapter=accEps||0;
+        if(live&&item._latestChapter>0) live._latestChapter=item._latestChapter;
       }catch(e){}
       if(!ctrl.signal.aborted) renderJikanDrop("anime");
     }));
