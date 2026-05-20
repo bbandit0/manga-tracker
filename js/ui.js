@@ -331,13 +331,52 @@ async function _searchAniList(query){
     if(!items.length) return null;
 
     // ── Pre-pase: registrar AniList IDs absorbidos como relación de otro resultado
-    // Evita que S2 aparezca como card separada cuando ya fue sumada via relations de S1
-    const absorbedIds=new Set();
+    // Evita que S2 aparezca como card separada cuando ya fue sumada via relations de S1.
+    // FIX: construir mapa de relaciones para absorción transitiva (S1→S2→S3).
+    // AniList solo devuelve relaciones de 1er nivel, así que si la query trae S1 y S3,
+    // S3 no aparece en relations de S1 directamente. Solucionamos con dos pasadas:
+    // 1ª pasada: construir mapa bidireccional de todos los edges SEQUEL/PREQUEL entre items
+    // 2ª pasada: BFS desde cada item para absorber toda la cadena
+    const relMap=new Map(); // alId → Set de alIds relacionados directamente
     for(const m of items){
+      if(!relMap.has(m.id)) relMap.set(m.id,new Set());
       for(const edge of (m.relations?.edges||[])){
         if(!["SEQUEL","PREQUEL"].includes(edge.relationType)) continue;
         if(edge.node?.type!=="ANIME") continue;
-        if(edge.node?.id) absorbedIds.add(edge.node.id);
+        if(edge.node?.id){
+          relMap.get(m.id).add(edge.node.id);
+          if(!relMap.has(edge.node.id)) relMap.set(edge.node.id,new Set());
+          relMap.get(edge.node.id).add(m.id); // bidireccional
+        }
+      }
+    }
+    // BFS para encontrar el "raíz" de cada grupo (el de más episodios acumulados o el más antiguo)
+    // Para simplificar: marcar como absorbidos todos excepto el que tenga idMal más bajo (S1)
+    const allItemIds=new Set(items.map(m=>m.id));
+    const absorbedIds=new Set();
+    const visited=new Set();
+    for(const m of items){
+      if(visited.has(m.id)||absorbedIds.has(m.id)) continue;
+      // BFS: encontrar todos los nodos del mismo grupo que existen en items[]
+      const group=[m.id];
+      const queue=[m.id];
+      visited.add(m.id);
+      while(queue.length){
+        const cur=queue.shift();
+        for(const nb of (relMap.get(cur)||new Set())){
+          if(!visited.has(nb)&&allItemIds.has(nb)){
+            visited.add(nb);
+            group.push(nb);
+            queue.push(nb);
+          }
+        }
+      }
+      if(group.length>1){
+        // El "principal" es el que tenga el menor idMal (primera temporada)
+        // Los demás quedan absorbidos
+        const groupItems=group.map(id=>items.find(x=>x.id===id)).filter(Boolean);
+        groupItems.sort((a,b)=>(a.idMal||99999)-(b.idMal||99999));
+        for(let i=1;i<groupItems.length;i++) absorbedIds.add(groupItems[i].id);
       }
     }
 
@@ -426,7 +465,45 @@ async function _searchAniList(query){
     // especiales/OVAs (pocos eps) al fondo
     rawResults.sort((a,b)=>(b._accEps||0)-(a._accEps||0));
 
-    const results=rawResults.slice(0,6);
+    // ── Dedup secundario por título base (safety net) ──────────────────────
+    // Captura casos donde la absorción BFS no pudo conectar S3 con S1 porque
+    // AniList solo expone relaciones de 1er nivel y S3 no aparece en items[].
+    // Si dos resultados tienen el mismo título base, fusionarlos sumando _accEps.
+    function _alBaseTitle(t){
+      return (t||"")
+        .replace(/\s*[:·]\s*(season|part|cour|temporada)\s*[\dIVX]+.*/i,"")
+        .replace(/\s*(2nd|3rd|4th|5th|\d+th|second|third|fourth|fifth)\s+(season|cour|part).*/i,"")
+        .replace(/\s*season\s*[\dIVX]+.*/i,"")
+        .replace(/\s*\d+(st|nd|rd|th)\s*season.*/i,"")
+        .replace(/\s*:\s*(the\s+)?(final|last|first|new)\s+(season|chapter|arc|stage|war|part).*/i,"")
+        .replace(/\s*:?\s*(final arc|the final|the beginning|new generation).*/i,"")
+        .replace(/\s+[IVX]{2,4}$/,"")
+        .replace(/\s+\d+$/,"")
+        .trim().toLowerCase();
+    }
+    const seenBase=new Map(); // baseTitle → index en deduped2
+    const deduped2=[];
+    for(const item of rawResults){
+      const titleForBase=item._displayTitle||item.title_english||item.title||"";
+      const base=_alBaseTitle(titleForBase);
+      if(!seenBase.has(base)){
+        seenBase.set(base,deduped2.length);
+        deduped2.push(item);
+      }else{
+        // Fusionar: sumar eps acumulados al principal
+        const idx=seenBase.get(base);
+        const main=deduped2[idx];
+        main._accEps=(main._accEps||0)+(item._accEps||0);
+        main._seasonCount=(main._seasonCount||1)+(item._seasonCount||1);
+        if(item._anyAiring){
+          main._anyAiring=true;
+          main.airing=true;
+          if(item._latestMalId) main._latestMalId=item._latestMalId;
+        }
+      }
+    }
+
+    const results=deduped2.slice(0,6);
     return results.length?results:null;
   }catch(e){ return null; }
 }
@@ -1054,9 +1131,14 @@ function removeJikanDrop(){
   if(old)old.remove();
 }
 
-// ── FIX v3.3: renderJikanDrop con soporte multi-temporada y _anyAiring ──
+// ── FIX v3.4: renderJikanDrop con soporte multi-temporada y _anyAiring ──
 function _jikanCountHTML(item, tab_){
-  const rawCount=tab_==="manga"?(item.chapters||0):(item.episodes||0);
+  // FIX: usar _accEps (suma de TODAS las temporadas) como rawCount base para anime.
+  // item.episodes solo contiene los eps de S1, lo que causaba números incorrectos
+  // cuando el resultado agrupaba varias temporadas (ej: AoT Final = 28+16+12+13 eps).
+  const rawCount=tab_==="manga"
+    ?(item.chapters||0)
+    :(item._accEps||item.episodes||0);
   // Usar _anyAiring: es true si CUALQUIER temporada del grupo está en emisión
   const pub=tab_==="manga"?item.publishing:(item._anyAiring||item.airing);
   const chapLabel=tab_==="manga"?"Cap.":"Ep.";
@@ -1064,22 +1146,20 @@ function _jikanCountHTML(item, tab_){
   const hasMultiSeasons=(item._seasonCount||1)>1;
   // Prioridad de conteo:
   // 1) _latestChapter: resultado del enrichment async (fuente más precisa) — siempre preferido
-  // 2) rawCount: solo si la serie NO está en emisión y el enrichment no terminó.
-  //    IMPORTANTE: para manga/anime en emisión, Jikan devuelve chapters=null o un valor
-  //    incorrecto (ej: Spy x Family muestra "2" que corresponde a volumes, no chapters).
-  //    Nunca mostrar rawCount como placeholder para series en emisión.
+  // 2) rawCount (_accEps): suma acumulada de todas las temporadas — placeholder confiable
+  //    para series finalizadas. Para series en emisión, Jikan puede devolver null
+  //    en la temporada activa, así que _accEps puede estar incompleto → "buscando..."
   let displayCount=0;
   if(item._latestChapter>0){
     displayCount=item._latestChapter;
   }else if(enrichmentDone){
-    // Enrichment terminó pero devolvió 0 — no mostrar nada
-    displayCount=0;
-  }else if(!hasMultiSeasons&&rawCount>0&&!pub){
-    // Solo mostrar rawCount como placeholder si: 1 temporada, tiene valor, y NO está en emisión
-    // Para series en emisión: rawCount de Jikan es unreliable → mostrar "buscando..."
+    // Enrichment terminó pero devolvió 0 — usar _accEps si existe, sino sin dato
+    displayCount=rawCount>0?rawCount:0;
+  }else if(rawCount>0&&!pub){
+    // Serie finalizada con dato acumulado: mostrar aunque sea multi-temporada
     displayCount=rawCount;
   }
-  // Para multi-temporada o en emisión sin enriquecimiento: mostrar "buscando..."
+  // Para series en emisión sin enriquecimiento: mostrar "buscando..."
   if(displayCount>0){
     const label=pub
       ? `${chapLabel} <b>${displayCount}</b> <span style="opacity:.55;font-size:8px">últ.</span>`
@@ -2001,8 +2081,8 @@ inputShell.addEventListener("focusout",()=>{
 });
 
 const sIcon=document.createElement("span");
-sIcon.className="add-title-icon";
-sIcon.style.cssText="font-size:15px;opacity:.5;flex-shrink:0;transition:opacity .2s";
+// NO usar clase CSS externa — el main.css puede tener position:absolute que rompe el flex layout
+sIcon.style.cssText="font-size:15px;opacity:.5;flex-shrink:0;transition:opacity .2s;pointer-events:none;line-height:1;user-select:none";
 sIcon.textContent="🔍";
 
 const ti=h("input","",null,{placeholder:"Buscar en MyAnimeList...",id:"add-title",value:newTitle,autocomplete:"off",autocorrect:"off",autocapitalize:"off",spellcheck:"false"});
