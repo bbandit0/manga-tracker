@@ -292,7 +292,7 @@ async function _searchAniList(query){
     const gql=`
     query($q:String){
       Page(page:1,perPage:10){
-        media(search:$q,type:ANIME,sort:[SEARCH_MATCH]){
+        media(search:$q,type:ANIME,sort:[SEARCH_MATCH,POPULARITY_DESC]){
           idMal
           id
           title{ romaji english native }
@@ -330,7 +330,7 @@ async function _searchAniList(query){
     const items=json?.data?.Page?.media||[];
     if(!items.length) return null;
 
-    // ── Pre-pase: registrar IDs que serán absorbidos como relación de otro resultado
+    // ── Pre-pase: registrar AniList IDs absorbidos como relación de otro resultado
     // Evita que S2 aparezca como card separada cuando ya fue sumada via relations de S1
     const absorbedIds=new Set();
     for(const m of items){
@@ -341,7 +341,6 @@ async function _searchAniList(query){
       }
     }
 
-    // ── Normalizar cada resultado al formato interno de MANGU ─────────────────
     const AL_GENRE_MAP={
       "Action":"Acción","Adventure":"Acción","Comedy":"Comedia","Horror":"Horror",
       "Romance":"Romance","Sci-Fi":"Sci-Fi","Fantasy":"Fantasy","Mecha":"Mecha",
@@ -354,8 +353,7 @@ async function _searchAniList(query){
     const rawResults=[];
     for(const m of items){
       if(!m.idMal) continue;
-      // Omitir entradas ya absorbidas como secuela/precuela de otro resultado
-      if(absorbedIds.has(m.id)) continue;
+      if(absorbedIds.has(m.id)) continue; // ya absorbida como secuela de otro resultado
 
       let accEps=0;
       let anyAiring=false;
@@ -424,12 +422,10 @@ async function _searchAniList(query){
       });
     }
 
-    // ── Ordenar: priorizar resultados con más episodios acumulados
-    // Esto asegura que la serie principal (22+ eps) aparezca antes que
-    // especiales/OVAs (1 ep) aunque AniList los rankee primero por relevancia textual
+    // Ordenar: series principales (más eps acumulados) primero,
+    // especiales/OVAs (pocos eps) al fondo
     rawResults.sort((a,b)=>(b._accEps||0)-(a._accEps||0));
 
-    // Limitar a 6 resultados para no saturar el dropdown
     const results=rawResults.slice(0,6);
     return results.length?results:null;
   }catch(e){ return null; }
