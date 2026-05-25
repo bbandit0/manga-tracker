@@ -552,8 +552,32 @@
   },{passive:true});
 
   // ── PATCH NOTES v3.4 ──────────────────────────────────────────────
-  const V34=`<div class="patch-version"><div class="patch-ver-tag">Parche v3.4 — 2026-05</div><ul class="patch-ver-items"><li>📰 <b>Panel de novedades lateral (desktop)</b> — columna fija position:fixed a la izquierda del bloque #app; se muestra únicamente cuando hay espacio real disponible (mide getBoundingClientRect en tiempo real); no afecta el ancho ni el layout del contenido principal; se oculta automáticamente en ventanas más pequeñas o al hacer resize</li><li>📱 <b>Carrusel mobile de novedades</b> — cuando el panel desktop no tiene espacio aparece un banner horizontal scrolleable inline antes de "Continuar leyendo"; chips de 145px con franja de color por tipo (morado manga / verde anime), countdown de días, dot azul para no leídos</li><li>📅 <b>Fechas de estreno en card expandido</b> — recuadro "Próximo por marcar" con número de cap/ep, título del episodio, fecha exacta de estreno desde Jikan API; para anime en emisión muestra además la fecha del próximo episodio a estrenar via AniList GraphQL nextAiringEpisode con countdown en días</li><li>⚡ <b>Cache de fechas por sesión</b> — las fechas de Jikan y schedules de AniList se cachean en objetos JS; no se re-fetchea al abrir y cerrar el mismo card repetidamente; respeta el rate limit</li></ul></div>`;
-  if(typeof P28_PATCH_NOTES!=="undefined") window.P28_PATCH_NOTES=V34+P28_PATCH_NOTES;
+  // P28_PATCH_NOTES está definido con const en ui.js, por lo que
+  // window.P28_PATCH_NOTES no alcanza el binding local del closure.
+  // Solución: parchear el innerHTML del patch-panel directamente
+  // interceptando el render cuando showPatch===true.
+  const V34_HTML=`<div class="patch-version"><div class="patch-ver-tag">Parche v3.4 — 2026-05</div><ul class="patch-ver-items"><li>📰 <b>Panel de novedades lateral (desktop)</b> — columna fija position:fixed a la izquierda del bloque #app; se muestra únicamente cuando hay espacio real disponible (mide getBoundingClientRect en tiempo real); no afecta el ancho ni el layout del contenido principal; se oculta automáticamente en ventanas más pequeñas o al hacer resize</li><li>📱 <b>Carrusel mobile de novedades</b> — cuando el panel desktop no tiene espacio aparece un banner horizontal scrolleable inline antes de "Continuar leyendo"; chips de 145px con franja de color por tipo (morado manga / verde anime), countdown de días, dot azul para no leídos</li><li>📅 <b>Fechas de estreno en card expandido</b> — recuadro "Próximo por marcar" con número de cap/ep, título del episodio, fecha exacta de estreno desde Jikan API; para anime en emisión muestra además la fecha del próximo episodio a estrenar via AniList GraphQL nextAiringEpisode con countdown en días</li><li>🗓 <b>Countdown dinámico para próximos estrenos</b> — los items del panel y el card muestran "En Nd" para próximos estreno y "✓ Hoy/Hace Nd" para caps ya disponibles; se actualiza via AniList GraphQL sin afectar el rate limit de Jikan</li><li>⚡ <b>Cache de fechas por sesión</b> — las fechas de Jikan y schedules de AniList se cachean en objetos JS; no se re-fetchea al abrir y cerrar el mismo card repetidamente; respeta el rate limit de 3 req/s</li></ul></div>`;
+
+  // Inyectar en el patch-panel después de cada render cuando showPatch===true
+  const _injectPatchNote = () => {
+    const pp = document.querySelector(".patch-panel");
+    if(!pp) return;
+    // Solo inyectar si no está ya
+    if(pp.querySelector(".v34-injected")) return;
+    const h3 = pp.querySelector("h3");
+    if(!h3) return;
+    const div = document.createElement("div");
+    div.className = "v34-injected";
+    div.innerHTML = V34_HTML;
+    // Insertar justo después del h3
+    h3.insertAdjacentElement("afterend", div);
+  };
+
+  // Observar el #app para detectar cuando aparece el patch-panel
+  const patchObs = new MutationObserver(() => _injectPatchNote());
+  patchObs.observe(document.getElementById("app") || document.body, {
+    childList: true, subtree: false
+  });
 
   // Trigger inicial
   if(typeof render==="function") render();
