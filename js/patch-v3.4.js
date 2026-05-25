@@ -1,644 +1,709 @@
 // ═══════════════════════════════════════════════════════════════════════
-//  MANGU — Parche v3.4
-//  Fecha: 2026-05
-//  Archivos afectados: js/ui.js (añadir al final, antes del último })
-//
-//  FEATURES:
-//  1. Panel de noticias "Novedades" en el tab Inicio/Home
-//     - Muestra caps/eps nuevos de series en emisión de tu lista
-//     - Desktop: columna vertical con cards completas
-//     - Mobile (≤640px): carrusel horizontal de chips deslizables
-//     - Indicador live pulsante, badge de cantidad nueva, timestamp
-//     - Series "al día" aparecen al final en gris (no spam)
-//     - Próximos capítulos en ámbar con countdown de días
-//
-//  2. Fecha de estreno del próximo capítulo en el card expandido
-//     - Nuevo recuadro "📅 Próximo por marcar" dentro del expanded panel
-//     - Muestra número de cap/ep, fecha de emisión (vía Jikan API)
-//     - Badge: verde "Disponible", ámbar "En N días", rojo "Sin datos"
-//     - Solo aparece si la serie tiene jikanId y hay un nextChapter
-//     - Se carga de forma asíncrona sin bloquear el render
-//
-//  INSTRUCCIONES DE INSTALACIÓN:
-//  Pega todo este bloque AL FINAL de js/ui.js, inmediatamente antes
-//  del cierre de la última función o del final del archivo.
+//  MANGU — Parche v3.4 (reescrito completo)
+//  Instalación: <script src="js/patch-v3.4.js"></script> después de ui.js
 // ═══════════════════════════════════════════════════════════════════════
 
-
-// ── v3.4: STORAGE KEY para noticias ────────────────────────────────────
-function _v34NewsKey(){
-  return "mangu-news-"+(typeof fbUser!=="undefined"&&fbUser?fbUser.uid:"guest");
-}
-
-// ── v3.4: Guardar/leer cache de noticias en localStorage ───────────────
-// Estructura: { ts: timestamp, items: [{id, title, type, newTotal, prevTotal, ts, jikanId}] }
-function _v34SaveNews(items){
-  try{ localStorage.setItem(_v34NewsKey(), JSON.stringify({ts:Date.now(), items})); }catch(e){}
-}
-function _v34LoadNews(){
-  try{
-    const raw = localStorage.getItem(_v34NewsKey());
-    if(!raw) return [];
-    const parsed = JSON.parse(raw);
-    // cache válido por 6h
-    if(Date.now() - (parsed.ts||0) > 6*60*60*1000) return [];
-    return parsed.items || [];
-  }catch(e){ return []; }
-}
-
-// ── v3.4: Calcular items de noticias desde el estado actual de data ────
-// Combina: caps nuevos detectados + próximos en emisión + al día
-function _v34BuildNewsItems(){
-  const items = [];
-  const now = Date.now();
-
-  const allSeries = [
-    ...data.manga.filter(s=>s.status==="reading"||s.status==="plan").map(s=>({...s,_type:"manga"})),
-    ...data.anime.filter(s=>s.status==="reading"||s.status==="plan").map(s=>({...s,_type:"anime"}))
-  ];
-
-  // Usar nextChapter global (ya definida en tracker.js)
-  allSeries.forEach(s => {
-    const nc = (typeof nextChapter === "function") ? nextChapter(s) : null;
-    const hasNext = nc !== null;
-    const isUpToDate = !hasNext && s.total > 0;
-
-    // Determinar si hay un cap nuevo reciente (total actualizado en las últimas 24h)
-    const updatedRecently = s.lastUpdated && (now - s.lastUpdated) < 24*60*60*1000;
-
-    items.push({
-      id: s.id,
-      title: s.title,
-      type: s._type,
-      total: s.total,
-      completed: s.completed ? s.completed.length : 0,
-      nextCap: nc,
-      isUpToDate,
-      publishing: s.jikanPublishing || false,
-      jikanId: s.jikanId || null,
-      cover: s.cover || "",
-      lastUpdated: s.lastUpdated || 0,
-      updatedRecently,
-      // newSinceViewed: true si hay caps disponibles que no hemos leído
-      hasUnread: hasNext && updatedRecently,
-    });
-  });
-
-  // Ordenar: con no leídos + recientes primero, luego al día, luego sin publicación
-  items.sort((a,b) => {
-    if(a.hasUnread && !b.hasUnread) return -1;
-    if(!a.hasUnread && b.hasUnread) return 1;
-    if(a.publishing && !b.publishing) return -1;
-    if(!a.publishing && b.publishing) return 1;
-    return (b.lastUpdated||0) - (a.lastUpdated||0);
-  });
-
-  return items;
-}
-
-// ── v3.4: Formato de tiempo relativo ────────────────────────────────────
-function _v34TimeAgo(ts){
-  if(!ts) return "";
-  const ms = Date.now() - ts;
-  const min = Math.floor(ms/60000);
-  if(min < 1) return "ahora";
-  if(min < 60) return `hace ${min}m`;
-  const h = Math.floor(ms/3600000);
-  if(h < 24) return `hace ${h}h`;
-  const d = Math.floor(ms/86400000);
-  if(d === 1) return "ayer";
-  if(d < 7) return `hace ${d}d`;
-  return new Date(ts).toLocaleDateString("es-CL",{day:"numeric",month:"short"});
-}
-
-// ── v3.4: Render del PANEL DE NOTICIAS ─────────────────────────────────
-// Se inyecta en el tab Inicio, justo antes de "Continuar leyendo"
-function v34RenderNewsPanel(root){
-  const items = _v34BuildNewsItems();
-  if(items.length === 0) return; // nada en progreso = no mostrar
-
-  const unreadCount = items.filter(i => i.hasUnread).length;
-  const isMobile = window.innerWidth <= 640;
-
-  const sec = document.createElement("div");
-  sec.id = "v34-news-panel";
-  sec.style.cssText = `
-    margin: 0 0 14px 0;
-    background: rgba(255,255,255,.025);
-    border: 1px solid rgba(255,255,255,.07);
-    border-radius: 14px;
-    overflow: hidden;
-  `;
-
-  // ── Header ──
-  const hdr = document.createElement("div");
-  hdr.style.cssText = `
-    display:flex; align-items:center; justify-content:space-between;
-    padding: 11px 14px 10px;
-    border-bottom: 1px solid rgba(255,255,255,.05);
-    background: linear-gradient(90deg, rgba(99,119,237,.06) 0%, transparent 60%);
-  `;
-
-  const hdrLeft = document.createElement("div");
-  hdrLeft.style.cssText = "display:flex; align-items:center; gap:8px;";
-
-  // Punto live pulsante
-  const dot = document.createElement("div");
-  dot.style.cssText = `
-    width:7px; height:7px; border-radius:50%;
-    background:#34d399;
-    box-shadow: 0 0 0 3px rgba(52,211,153,.15);
-    animation: v34Pulse 2s infinite;
-    flex-shrink:0;
-  `;
-  const dotStyle = document.createElement("style");
-  dotStyle.id = "v34-anim-style";
-  if(!document.getElementById("v34-anim-style")){
-    dotStyle.textContent = `
-      @keyframes v34Pulse {
-        0%,100%{ box-shadow:0 0 0 3px rgba(52,211,153,.15); }
-        50%{ box-shadow:0 0 0 5px rgba(52,211,153,.06); }
-      }
-      #v34-news-panel .v34-chip { flex-shrink:0; }
-      @media(max-width:640px){
-        #v34-news-row { display:flex !important; flex-direction:row !important; overflow-x:auto; gap:8px; padding-bottom:4px; scrollbar-width:none; }
-        #v34-news-row::-webkit-scrollbar { display:none; }
-        #v34-news-panel .v34-news-item { min-width:160px; max-width:160px; flex-direction:column; padding:10px; border-radius:10px; }
-        #v34-news-panel .v34-news-item .v34-cover { width:100%; height:46px; border-radius:6px; margin:0 0 7px 0; }
-        #v34-news-panel .v34-news-item .v34-right { text-align:left; margin-top:4px; }
-        #v34-hint { display:block !important; }
-      }
-    `;
-    document.head.appendChild(dotStyle);
-  }
-
-  const hdrTitle = document.createElement("span");
-  hdrTitle.style.cssText = "font-size:12px; font-weight:700; color:var(--t1); letter-spacing:.01em;";
-  hdrTitle.textContent = "Novedades de tu lista";
-
-  hdrLeft.append(dot, hdrTitle);
-
-  if(unreadCount > 0){
-    const badge = document.createElement("span");
-    badge.style.cssText = `
-      font-size:9px; font-weight:700;
-      background:rgba(52,211,153,.15); color:#34d399;
-      border:1px solid rgba(52,211,153,.3);
-      border-radius:20px; padding:1px 8px; margin-left:4px;
-    `;
-    badge.textContent = `${unreadCount} nuevo${unreadCount > 1 ? "s" : ""}`;
-    hdrLeft.appendChild(badge);
-  }
-
-  hdr.appendChild(hdrLeft);
-  sec.appendChild(hdr);
-
-  // ── Lista de items ──
-  const row = document.createElement("div");
-  row.id = "v34-news-row";
-  row.style.cssText = `
-    display:flex;
-    flex-direction:column;
-    gap:0;
-    padding: ${isMobile ? "10px 10px 6px" : "4px 0"};
-  `;
-
-  items.slice(0, 7).forEach((item, idx) => {
-    const el = document.createElement("div");
-    el.className = "v34-news-item";
-
-    const acColor = item.type === "manga" ? "#a78bfa" : "#34d399";
-    const typeLabel = item.type === "manga" ? "MANGA" : "ANIME";
-    const lbl = item.type === "manga" ? "Cap." : "Ep.";
-    const borderLeft = item.hasUnread
-      ? `border-left: 2.5px solid ${acColor};`
-      : "";
-
-    // Estado del cap
-    let statusHtml = "";
-    let rightTimeHtml = "";
-
-    if(item.isUpToDate && item.publishing){
-      statusHtml = `<span style="color:var(--t3);font-size:11px;">${lbl} ${item.total} — al día ✓</span>`;
-      rightTimeHtml = `<div style="font-size:9px;color:var(--t3);">Al día</div>`;
-    } else if(item.hasUnread){
-      statusHtml = `<span style="color:var(--t1);font-size:11px;">${lbl} ${item.nextCap} disponible</span>`;
-      rightTimeHtml = `
-        <div style="font-size:10px;font-weight:700;color:#34d399;">${item.updatedRecently ? _v34TimeAgo(item.lastUpdated) : "Disponible"}</div>
-      `;
-    } else if(item.publishing && !item.isUpToDate){
-      statusHtml = `<span style="color:var(--t2);font-size:11px;">${lbl} ${item.nextCap} — próximamente</span>`;
-      rightTimeHtml = `<div style="font-size:10px;font-weight:700;color:#fbbf24;">En emisión</div>`;
-    } else {
-      statusHtml = `<span style="color:var(--t3);font-size:11px;">${lbl} ${item.nextCap !== null ? item.nextCap : item.total}</span>`;
-      rightTimeHtml = `<div style="font-size:9px;color:var(--t3);">${_v34TimeAgo(item.lastUpdated)}</div>`;
-    }
-
-    // Cover thumbnail
-    const coverHtml = item.cover
-      ? `<img class="v34-cover" src="${item.cover}" style="width:34px;height:46px;border-radius:6px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`
-      : `<div class="v34-cover" style="width:34px;height:46px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;font-style:italic;background:${item.type==="manga"?"rgba(167,139,250,.12)":"rgba(52,211,153,.1)"};color:${acColor};">${item.title.charAt(0)}</div>`;
-
-    // Unread dot
-    const unreadDot = item.hasUnread
-      ? `<div style="width:6px;height:6px;border-radius:50%;background:#6377ed;flex-shrink:0;"></div>`
-      : `<div style="width:6px;height:6px;flex-shrink:0;"></div>`;
-
-    el.style.cssText = `
-      display:flex; align-items:center; gap:10px;
-      padding:9px 14px;
-      ${idx < items.length - 1 ? "border-bottom:1px solid rgba(255,255,255,.04);" : ""}
-      ${borderLeft}
-      cursor:pointer;
-      transition: background .12s;
-    `;
-    el.onmouseover = () => el.style.background = "rgba(255,255,255,.025)";
-    el.onmouseout  = () => el.style.background = "transparent";
-
-    // Al hacer click: ir a la serie
-    el.onclick = () => {
-      if(typeof tab !== "undefined" && typeof expanded !== "undefined" && typeof render === "function"){
-        tab = item.type;
-        expanded[item.id] = true;
-        pinnedId = item.id;
-        viewMode = "list";
-        render();
-        setTimeout(()=>{
-          const el2 = document.querySelector(`[data-id="${item.id}"]`);
-          if(el2) el2.scrollIntoView({behavior:"smooth", block:"center"});
-        }, 200);
-      }
-    };
-
-    el.innerHTML = `
-      ${coverHtml}
-      <div class="v34-info" style="flex:1;min-width:0;">
-        <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px;">
-          <span style="font-size:8px;font-weight:700;letter-spacing:.06em;padding:1px 5px;border-radius:20px;
-            background:${item.type==="manga"?"rgba(167,139,250,.15)":"rgba(52,211,153,.1)"};
-            color:${acColor};">${typeLabel}</span>
-        </div>
-        <div style="font-size:12px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1px;">${item.title}</div>
-        <div class="v34-status">${statusHtml}</div>
-      </div>
-      <div class="v34-right" style="text-align:right;flex-shrink:0;">
-        ${rightTimeHtml}
-      </div>
-      ${unreadDot}
-    `;
-
-    row.appendChild(el);
-  });
-
-  sec.appendChild(row);
-
-  // Hint de scroll para mobile
-  const hint = document.createElement("div");
-  hint.id = "v34-hint";
-  hint.style.cssText = "display:none;text-align:center;font-size:9px;color:var(--t3);padding:2px 0 8px;letter-spacing:.05em;";
-  hint.textContent = "← desliza para ver más →";
-  sec.appendChild(hint);
-
-  root.appendChild(sec);
-}
-
-
-// ── v3.4: FECHA DE ESTRENO DEL PRÓXIMO CAP en el panel expandido ────────
-// Busca vía Jikan la fecha del episodio/cap que el usuario tiene pendiente.
-// Se inyecta como nueva sección "dsec" dentro del cpnl (panel expandido).
-
-// Cache en memoria para no re-fetchear en cada render
-const _v34AirDateCache = new Map(); // key: `${jikanId}-${type}-${epNum}` → {date, title}
-
-async function _v34FetchEpAirDate(jikanId, type, epNum){
-  if(!jikanId || !epNum) return null;
-  const cacheKey = `${jikanId}-${type}-${epNum}`;
-  if(_v34AirDateCache.has(cacheKey)) return _v34AirDateCache.get(cacheKey);
-
-  try{
-    const endpoint = type === "manga" ? "manga" : "anime";
-    const field    = type === "manga" ? "chapters" : "episodes";
-
-    // Calcular la página: Jikan pagina de a 100
-    const page = Math.ceil(epNum / 100);
-    const url  = `https://api.jikan.moe/v4/${endpoint}/${jikanId}/${field}?page=${page}`;
-
-    const res = await _jikanFetch(url, 8000, 1);
-    if(!res || !Array.isArray(res.data)) return null;
-
-    const entry = res.data.find(e => {
-      // Para anime: campo episode (número); para manga: campo chapter (string)
-      const num = type === "anime"
-        ? (e.mal_id || e.episode_id || e.episode)
-        : parseFloat(e.chapter || e.chapters || "0");
-      return Math.floor(Number(num)) === epNum;
-    });
-
-    if(!entry) return null;
-
-    const airedFrom = type === "anime"
-      ? (entry.aired?.from || entry.air_date || null)
-      : (entry.published?.from || null);
-
-    const result = {
-      date:  airedFrom ? new Date(airedFrom) : null,
-      title: entry.title || entry.name || null,
-    };
-
-    _v34AirDateCache.set(cacheKey, result);
-    return result;
-  }catch(e){ return null; }
-}
-
-// Formatea la fecha y genera el HTML del badge de estado
-function _v34FormatAirBadge(date){
-  if(!date) return { label:"Sin datos", color:"rgba(255,255,255,.15)", textColor:"var(--t3)", icon:"❓" };
-
-  const now = new Date();
-  const diffMs = date.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffMs / 86400000);
-
-  if(diffDays <= 0){
-    // Ya estrenó
-    const daysAgo = Math.abs(Math.floor(diffMs / 86400000));
-    const label = daysAgo === 0 ? "Hoy" : daysAgo === 1 ? "Ayer" : `Hace ${daysAgo}d`;
-    return { label:"✓ Disponible · "+label, color:"rgba(52,211,153,.15)", textColor:"#34d399", icon:"📡" };
-  } else if(diffDays <= 7){
-    return { label:`⏳ En ${diffDays} día${diffDays===1?"":"s"}`, color:"rgba(251,191,36,.12)", textColor:"#fbbf24", icon:"🗓" };
-  } else {
-    return { label:`📅 ${date.toLocaleDateString("es-CL",{day:"numeric",month:"short",year:"numeric"})}`, color:"rgba(99,119,237,.1)", textColor:"#a5b4fc", icon:"📅" };
-  }
-}
-
-// Inyecta la sección de fecha en el panel expandido de una serie
-// Se llama DESPUÉS del render síncrono; actualiza el DOM con un await
-async function v34InjectAirDateSection(seriesId, jikanId, type, nextCap){
-  const containerId = `v34-air-${seriesId}`;
-  const container = document.getElementById(containerId);
-  if(!container) return;
-
-  // Mostrar skeleton mientras carga
-  container.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;">
-      <div style="width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.06);flex-shrink:0;"></div>
-      <div style="flex:1;">
-        <div style="height:8px;width:60%;background:rgba(255,255,255,.06);border-radius:4px;margin-bottom:5px;"></div>
-        <div style="height:10px;width:40%;background:rgba(255,255,255,.04);border-radius:4px;"></div>
-      </div>
-    </div>
-  `;
-
-  const info = await _v34FetchEpAirDate(jikanId, type, nextCap);
-  // Verificar que el container siga en el DOM (el usuario puede haber cerrado el card)
-  const liveContainer = document.getElementById(containerId);
-  if(!liveContainer) return;
-
-  const lbl = type === "manga" ? "Cap." : "Ep.";
-  const badge = _v34FormatAirBadge(info ? info.date : null);
-  const dateStr = info && info.date
-    ? info.date.toLocaleDateString("es-CL",{weekday:"short",day:"numeric",month:"short",year:"numeric"})
-    : null;
-
-  liveContainer.innerHTML = `
-    <div style="
-      margin:0 0 8px;
-      background:linear-gradient(135deg, rgba(99,119,237,.08) 0%, rgba(52,211,153,.04) 100%);
-      border:1px solid rgba(99,119,237,.2);
-      border-radius:9px;
-      padding:11px 13px;
-      position:relative;
-      overflow:hidden;
-    ">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
-        <span style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6377ed;">📅 Próximo por marcar</span>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${badge.color};color:${badge.textColor};">${badge.label}</span>
-      </div>
-      <div style="display:flex;align-items:baseline;gap:7px;margin-bottom:6px;">
-        <span style="font-size:20px;font-weight:800;color:var(--t1);font-family:'Space Mono',monospace;letter-spacing:-.02em;">${lbl} ${nextCap}</span>
-        ${info && info.title ? `<span style="font-size:11px;color:var(--t2);font-style:italic;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">"${info.title}"</span>` : ""}
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--t2);">
-          <span style="color:var(--t3);">${badge.icon}</span>
-          ${dateStr
-            ? `<span>Estrenó</span><span style="font-weight:600;color:var(--t1);">${dateStr}</span>`
-            : `<span style="color:var(--t3);">Fecha no disponible en Jikan</span>`
-          }
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-// ── v3.4: Notas del parche para el historial ───────────────────────────
-const _V34_PATCH_NOTES = `<div class="patch-version"><div class="patch-ver-tag">Parche v3.4 — 2026-05</div><ul class="patch-ver-items"><li>📰 <b>Panel de novedades en el inicio</b> — nuevo recuadro "Novedades de tu lista" justo encima de "Continuar leyendo"; muestra los caps/eps nuevos disponibles de tus series en emisión, con indicador de tiempo relativo (hace Xh, ayer, etc.), dot verde pulsante en tiempo real, y badge de conteo de no leídos; al hacer clic va directo al card expandido de la serie</li><li>📱 <b>Adaptación mobile del panel</b> — en pantallas ≤640px el panel de novedades se convierte en un carrusel horizontal deslizable de chips compactos, con franja de color superior por tipo (morado manga / verde anime) y hint de scroll; diseño idéntico al mockup aprobado</li><li>📅 <b>Fecha de estreno del próximo cap en el card</b> — al expandir cualquier serie en progreso con jikanId, aparece un recuadro "Próximo por marcar" con el número del cap/ep pendiente, su título si está disponible, la fecha exacta de estreno obtenida desde Jikan API, y un badge de estado: verde (Disponible · hace Xd), ámbar (En N días), azul (fecha futura), gris (sin datos); la carga es asíncrona y no bloquea el render de la tarjeta</li><li>⚡ <b>Cache de fechas en memoria</b> — las fechas de estreno se cachean por sesión en un Map (clave: jikanId-tipo-capNum); no se re-fetchea Jikan al abrir y cerrar el mismo card repetidamente; respeta el rate limit existente de la app</li></ul></div>`;
-
-// ── v3.4: PATCH A p28RenderContinueRow ────────────────────────────────
-// Envolver el render original de "Continuar leyendo" para inyectar el
-// panel de noticias ANTES que aparezca la sección existente.
-// Usamos el mismo patrón de wrapping que usa p28 con _p28_origRender.
 (function(){
-  // Solo parchear una vez (guard)
   if(window._v34Patched) return;
   window._v34Patched = true;
 
-  // ── 1. Parchear p28RenderContinueRow para añadir el panel ANTES ──────
-  const _origContinue = p28RenderContinueRow;
-  window.p28RenderContinueRow = function(root){
-    v34RenderNewsPanel(root);  // ← Panel de noticias ANTES de continuar leyendo
-    _origContinue(root);
-  };
-
-  // ── 2. Parchear render para inyectar la sección de fecha en cada
-  //       card expandido DESPUÉS del render síncrono ───────────────────
-  const _origRender = window.render;
-  window.render = function(){
-    _origRender();
-    // Post-render async: buscar todos los placeholders de fecha inyectados
-    // por el render síncrono y rellenarlos con datos de Jikan
-    requestAnimationFrame(()=>{
-      document.querySelectorAll("[data-v34-air]").forEach(el => {
-        const sid    = el.dataset.seriesId;
-        const jid    = parseInt(el.dataset.jikanId);
-        const type   = el.dataset.type;
-        const nextCap= parseInt(el.dataset.nextCap);
-        if(sid && jid && type && nextCap){
-          v34InjectAirDateSection(sid, jid, type, nextCap);
-        }
-      });
-    });
-  };
-
-  // ── 3. Parchear el render del expanded panel para añadir el
-  //       placeholder de fecha dentro de cpnl ─────────────────────────
-  // Usamos MutationObserver porque el cpnl se crea dinámicamente
-  // dentro de render() via innerHTML; es más robusto que tocar la
-  // cadena de texto directamente.
-  const _observer = new MutationObserver(mutations => {
-    mutations.forEach(mut => {
-      mut.addedNodes.forEach(node => {
-        if(!(node instanceof Element)) return;
-        // Buscar cpnl recién añadidos
-        const cpnls = node.classList.contains("cpnl")
-          ? [node]
-          : [...node.querySelectorAll(".cpnl")];
-
-        cpnls.forEach(cpnl => {
-          // Encontrar la scard padre para obtener el data-id
-          const scard = cpnl.closest(".scard");
-          if(!scard) return;
-          const sid = scard.getAttribute("data-id");
-          if(!sid) return;
-
-          // Buscar la serie en data
-          let series = null;
-          let seriesType = null;
-          for(const t of ["manga","anime"]){
-            const found = data[t].find(s => s.id === sid);
-            if(found){ series = found; seriesType = t; break; }
-          }
-          if(!series || !series.jikanId) return;
-
-          const nc = (typeof nextChapter === "function") ? nextChapter(series) : null;
-          if(nc === null) return; // serie al día o sin progreso: no mostrar
-
-          // Verificar que no lo hayamos inyectado ya
-          if(cpnl.querySelector("#v34-air-"+sid)) return;
-
-          // Crear contenedor placeholder; se rellenará de forma async
-          const placeholder = document.createElement("div");
-          placeholder.id = `v34-air-${sid}`;
-          placeholder.setAttribute("data-v34-air","1");
-          placeholder.setAttribute("data-series-id", sid);
-          placeholder.setAttribute("data-jikan-id", String(series.jikanId));
-          placeholder.setAttribute("data-type", seriesType);
-          placeholder.setAttribute("data-next-cap", String(nc));
-          placeholder.style.cssText = "padding:0 0 2px 0;";
-
-          // Insertar ANTES de la primera sección dsec (Estado)
-          const firstDsec = cpnl.querySelector(".dsec");
-          if(firstDsec){
-            cpnl.insertBefore(placeholder, firstDsec);
-          } else {
-            cpnl.prepend(placeholder);
-          }
-
-          // Cargar datos de fecha async
-          v34InjectAirDateSection(sid, series.jikanId, seriesType, nc);
-        });
-      });
-    });
-  });
-
-  _observer.observe(document.getElementById("app") || document.body, {
-    childList: true,
-    subtree: true,
-  });
-
-  // ── 4. Añadir las notas de este parche al historial existente ────────
-  if(typeof P28_PATCH_NOTES !== "undefined"){
-    // Insertar al inicio del string de patch notes
-    window.P28_PATCH_NOTES = _V34_PATCH_NOTES + P28_PATCH_NOTES;
+  // ── CSS ────────────────────────────────────────────────────────────
+  const style = document.createElement("style");
+  style.id = "mangu-patch-v34-css";
+  style.textContent = `
+/* ── LAYOUT DOS COLUMNAS desktop ── */
+#v34-page-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 16px;
+  align-items: start;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 12px;
+}
+#v34-news-col {
+  position: sticky;
+  top: 12px;
+}
+#v34-main-col {
+  min-width: 0;
+}
+@media (max-width: 820px) {
+  #v34-page-layout {
+    grid-template-columns: 1fr;
+    padding: 0;
   }
+  #v34-news-col {
+    position: static;
+  }
+}
 
-  // ── 5. CSS del parche (desktop + mobile) ─────────────────────────────
-  if(!document.getElementById("mangu-patch-v34-css")){
-    const style = document.createElement("style");
-    style.id = "mangu-patch-v34-css";
-    style.textContent = `
-
-/* ═══════════════════════════════════
-   MANGU v3.4 — Panel de noticias
-   ═══════════════════════════════════ */
-
+/* ── Panel novedades ── */
 #v34-news-panel {
-  animation: v34FadeIn .25s ease;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 14px;
+  overflow: hidden;
+  font-family: 'Outfit', sans-serif;
 }
-@keyframes v34FadeIn {
-  from { opacity:0; transform:translateY(6px); }
-  to   { opacity:1; transform:translateY(0); }
+#v34-news-panel .v34-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 13px 9px;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  background: linear-gradient(90deg,rgba(99,119,237,.07) 0%,transparent 70%);
 }
-
-/* ── Hover en items desktop ── */
-#v34-news-panel .v34-news-item {
+#v34-news-panel .v34-hdr-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+#v34-news-panel .v34-live-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #34d399;
+  animation: v34pulse 2s infinite;
+  flex-shrink: 0;
+}
+@keyframes v34pulse {
+  0%,100% { box-shadow: 0 0 0 3px rgba(52,211,153,.15); }
+  50%      { box-shadow: 0 0 0 5px rgba(52,211,153,.05); }
+}
+#v34-news-panel .v34-hdr-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--t1);
+  letter-spacing: .01em;
+}
+#v34-news-panel .v34-new-badge {
+  font-size: 9px; font-weight: 700;
+  background: rgba(52,211,153,.15);
+  color: #34d399;
+  border: 1px solid rgba(52,211,153,.3);
+  border-radius: 20px;
+  padding: 1px 7px;
+}
+#v34-news-panel .v34-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  cursor: pointer;
   transition: background .12s;
 }
+#v34-news-panel .v34-item:last-child { border-bottom: none; }
+#v34-news-panel .v34-item:hover { background: rgba(255,255,255,.03); }
+#v34-news-panel .v34-item.v34-unread {
+  border-left: 2px solid;
+}
+#v34-news-panel .v34-cover {
+  width: 32px; height: 44px;
+  border-radius: 5px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+#v34-news-panel .v34-cover-ph {
+  width: 32px; height: 44px;
+  border-radius: 5px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; font-style: italic;
+}
+#v34-news-panel .v34-info { flex: 1; min-width: 0; }
+#v34-news-panel .v34-type-pill {
+  font-size: 8px; font-weight: 700;
+  letter-spacing: .06em;
+  padding: 1px 5px; border-radius: 20px;
+  display: inline-block; margin-bottom: 2px;
+}
+#v34-news-panel .v34-title {
+  font-size: 11px; font-weight: 600;
+  color: var(--t1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 1px;
+}
+#v34-news-panel .v34-sub {
+  font-size: 10px;
+  color: var(--t2);
+}
+#v34-news-panel .v34-right {
+  text-align: right; flex-shrink: 0;
+}
+#v34-news-panel .v34-when {
+  font-size: 10px; font-weight: 700;
+  margin-bottom: 1px;
+}
+#v34-news-panel .v34-dot-unread {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #6377ed;
+  flex-shrink: 0;
+}
 
-/* ── Mobile: chips horizontales ── */
-@media (max-width: 640px) {
+/* ── Mobile: carrusel horizontal ── */
+@media (max-width: 820px) {
   #v34-news-panel {
     margin: 0 0 12px 0;
+    border-radius: 12px;
   }
-  #v34-news-row {
+  #v34-news-list {
     display: flex !important;
     flex-direction: row !important;
     overflow-x: auto;
     gap: 8px;
-    padding: 10px 12px 6px !important;
+    padding: 10px 12px 8px !important;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
   }
-  #v34-news-row::-webkit-scrollbar { display: none; }
-
-  #v34-news-panel .v34-news-item {
-    min-width: 152px !important;
-    max-width: 152px !important;
-    flex-direction: column !important;
-    padding: 10px !important;
-    border-radius: 10px !important;
+  #v34-news-list::-webkit-scrollbar { display: none; }
+  #v34-news-panel .v34-item {
+    min-width: 148px; max-width: 148px;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 9px 10px;
+    border-radius: 9px;
     border: 1px solid rgba(255,255,255,.07) !important;
-    background: rgba(255,255,255,.025) !important;
-    border-bottom: none !important;
-    gap: 0 !important;
+    border-bottom: 1px solid rgba(255,255,255,.07) !important;
+    border-left: none !important;
+    background: rgba(255,255,255,.025);
+    flex-shrink: 0;
+    gap: 0;
   }
-  #v34-news-panel .v34-news-item:hover {
-    background: rgba(255,255,255,.04) !important;
+  #v34-news-panel .v34-item.v34-unread {
+    border-top: 2px solid !important;
+    border-left: none !important;
   }
-  #v34-news-panel .v34-cover {
-    width: 100% !important;
-    height: 42px !important;
-    border-radius: 6px !important;
-    margin: 0 0 7px 0 !important;
-    object-fit: cover !important;
+  #v34-news-panel .v34-cover,
+  #v34-news-panel .v34-cover-ph {
+    width: 100% !important; height: 40px !important;
+    border-radius: 5px !important;
+    margin-bottom: 7px;
   }
-  #v34-news-panel .v34-right {
-    text-align: left !important;
-    margin-top: 5px !important;
-  }
-  #v34-news-panel .v34-info {
-    padding: 0 !important;
-  }
-
-  /* Hint visible solo en mobile */
-  #v34-hint {
-    display: block !important;
-  }
+  #v34-news-panel .v34-right { text-align: left; margin-top: 4px; }
+  #v34-news-panel .v34-dot-unread { display: none; }
+  #v34-news-hint { display: block !important; }
 }
-
-/* Hint oculto en desktop */
-#v34-hint {
+#v34-news-hint {
   display: none;
+  text-align: center;
+  font-size: 9px;
+  color: var(--t3);
+  padding: 2px 0 8px;
+  letter-spacing: .05em;
 }
 
-/* ═══════════════════════════════════
-   MANGU v3.4 — Sección fecha card
-   ═══════════════════════════════════ */
-
-/* Skeleton pulse */
-@keyframes v34Skel {
-  0%,100%{ opacity:.4; }
-  50%{ opacity:.7; }
+/* ── Recuadro fecha en card expandido ── */
+.v34-airbox {
+  margin: 0 0 10px;
+  background: linear-gradient(135deg,rgba(99,119,237,.09) 0%,rgba(52,211,153,.04) 100%);
+  border: 1px solid rgba(99,119,237,.2);
+  border-radius: 10px;
+  padding: 10px 13px;
 }
-[id^="v34-air-"] > div > div {
-  animation: v34Skel 1.2s ease infinite;
+.v34-airbox-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
 }
+.v34-airbox-lbl {
+  font-size: 9px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: #6377ed;
+}
+.v34-airbox-badge {
+  font-size: 9px; font-weight: 700;
+  padding: 2px 8px; border-radius: 20px;
+}
+.v34-airbox-main {
+  display: flex; align-items: baseline; gap: 7px;
+  margin-bottom: 6px;
+}
+.v34-airbox-num {
+  font-size: 19px; font-weight: 800;
+  color: var(--t1);
+  font-family: 'Space Mono', monospace;
+  letter-spacing: -.02em;
+}
+.v34-airbox-eptitle {
+  font-size: 11px; color: var(--t2);
+  font-style: italic; flex: 1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.v34-airbox-dates {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  font-size: 10px; color: var(--t2);
+}
+.v34-airbox-date-val { font-weight: 600; color: var(--t1); }
+@keyframes v34skel {
+  0%,100%{ opacity:.35; } 50%{ opacity:.6; }
+}
+.v34-skel { animation: v34skel 1.2s ease infinite; }
+  `;
+  document.head.appendChild(style);
 
-    `;
-    document.head.appendChild(style);
+  // ── HELPERS ────────────────────────────────────────────────────────
+  function _timeAgo(ts){
+    if(!ts) return "";
+    const ms = Date.now()-ts, m = Math.floor(ms/60000);
+    if(m<1) return "ahora";
+    if(m<60) return `hace ${m}m`;
+    const h = Math.floor(ms/3600000);
+    if(h<24) return `hace ${h}h`;
+    const d = Math.floor(ms/86400000);
+    if(d===1) return "ayer";
+    if(d<7) return `hace ${d}d`;
+    return new Date(ts).toLocaleDateString("es-CL",{day:"numeric",month:"short"});
   }
 
-  // Trigger re-render para que el panel de noticias aparezca de inmediato
-  if(typeof render === "function") render();
+  // Cache de fechas de Jikan (por sesión)
+  const _airCache = new Map();
+
+  async function _fetchAirDate(jikanId, type, epNum){
+    if(!jikanId||!epNum) return null;
+    const key = `${jikanId}-${type}-${epNum}`;
+    if(_airCache.has(key)) return _airCache.get(key);
+    try{
+      const ep = type==="manga"?"manga":"anime";
+      const field = type==="manga"?"chapters":"episodes";
+      const page = Math.ceil(epNum/100);
+      const res = await _jikanFetch(
+        `https://api.jikan.moe/v4/${ep}/${jikanId}/${field}?page=${page}`,
+        8000, 1
+      );
+      if(!res||!Array.isArray(res.data)) return null;
+      const entry = res.data.find(e=>{
+        const n = type==="anime"
+          ? Number(e.mal_id||e.episode_id||e.episode)
+          : parseFloat(e.chapter||e.chapters||"0");
+        return Math.floor(n)===epNum;
+      });
+      if(!entry){ _airCache.set(key,null); return null; }
+      const from = type==="anime"
+        ? (entry.aired?.from||entry.air_date||null)
+        : (entry.published?.from||null);
+      const result = {
+        date: from ? new Date(from) : null,
+        title: entry.title||entry.name||null
+      };
+      _airCache.set(key, result);
+      return result;
+    }catch(e){ return null; }
+  }
+
+  // Cache de schedule de AniList (próximos episodios de anime en emisión)
+  const _scheduleCache = new Map();
+
+  async function _fetchNextAirDate(jikanId, type){
+    if(!jikanId||type!=="anime") return null;
+    const key = `sched-${jikanId}`;
+    if(_scheduleCache.has(key)) return _scheduleCache.get(key);
+    try{
+      const gql = `{Media(idMal:${jikanId},type:ANIME){nextAiringEpisode{episode airingAt}}}`;
+      const res = await fetch("https://graphql.anilist.co",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({query:gql}),
+        signal: AbortSignal.timeout(5000)
+      });
+      if(!res.ok) return null;
+      const json = await res.json();
+      const nae = json?.data?.Media?.nextAiringEpisode;
+      if(!nae){ _scheduleCache.set(key,null); return null; }
+      const result = {
+        episode: nae.episode,
+        date: new Date(nae.airingAt*1000)
+      };
+      _scheduleCache.set(key, result);
+      return result;
+    }catch(e){ return null; }
+  }
+
+  function _airBadge(date){
+    if(!date) return {label:"Sin datos",bg:"rgba(255,255,255,.08)",color:"var(--t3)"};
+    const diff = Math.ceil((date.getTime()-Date.now())/86400000);
+    if(diff<=0){
+      const ago = Math.abs(Math.floor((date.getTime()-Date.now())/86400000));
+      const when = ago===0?"Hoy":ago===1?"Ayer":`Hace ${ago}d`;
+      return {label:`✓ Disponible · ${when}`, bg:"rgba(52,211,153,.15)", color:"#34d399"};
+    }
+    if(diff<=7) return {label:`⏳ En ${diff} día${diff===1?"":"s"}`, bg:"rgba(251,191,36,.12)", color:"#fbbf24"};
+    return {
+      label: date.toLocaleDateString("es-CL",{day:"numeric",month:"short"}),
+      bg:"rgba(99,119,237,.12)", color:"#a5b4fc"
+    };
+  }
+
+  // ── PANEL DE NOVEDADES ─────────────────────────────────────────────
+  function _buildNewsItems(){
+    const now = Date.now();
+    const items = [];
+    for(const type of ["manga","anime"]){
+      data[type]
+        .filter(s=>s.status==="reading"||s.status==="plan")
+        .forEach(s=>{
+          const nc = (typeof nextChapter==="function") ? nextChapter(s) : null;
+          const isUpToDate = nc===null && s.total>0 && !s.jikanPublishing;
+          // "nuevo" = el total se actualizó hace <48h y hay cap disponible
+          const recentlyUpdated = s.lastUpdated && (now-s.lastUpdated)<48*3600*1000;
+          const hasUnread = nc!==null && recentlyUpdated;
+          items.push({
+            id:s.id, title:s.title, type,
+            total:s.total, completed:s.completed?.length||0,
+            nextCap:nc, isUpToDate,
+            publishing: s.jikanPublishing||false,
+            jikanId: s.jikanId||null,
+            cover: s.cover||"",
+            lastUpdated: s.lastUpdated||0,
+            hasUnread
+          });
+        });
+    }
+    // Orden: no leídos recientes → en emisión → al día → resto
+    items.sort((a,b)=>{
+      if(a.hasUnread!==b.hasUnread) return a.hasUnread?-1:1;
+      if(a.publishing!==b.publishing) return a.publishing?-1:1;
+      return (b.lastUpdated||0)-(a.lastUpdated||0);
+    });
+    return items;
+  }
+
+  function _renderNewsPanel(){
+    const items = _buildNewsItems();
+    if(!items.length) return null;
+
+    const unread = items.filter(i=>i.hasUnread).length;
+    const panel = document.createElement("div");
+    panel.id = "v34-news-panel";
+
+    // Header
+    const hdr = document.createElement("div");
+    hdr.className = "v34-hdr";
+    const dot = document.createElement("div");
+    dot.className = "v34-live-dot";
+    const ttl = document.createElement("span");
+    ttl.className = "v34-hdr-title";
+    ttl.textContent = "Novedades";
+    const left = document.createElement("div");
+    left.className = "v34-hdr-left";
+    left.append(dot, ttl);
+    if(unread>0){
+      const badge = document.createElement("span");
+      badge.className = "v34-new-badge";
+      badge.textContent = `${unread} nuevo${unread>1?"s":""}`;
+      left.appendChild(badge);
+    }
+    hdr.appendChild(left);
+    panel.appendChild(hdr);
+
+    // Lista
+    const list = document.createElement("div");
+    list.id = "v34-news-list";
+
+    items.slice(0,8).forEach(item=>{
+      const ac = item.type==="manga" ? "#a78bfa" : "#34d399";
+      const lbl = item.type==="manga" ? "Cap." : "Ep.";
+      const typeLabel = item.type==="manga" ? "MANGA" : "ANIME";
+
+      // Texto del estado
+      let subText="", whenText="", whenColor="var(--t2)";
+      if(item.hasUnread){
+        subText = `${lbl} ${item.nextCap} disponible`;
+        whenText = _timeAgo(item.lastUpdated);
+        whenColor = "#34d399";
+      } else if(item.nextCap!==null && item.publishing){
+        subText = `${lbl} ${item.nextCap} — próximamente`;
+        whenText = "En emisión";
+        whenColor = "#fbbf24";
+      } else if(item.isUpToDate){
+        subText = `Al día ✓`;
+        whenText = _timeAgo(item.lastUpdated);
+        whenColor = "var(--t3)";
+      } else if(item.nextCap!==null){
+        subText = `${lbl} ${item.nextCap} pendiente`;
+        whenText = _timeAgo(item.lastUpdated);
+      }
+
+      const el = document.createElement("div");
+      el.className = "v34-item" + (item.hasUnread?" v34-unread":"");
+      if(item.hasUnread) el.style.borderLeftColor = ac;
+      // En mobile el borde es top
+      if(item.hasUnread) el.style.borderTopColor = ac;
+
+      // Cover
+      let coverEl;
+      if(item.cover){
+        coverEl = document.createElement("img");
+        coverEl.className = "v34-cover";
+        coverEl.src = item.cover;
+        coverEl.onerror = ()=>{ coverEl.style.display="none"; };
+      } else {
+        coverEl = document.createElement("div");
+        coverEl.className = "v34-cover-ph";
+        coverEl.style.cssText = `background:${item.type==="manga"?"rgba(167,139,250,.12)":"rgba(52,211,153,.1)"};color:${ac};`;
+        coverEl.textContent = item.title.charAt(0);
+      }
+
+      // Info
+      const info = document.createElement("div");
+      info.className = "v34-info";
+      info.innerHTML = `
+        <span class="v34-type-pill" style="background:${item.type==="manga"?"rgba(167,139,250,.15)":"rgba(52,211,153,.1)"};color:${ac};">${typeLabel}</span>
+        <div class="v34-title">${item.title}</div>
+        <div class="v34-sub">${subText}</div>
+      `;
+
+      // Right
+      const right = document.createElement("div");
+      right.className = "v34-right";
+      right.innerHTML = `<div class="v34-when" style="color:${whenColor};">${whenText}</div>`;
+
+      // Dot unread
+      const udot = document.createElement("div");
+      if(item.hasUnread){ udot.className = "v34-dot-unread"; }
+
+      el.append(coverEl, info, right);
+      if(item.hasUnread) el.appendChild(udot);
+
+      // Click → ir a la serie
+      el.onclick = ()=>{
+        if(typeof tab!=="undefined"&&typeof expanded!=="undefined"&&typeof render==="function"){
+          tab = item.type;
+          expanded[item.id] = true;
+          pinnedId = item.id;
+          viewMode = "list";
+          render();
+          setTimeout(()=>{
+            const node = document.querySelector(`[data-id="${item.id}"]`);
+            if(node) node.scrollIntoView({behavior:"smooth",block:"center"});
+          },200);
+        }
+      };
+
+      list.appendChild(el);
+    });
+
+    panel.appendChild(list);
+
+    // Hint mobile
+    const hint = document.createElement("div");
+    hint.id = "v34-news-hint";
+    hint.textContent = "← desliza →";
+    panel.appendChild(hint);
+
+    // Fetch asíncrono de fechas de próximos eps para series en emisión
+    _enrichNewsWithDates(items, list);
+
+    return panel;
+  }
+
+  // Enriquece los items del panel con fechas reales de AniList (anime)
+  async function _enrichNewsWithDates(items, listEl){
+    for(const item of items){
+      if(!item.jikanId||!item.publishing) continue;
+      if(item.type!=="anime") continue; // para manga no hay schedule confiable
+      try{
+        const sched = await _fetchNextAirDate(item.jikanId, item.type);
+        if(!sched) continue;
+        // Encontrar el elemento correspondiente en el DOM
+        const els = listEl.querySelectorAll(".v34-item");
+        // Buscar por title (los items están en el mismo orden)
+        const idx = items.indexOf(item);
+        const el = els[idx];
+        if(!el) continue;
+        const subEl = el.querySelector(".v34-sub");
+        const whenEl = el.querySelector(".v34-when");
+        if(!subEl||!whenEl) continue;
+
+        const lbl = item.type==="manga"?"Cap.":"Ep.";
+        const badge = _airBadge(sched.date);
+        const diffDays = Math.ceil((sched.date.getTime()-Date.now())/86400000);
+
+        if(diffDays>0){
+          subEl.textContent = `${lbl} ${sched.episode} — ${sched.date.toLocaleDateString("es-CL",{day:"numeric",month:"short"})}`;
+          whenEl.textContent = `En ${diffDays}d`;
+          whenEl.style.color = "#fbbf24";
+        } else {
+          subEl.textContent = `${lbl} ${sched.episode} disponible`;
+          whenEl.textContent = "Hoy";
+          whenEl.style.color = "#34d399";
+        }
+      }catch(e){}
+      await new Promise(r=>setTimeout(r,300)); // rate limit
+    }
+  }
+
+  // ── INYECTAR LAYOUT DOS COLUMNAS ──────────────────────────────────
+  // Wrappea el contenido que va después del header/stats/toolbar
+  // en un grid de dos columnas: [novedades | contenido principal]
+  function _wrapLayout(root){
+    // Solo en el tab con Continuar Leyendo (home view)
+    // Buscar la sección continue-section que ya existe
+    const continueSection = root.querySelector(".continue-section");
+    if(!continueSection) return;
+
+    // El "main col" empieza desde continue-section hasta el final
+    // Recolectar todos los nodos desde continue-section en adelante
+    const allChildren = [...root.children];
+    const continueIdx = allChildren.indexOf(continueSection);
+    if(continueIdx < 0) return;
+
+    const mainNodes = allChildren.slice(continueIdx);
+
+    // Crear layout
+    const layout = document.createElement("div");
+    layout.id = "v34-page-layout";
+
+    // Columna izquierda: novedades
+    const newsCol = document.createElement("div");
+    newsCol.id = "v34-news-col";
+    const newsPanel = _renderNewsPanel();
+    if(newsPanel) newsCol.appendChild(newsPanel);
+
+    // Columna derecha: contenido existente
+    const mainCol = document.createElement("div");
+    mainCol.id = "v34-main-col";
+    mainNodes.forEach(n => mainCol.appendChild(n));
+
+    layout.append(newsCol, mainCol);
+    root.appendChild(layout);
+  }
+
+  // ── RECUADRO FECHA EN CARD EXPANDIDO ──────────────────────────────
+  function _injectAirBox(cpnl, series, type){
+    if(cpnl.querySelector(".v34-airbox")) return; // ya inyectado
+    const nc = (typeof nextChapter==="function") ? nextChapter(series) : null;
+    if(nc===null||!series.jikanId) return;
+
+    const lbl = type==="manga"?"Cap.":"Ep.";
+    const box = document.createElement("div");
+    box.className = "v34-airbox";
+    box.innerHTML = `
+      <div class="v34-airbox-hdr">
+        <span class="v34-airbox-lbl">📅 Próximo por marcar</span>
+        <span class="v34-airbox-badge v34-skel" style="background:rgba(255,255,255,.07);color:var(--t3);">cargando...</span>
+      </div>
+      <div class="v34-airbox-main">
+        <span class="v34-airbox-num">${lbl} ${nc}</span>
+        <span class="v34-airbox-eptitle v34-skel" style="color:var(--t3);">buscando información...</span>
+      </div>
+      <div class="v34-airbox-dates">
+        <span class="v34-skel" style="color:var(--t3);font-size:10px;">Consultando Jikan API...</span>
+      </div>
+    `;
+
+    // Insertar ANTES del primer dsec
+    const firstDsec = cpnl.querySelector(".dsec");
+    if(firstDsec) cpnl.insertBefore(box, firstDsec);
+    else cpnl.prepend(box);
+
+    // Fetch async
+    _loadAirBox(box, series.jikanId, type, nc);
+    // Para anime en emisión también buscar el PRÓXIMO no publicado
+    if(type==="anime"&&series.jikanPublishing){
+      _loadScheduleBox(box, series.jikanId, nc);
+    }
+  }
+
+  async function _loadAirBox(box, jikanId, type, epNum){
+    const info = await _fetchAirDate(jikanId, type, epNum);
+    if(!document.body.contains(box)) return;
+
+    const badge = _airBadge(info?.date||null);
+    const dateStr = info?.date
+      ? info.date.toLocaleDateString("es-CL",{weekday:"short",day:"numeric",month:"short",year:"numeric"})
+      : null;
+
+    const badgeEl = box.querySelector(".v34-airbox-badge");
+    const titleEl = box.querySelector(".v34-airbox-eptitle");
+    const datesEl = box.querySelector(".v34-airbox-dates");
+
+    if(badgeEl){
+      badgeEl.textContent = badge.label;
+      badgeEl.style.background = badge.bg;
+      badgeEl.style.color = badge.color;
+      badgeEl.classList.remove("v34-skel");
+    }
+    if(titleEl){
+      titleEl.textContent = info?.title ? `"${info.title}"` : "";
+      titleEl.classList.remove("v34-skel");
+    }
+    if(datesEl){
+      datesEl.classList.remove("v34-skel");
+      datesEl.innerHTML = dateStr
+        ? `<span>📡 Estrenó <span class="v34-airbox-date-val">${dateStr}</span></span>`
+        : `<span style="color:var(--t3)">Fecha no disponible en Jikan</span>`;
+    }
+  }
+
+  async function _loadScheduleBox(box, jikanId, currentEp){
+    // Para el PRÓXIMO episodio aún no publicado (anime en emisión)
+    const sched = await _fetchNextAirDate(jikanId, "anime");
+    if(!sched||!document.body.contains(box)) return;
+    if(sched.episode <= currentEp) return; // ya está disponible, no agregar sección extra
+
+    // Agregar una fila extra debajo con la info del próximo ep
+    const nextBadge = _airBadge(sched.date);
+    const dateStr = sched.date.toLocaleDateString("es-CL",{weekday:"short",day:"numeric",month:"short"});
+    const extra = document.createElement("div");
+    extra.style.cssText = "margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.05);";
+    extra.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);">Próximo ep. a estrenar</span>
+        <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:${nextBadge.bg};color:${nextBadge.color};">${nextBadge.label}</span>
+      </div>
+      <div style="margin-top:5px;font-size:10px;color:var(--t2);">
+        <span>🗓 Ep. ${sched.episode}</span>
+        <span style="color:var(--t3);margin:0 6px;">·</span>
+        <span class="v34-airbox-date-val">${dateStr}</span>
+      </div>
+    `;
+    const datesEl = box.querySelector(".v34-airbox-dates");
+    if(datesEl) datesEl.appendChild(extra);
+  }
+
+  // ── OBSERVER: inyecta airbox al expandir un card ───────────────────
+  const observer = new MutationObserver(muts=>{
+    muts.forEach(mut=>{
+      mut.addedNodes.forEach(node=>{
+        if(!(node instanceof Element)) return;
+        const cpnls = node.classList?.contains("cpnl") ? [node] : [...node.querySelectorAll(".cpnl")];
+        cpnls.forEach(cpnl=>{
+          const scard = cpnl.closest(".scard");
+          if(!scard) return;
+          const sid = scard.getAttribute("data-id");
+          if(!sid) return;
+          let series=null, seriesType=null;
+          for(const t of ["manga","anime"]){
+            const f = data[t].find(s=>s.id===sid);
+            if(f){ series=f; seriesType=t; break; }
+          }
+          if(!series||!series.jikanId) return;
+          _injectAirBox(cpnl, series, seriesType);
+        });
+      });
+    });
+  });
+  observer.observe(document.getElementById("app")||document.body, {childList:true,subtree:true});
+
+  // ── PATCH render ───────────────────────────────────────────────────
+  const _origRender = window.render;
+  window.render = function(){
+    _origRender();
+    // Después del render, envolver en layout 2 columnas
+    const root = document.getElementById("app");
+    if(root) _wrapLayout(root);
+  };
+
+  // ── PATCH NOTES ────────────────────────────────────────────────────
+  const v34notes = `<div class="patch-version"><div class="patch-ver-tag">Parche v3.4 — 2026-05</div><ul class="patch-ver-items"><li>📰 <b>Panel de novedades lateral</b> — columna izquierda fija en desktop (sticky); en mobile se convierte en carrusel horizontal deslizable; muestra caps/eps nuevos disponibles, próximos a estrenar con fecha real (AniList para anime), y series al día</li><li>📅 <b>Fechas de estreno reales</b> — el recuadro "Próximo por marcar" dentro del card expandido consulta Jikan API para obtener la fecha exacta del cap/ep pendiente; para anime en emisión también muestra el próximo episodio a estrenar con countdown en días via AniList</li><li>📱 <b>Layout adaptado mobile</b> — el panel de novedades colapsa a carrusel horizontal en pantallas ≤820px; la columna lateral desaparece y todo vuelve a flujo vertical</li></ul></div>`;
+  if(typeof P28_PATCH_NOTES!=="undefined") window.P28_PATCH_NOTES = v34notes + P28_PATCH_NOTES;
+
+  // Trigger inicial
+  if(typeof render==="function") render();
 
 })();
 // ── FIN PARCHE v3.4 ────────────────────────────────────────────────────
