@@ -615,69 +615,95 @@
   }
 
   // ── BADGE "NUEVO" EN TABS ─────────────────────────────────────────
+  // Fix: solo Manga y Anime tienen .tab-c (el span con el conteo de series).
+  // Perfil, Descubrir e Historial NO tienen .tab-c → no reciben badge.
   function _injectTabBadges(){
+    const now=Date.now();
     const mangaNew=(data.manga||[]).filter(s=>{
       const nc=typeof nextChapter==="function"?nextChapter(s):null;
-      const fresh=s.lastUpdated&&(Date.now()-s.lastUpdated)<48*3600*1000;
-      return nc!==null&&fresh;
+      return nc!==null&&s.lastUpdated&&(now-s.lastUpdated)<48*3600*1000;
     }).length;
     const animeNew=(data.anime||[]).filter(s=>{
       const nc=typeof nextChapter==="function"?nextChapter(s):null;
-      const fresh=s.lastUpdated&&(Date.now()-s.lastUpdated)<48*3600*1000;
-      return nc!==null&&fresh;
+      return nc!==null&&s.lastUpdated&&(now-s.lastUpdated)<48*3600*1000;
     }).length;
-
-    // Buscar tabs por texto
-    document.querySelectorAll(".tab, button.tab, [class*='tab']").forEach(btn=>{
+    document.querySelectorAll("button.tab").forEach(btn=>{
+      btn.querySelectorAll(".v34-tab-badge").forEach(b=>b.remove());
+      if(!btn.querySelector(".tab-c")) return; // solo Manga y Anime tienen .tab-c
       const txt=btn.textContent||"";
-      if(txt.includes("Manga")&&mangaNew>0&&!btn.querySelector(".v34-tab-badge")){
-        const b=document.createElement("span"); b.className="v34-tab-badge"; b.textContent=mangaNew;
-        btn.appendChild(b);
-      }
-      if((txt.includes("Anime"))&&animeNew>0&&!btn.querySelector(".v34-tab-badge")){
-        const b=document.createElement("span"); b.className="v34-tab-badge"; b.textContent=animeNew;
+      const count=txt.includes("Manga")?mangaNew:txt.includes("Anime")?animeNew:0;
+      if(count>0){
+        const b=document.createElement("span"); b.className="v34-tab-badge"; b.textContent=count;
         btn.appendChild(b);
       }
     });
   }
 
-  // ── INDICADOR EN CATÁLOGO ─────────────────────────────────────────
-  // Construye set de IDs con cap nuevo para lookup O(1)
+  // ── INDICADORES DE NOVEDAD ────────────────────────────────────────
+  // Construye mapa título→id para lookup rápido (evita iterar data[] por cada card)
   function _buildNewSet(){
     const newIds=new Set();
     const now=Date.now();
     for(const t of ["manga","anime"]){
       (data[t]||[]).forEach(s=>{
         const nc=typeof nextChapter==="function"?nextChapter(s):null;
-        const fresh=s.lastUpdated&&(now-s.lastUpdated)<48*3600*1000;
-        if(nc!==null&&fresh) newIds.add(s.id);
+        if(nc!==null&&s.lastUpdated&&(now-s.lastUpdated)<48*3600*1000) newIds.add(s.id);
       });
     }
     return newIds;
   }
 
-  function _injectCatalogIndicators(newIds){
+  // Mapa título→{id,type} para matchear cards por texto sin iterar todo data[]
+  function _buildTitleMap(){
+    const m=new Map();
+    for(const t of ["manga","anime"]) (data[t]||[]).forEach(s=>m.set(s.title,{id:s.id,type:t}));
+    return m;
+  }
+
+  // Vista CATÁLOGO (.catc): dot pulsante + franja superior
+  function _injectCatalogIndicators(newIds, titleMap){
     if(newIds.size===0) return;
     document.querySelectorAll(".catc").forEach(card=>{
       if(card.querySelector(".v34-cat-new-dot")) return;
-      // Buscar qué serie es esta card — el onclick tiene pinnedId
-      // Buscamos por la imagen src o el título para matchear
-      const titleEl=card.querySelector(".catt");
-      const title=titleEl?.textContent||"";
-      // Buscar en data por título
-      let found=null;
-      for(const t of ["manga","anime"]){
-        const s=(data[t]||[]).find(s=>s.title===title);
-        if(s){found=s;break;}
-      }
-      if(!found||!newIds.has(found.id)) return;
-      // Inyectar dot y franja
-      const wrap=card.querySelector("div");
-      if(!wrap) return;
+      const title=card.querySelector(".catt")?.textContent||"";
+      const entry=titleMap.get(title);
+      if(!entry||!newIds.has(entry.id)) return;
+      const wrap=card.querySelector("div"); if(!wrap) return;
       const dot=document.createElement("div"); dot.className="v34-cat-new-dot";
       const stripe=document.createElement("div"); stripe.className="v34-cat-new-stripe";
       wrap.appendChild(dot);
       wrap.insertBefore(stripe,wrap.firstChild);
+      // Badge "NUEVO" sobre la portada (esquina inferior izquierda)
+      const badge=document.createElement("div");
+      badge.style.cssText="position:absolute;bottom:26px;left:0;right:0;display:flex;justify-content:center;z-index:4;";
+      badge.innerHTML=`<span style="font-size:8px;font-weight:800;letter-spacing:.06em;background:linear-gradient(90deg,#34d399,#6377ed);color:#fff;padding:2px 8px;border-radius:20px;box-shadow:0 2px 8px rgba(52,211,153,.4);">NUEVO</span>`;
+      wrap.appendChild(badge);
+    });
+  }
+
+  // Vista LISTA (.scard): franja verde izquierda + badge inline en el título
+  function _injectListIndicators(newIds, titleMap){
+    if(newIds.size===0) return;
+    document.querySelectorAll(".scard").forEach(card=>{
+      if(card.querySelector(".v34-list-new-bar")) return;
+      const sid=card.getAttribute("data-id"); if(!sid) return;
+      let found=false;
+      for(const t of ["manga","anime"]){if((data[t]||[]).some(s=>s.id===sid&&newIds.has(sid))){found=true;break;}}
+      if(!found) return;
+      // Franja izquierda verde (borde del scard completo)
+      card.style.borderLeft="2.5px solid #34d399";
+      card.style.borderRadius="10px";
+      const bar=document.createElement("div"); bar.className="v34-list-new-bar";
+      bar.style.display="none"; // solo marker para evitar re-inyección
+      card.appendChild(bar);
+      // Badge "NUEVO" junto al título
+      const titEl=card.querySelector(".stit");
+      if(titEl&&!titEl.querySelector(".v34-list-badge")){
+        const b=document.createElement("span"); b.className="v34-list-badge";
+        b.style.cssText="font-size:8px;font-weight:800;letter-spacing:.05em;background:linear-gradient(90deg,#34d399,#6377ed);color:#fff;padding:1px 7px;border-radius:20px;margin-left:6px;vertical-align:middle;display:inline-block;";
+        b.textContent="NUEVO";
+        titEl.appendChild(b);
+      }
     });
   }
 
@@ -746,7 +772,7 @@
   // ── NOTA DEL PARCHE v3.4 ──────────────────────────────────────────
   // P28_PATCH_NOTES es const en ui.js, no alcanzable via window.
   // Usamos MutationObserver sobre el body para detectar .patch-panel
-  const V34_HTML=`<div class="patch-version v34-injected"><div class="patch-ver-tag">Parche v3.4 — 2026-05</div><ul class="patch-ver-items"><li>📰 <b>Panel de novedades lateral (desktop)</b> — columna fija a la izquierda del #app con position:fixed; se muestra solo cuando hay espacio disponible (mide getBoundingClientRect); incluye sección "Esta semana" con próximos estrenos de series al día en emisión con fechas reales de AniList</li><li>📱 <b>Carrusel mobile de novedades</b> — banner horizontal scrolleable inline antes de "Continuar leyendo"; chips de 145px con franja de color por tipo (morado manga / verde anime), countdown de días, dot azul para no leídos; incluye series al día en emisión con fecha de próximo estreno</li><li>🟢 <b>Indicador visual en catálogo</b> — punto verde pulsante y franja de gradiente en cards del catálogo cuando hay un cap/ep nuevo disponible (actualizado en las últimas 48h)</li><li>🔴 <b>Badge "nuevo" en tabs</b> — número de series con novedades sobre la tab Manga o Anime correspondiente, desaparece al no haber caps nuevos recientes</li><li>💀 <b>Skeleton loading en Continuar Leyendo</b> — placeholders animados con efecto shimmer mientras cargan las portadas del carrusel horizontal</li><li>📅 <b>Fechas de estreno en card expandido</b> — recuadro colapsable "Próximo por marcar" (se expande al tocar en mobile, abierto por defecto en desktop); fecha exacta de estreno desde Jikan API; para anime en emisión muestra además la fecha del próximo episodio via AniList GraphQL nextAiringEpisode</li><li>⚡ <b>Cache de fechas por sesión</b> — fechas de Jikan y schedules de AniList cacheados en memoria; no re-fetchea al abrir/cerrar el mismo card; respeta rate limit de Jikan (3 req/s)</li></ul></div>`;
+  const V34_HTML=`<div class="patch-version v34-injected"><div class="patch-ver-tag">Parche v3.4 — 2026-05</div><ul class="patch-ver-items"><li>📰 <b>Panel de novedades lateral (desktop)</b> — columna fija a la izquierda del #app con position:fixed; se muestra solo cuando hay espacio disponible (mide getBoundingClientRect); incluye sección "Esta semana" con próximos estrenos de series al día en emisión con fechas reales de AniList</li><li>📱 <b>Carrusel mobile de novedades</b> — banner horizontal scrolleable inline antes de "Continuar leyendo"; chips de 145px con franja de color por tipo (morado manga / verde anime), countdown de días, dot azul para no leídos; incluye series al día en emisión con fecha de próximo estreno</li><li>🟢 <b>Indicador visual de novedades en vista catálogo</b> — dot verde pulsante, franja de gradiente superior y badge "NUEVO" sobre la portada de cards con cap/ep disponible en las últimas 48h</li><li>📋 <b>Indicador visual de novedades en vista lista</b> — franja izquierda verde y badge "NUEVO" inline junto al título de la serie en el card de lista; visible sin necesidad de expandir la tarjeta</li><li>🔴 <b>Fix badge "nuevo" en tabs</b> — corregido bug donde el badge aparecía en Perfil, Descubrir e Historial; ahora solo se muestra en los tabs Manga y Anime (identificados por presencia de .tab-c); se limpia y recalcula en cada render</li><li>💀 <b>Skeleton loading en Continuar Leyendo</b> — placeholders animados con efecto shimmer mientras cargan las portadas del carrusel horizontal</li><li>📅 <b>Fechas de estreno en card expandido (colapsable)</b> — recuadro "Próximo por marcar" colapsable en mobile (expandido por defecto en desktop); fecha exacta desde Jikan API; para anime en emisión muestra además el próximo episodio a estrenar via AniList GraphQL nextAiringEpisode con countdown en días</li><li>⚡ <b>Cache de fechas por sesión</b> — fechas de Jikan y schedules de AniList cacheados en objetos JS en memoria; no re-fetchea al abrir/cerrar el mismo card; respeta rate limit de Jikan</li></ul></div>`;
 
   function _injectPatchNote(){
     const pp=document.querySelector(".patch-panel");
@@ -815,10 +841,12 @@
     // 5. Badges en tabs
     requestAnimationFrame(_injectTabBadges);
 
-    // 6. Indicadores en catálogo
+    // 6. Indicadores en catálogo y vista lista
     requestAnimationFrame(()=>{
       const newIds=_buildNewSet();
-      _injectCatalogIndicators(newIds);
+      const titleMap=_buildTitleMap();
+      _injectCatalogIndicators(newIds, titleMap);
+      _injectListIndicators(newIds, titleMap);
     });
 
     // 7. Nota del parche (por si ya está visible)
