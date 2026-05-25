@@ -473,31 +473,49 @@
     body.innerHTML=html;
   };
 
-  // ── MUTATION OBSERVER — detecta .fn-profile en el DOM ─────────────
-  // community.js usa container.innerHTML=`...` que dispara childList.
-  // Observamos sobre document.body con subtree:true para capturar
-  // tanto el container como su contenido en cualquier momento.
-  const _obs = new MutationObserver(muts=>{
-    muts.forEach(m=>{
-      m.addedNodes.forEach(node=>{
-        if(!(node instanceof Element)) return;
-        // Buscar .fn-profile dentro del nodo añadido o el nodo mismo
-        const fp=node.classList?.contains("fn-profile")?node:node.querySelector?.(".fn-profile");
+
+
+  // ── OBSERVER: detecta .fn-profile en #friends-panel-container ─────
+  // community.js hace container.innerHTML = `...<div class="fn-profile">...`
+  // Esto dispara childList en el CONTAINER, no en el body.
+  // Doble estrategia: observer sobre el container + wrap de renderFriendsPanel.
+  function _startObs(){
+    const c=document.getElementById("friends-panel-container");
+    if(!c){ setTimeout(_startObs,300); return; }
+    new MutationObserver(()=>{
+      const fp=c.querySelector(".fn-profile");
+      if(fp&&!fp.dataset.v35) _rebuildProfile(fp);
+    }).observe(c,{childList:true,subtree:false});
+  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",_startObs);
+  else _startObs();
+
+  // Wrap de renderFriendsPanel como segunda red de seguridad
+  if(typeof window.renderFriendsPanel==="function"){
+    const _oRFP=window.renderFriendsPanel;
+    window.renderFriendsPanel=async function(){
+      await _oRFP.apply(this,arguments);
+      setTimeout(()=>{
+        const fp=document.querySelector("#friends-panel-container .fn-profile");
         if(fp&&!fp.dataset.v35) _rebuildProfile(fp);
-      });
-    });
-  });
-  _obs.observe(document.body,{childList:true,subtree:true});
+      },60);
+    };
+  }
 
   // ── PATCH NOTES v3.5 ───────────────────────────────────────────────
   const V35=`<div class="patch-version v35-injected"><div class="patch-ver-tag">Parche v3.5 — 2026-05</div><ul class="patch-ver-items"><li>🎨 <b>Rediseño perfil de amigo</b> — banner 200px con overlay dramático, nuevo layout de avatar solapado sobre el banner, sin modificar community.js (MutationObserver reemplaza el DOM post-render)</li><li>🏅 <b>Sistema de rango</b> — badge junto al @username por caps totales: 📜 Lector → ⚔️ Katana → 🐉 Ryuu → ⚡ Kami → 💀 Shinigami (5000+)</li><li>📊 <b>Stats enriquecidas</b> — caps, eps, tiempo estimado (8min/cap · 23min/ep) y completados; reemplaza el grid genérico anterior</li><li>🎯 <b>Compatibilidad rediseñada</b> — emoji grande, barra animada y chips de tags en común</li><li>🤝 <b>Series en común mejoradas</b> — chips con punto de color indicando manga (morado) o anime (verde)</li><li>🖼 <b>Tab "Portadas"</b> — mini-grid 3×2 con portadas de las series en progreso; placeholder con gradiente único por título</li><li>📚 <b>Portadas en todas las listas</b> — thumbnails 36×50px en En progreso, Completados y Pausados</li><li>🗂 <b>Tabs: En progreso / Portadas / Completados / Pausados</b> — con sub-tabs Manga/Anime dentro de "En progreso"</li></ul></div>`;
   function _injectV35(){
     const pp=document.querySelector(".patch-panel");
     if(!pp||pp.querySelector(".v35-injected")) return;
-    const ref=pp.querySelector(".v34-injected")||pp.querySelector("h3");
-    if(!ref) return;
+    const v34=pp.querySelector(".v34-injected");
+    const h3=pp.querySelector("h3");
     const d=document.createElement("div"); d.innerHTML=V35;
-    ref.insertAdjacentElement("afterend",d.firstElementChild);
+    if(v34){
+      // Insertar v3.5 ANTES de v3.4 para que aparezca primero (más reciente arriba)
+      v34.insertAdjacentElement("beforebegin",d.firstElementChild);
+    } else if(h3){
+      h3.insertAdjacentElement("afterend",d.firstElementChild);
+    }
   }
   new MutationObserver(()=>_injectV35()).observe(document.body,{childList:true,subtree:true});
 
