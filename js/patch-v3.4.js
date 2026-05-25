@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════
-//  MANGU — Parche v3.4 (final v3)
+//  MANGU — Parche v3.4 (versión final completa)
 //  Instalación: js/patch-v3.4.js — después de ui.js en index.html
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -7,25 +7,21 @@
   if(window._v34Patched) return;
   window._v34Patched = true;
 
-  // ── CSS ────────────────────────────────────────────────────────────
+  // ── CSS COMPLETO ───────────────────────────────────────────────────
   const style = document.createElement("style");
   style.id = "mangu-patch-v34-css";
   style.textContent = `
 
 /* ═══════════════════════════════════════
    PANEL NOVEDADES — Desktop (fixed)
-   Solo visible cuando hay espacio real
-   (≥1100px viewport width)
    ═══════════════════════════════════════ */
-
 #v34-news-panel {
-  display: none; /* JS lo muestra si hay espacio */
+  display: none;
   position: fixed;
   top: 16px;
   width: 230px;
   max-height: calc(100vh - 32px);
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow-y: auto; overflow-x: hidden;
   scrollbar-width: none;
   z-index: 100;
   background: rgba(13,15,26,.97);
@@ -36,18 +32,51 @@
   -webkit-backdrop-filter: blur(14px);
 }
 #v34-news-panel::-webkit-scrollbar { display: none; }
-
 #v34-news-panel .v34-phdr {
-  display: flex;
-  align-items: center;
-  gap: 7px;
+  display: flex; align-items: center; gap: 7px;
   padding: 10px 13px 9px;
   border-bottom: 1px solid rgba(255,255,255,.06);
   background: rgba(13,15,26,.97);
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  position: sticky; top: 0; z-index: 1;
 }
+/* Sección "Esta semana" */
+.v34-week-hdr {
+  padding: 8px 13px 5px;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--t3);
+  border-top: 1px solid rgba(255,255,255,.05);
+  margin-top: 2px;
+}
+.v34-week-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.03);
+  cursor: pointer; transition: background .12s;
+}
+.v34-week-item:hover { background: rgba(255,255,255,.025); }
+.v34-week-mini-cover {
+  width: 24px; height: 34px; border-radius: 4px;
+  object-fit: cover; flex-shrink: 0;
+}
+.v34-week-mini-ph {
+  width: 24px; height: 34px; border-radius: 4px;
+  flex-shrink: 0; display: flex; align-items: center;
+  justify-content: center; font-size: 10px; font-weight: 800;
+}
+.v34-week-info { flex: 1; min-width: 0; }
+.v34-week-title {
+  font-size: 10px; font-weight: 600; color: var(--t1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 1px;
+}
+.v34-week-sub { font-size: 9px; color: var(--t2); }
+.v34-week-when {
+  font-size: 9px; font-weight: 700;
+  padding: 1px 6px; border-radius: 20px; flex-shrink: 0;
+}
+
+/* Dot vivo */
 .v34-live-dot {
   width: 7px; height: 7px; border-radius: 50%;
   background: #34d399; flex-shrink: 0;
@@ -73,13 +102,11 @@
   display: flex; align-items: center; gap: 9px;
   padding: 8px 12px;
   border-bottom: 1px solid rgba(255,255,255,.04);
-  cursor: pointer;
-  transition: background .12s;
+  cursor: pointer; transition: background .12s;
 }
 #v34-news-panel .v34-item:last-child { border-bottom: none; }
 #v34-news-panel .v34-item:hover { background: rgba(255,255,255,.03); }
 #v34-news-panel .v34-item.v34-unread { border-left: 2.5px solid; }
-
 .v34-cover {
   width: 30px; height: 42px; border-radius: 5px;
   object-fit: cover; flex-shrink: 0;
@@ -97,29 +124,21 @@
 }
 .v34-title {
   font-size:11px; font-weight:600; color:var(--t1);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  margin-bottom:1px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:1px;
 }
 .v34-sub  { font-size:10px; color:var(--t2); }
 .v34-right { text-align:right; flex-shrink:0; }
 .v34-when  { font-size:10px; font-weight:700; margin-bottom:1px; }
-.v34-udot  {
-  width:6px; height:6px; border-radius:50%;
-  background:#6377ed; flex-shrink:0;
-}
+.v34-udot  { width:6px; height:6px; border-radius:50%; background:#6377ed; flex-shrink:0; }
 
 /* ═══════════════════════════════════════
    PANEL NOVEDADES — Mobile (inline)
-   Carrusel antes de "Continuar leyendo"
-   Solo visible <1100px
    ═══════════════════════════════════════ */
-
 #v34-mob {
   margin: 0 0 14px;
   background: rgba(255,255,255,.025);
   border: 1px solid rgba(255,255,255,.07);
-  border-radius: 12px;
-  overflow: hidden;
+  border-radius: 12px; overflow: hidden;
   font-family: 'Outfit', sans-serif;
 }
 #v34-mob .v34-phdr {
@@ -134,7 +153,6 @@
   scrollbar-width:none; -webkit-overflow-scrolling:touch;
 }
 #v34-mob .v34-chips::-webkit-scrollbar { display:none; }
-
 .v34-chip {
   flex-shrink:0; width:145px;
   background:rgba(255,255,255,.03);
@@ -144,49 +162,138 @@
   position:relative; overflow:hidden;
 }
 .v34-chip:hover { background:rgba(255,255,255,.06); }
-.v34-chip-stripe {
-  position:absolute; top:0; left:0; right:0; height:2px;
-}
-.v34-chip-type {
-  font-size:8px; font-weight:700; letter-spacing:.07em; margin-bottom:3px;
-}
+.v34-chip-stripe { position:absolute; top:0; left:0; right:0; height:2px; }
+.v34-chip-type { font-size:8px; font-weight:700; letter-spacing:.07em; margin-bottom:3px; }
 .v34-chip-title {
   font-size:11px; font-weight:700; color:var(--t1);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:2px;
 }
 .v34-chip-sub { font-size:10px; color:var(--t2); margin-bottom:6px; }
-.v34-chip-when {
-  font-size:9px; font-weight:700;
-  padding:2px 7px; border-radius:20px; display:inline-block;
+.v34-chip-when { font-size:9px; font-weight:700; padding:2px 7px; border-radius:20px; display:inline-block; }
+.v34-chip-dot { position:absolute; top:8px; right:8px; width:6px; height:6px; border-radius:50%; background:#6377ed; }
+#v34-mob-hint { text-align:center; font-size:9px; color:var(--t3); padding:0 0 7px; letter-spacing:.05em; }
+
+/* ═══════════════════════════════════════
+   INDICADOR VISUAL EN CATÁLOGO
+   Punto verde pulsante en cards con cap nuevo
+   ═══════════════════════════════════════ */
+.v34-cat-new-dot {
+  position: absolute;
+  top: 6px; left: 6px;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: #34d399;
+  border: 2px solid rgba(13,15,26,.8);
+  z-index: 3;
+  animation: v34catpulse 2s infinite;
 }
-.v34-chip-dot {
-  position:absolute; top:8px; right:8px;
-  width:6px; height:6px; border-radius:50%; background:#6377ed;
+@keyframes v34catpulse {
+  0%,100%{ box-shadow:0 0 0 0 rgba(52,211,153,.5); }
+  50%     { box-shadow:0 0 0 4px rgba(52,211,153,.0); }
 }
-#v34-mob-hint {
-  text-align:center; font-size:9px; color:var(--t3);
-  padding:0 0 7px; letter-spacing:.05em;
+/* Franja superior en card del catálogo con cap nuevo */
+.v34-cat-new-stripe {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #34d399, #6377ed);
+  z-index: 3;
+  border-radius: 8px 8px 0 0;
 }
 
 /* ═══════════════════════════════════════
-   RECUADRO FECHA en card expandido
+   BADGE "NUEVO" EN TABS
    ═══════════════════════════════════════ */
+.v34-tab-badge {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  min-width: 16px; height: 16px;
+  background: #34d399;
+  color: #0d0f1a;
+  font-size: 9px; font-weight: 800;
+  border-radius: 20px;
+  padding: 0 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+  animation: v34badgepop .3s ease;
+}
+@keyframes v34badgepop {
+  0%  { transform: scale(0); opacity:0; }
+  70% { transform: scale(1.2); }
+  100%{ transform: scale(1); opacity:1; }
+}
 
+/* ═══════════════════════════════════════
+   SKELETON LOADING — Continuar Leyendo
+   ═══════════════════════════════════════ */
+@keyframes v34shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.v34-skel-card {
+  flex-shrink: 0;
+  width: 110px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.v34-skel-cover {
+  width: 110px; height: 155px;
+  border-radius: 8px; margin-bottom: 6px;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,.04) 0%,
+    rgba(255,255,255,.08) 50%,
+    rgba(255,255,255,.04) 100%);
+  background-size: 800px 100%;
+  animation: v34shimmer 1.4s ease infinite;
+}
+.v34-skel-line {
+  height: 8px; border-radius: 4px; margin-bottom: 5px;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,.04) 0%,
+    rgba(255,255,255,.07) 50%,
+    rgba(255,255,255,.04) 100%);
+  background-size: 800px 100%;
+  animation: v34shimmer 1.4s ease infinite;
+}
+.v34-skel-line.short { width: 60%; }
+
+/* ═══════════════════════════════════════
+   RECUADRO FECHA en card expandido
+   Colapsable en mobile
+   ═══════════════════════════════════════ */
 .v34-airbox {
   margin:0 0 10px;
   background:linear-gradient(135deg,rgba(99,119,237,.09) 0%,rgba(52,211,153,.04) 100%);
-  border:1px solid rgba(99,119,237,.2); border-radius:10px; padding:10px 13px;
+  border:1px solid rgba(99,119,237,.2); border-radius:10px;
+  overflow: hidden;
 }
-.v34-airbox-hdr {
-  display:flex; align-items:center; justify-content:space-between; margin-bottom:7px;
+.v34-airbox-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 13px;
+  cursor: pointer;
+  user-select: none;
 }
+.v34-airbox-toggle:hover { background: rgba(255,255,255,.02); }
 .v34-airbox-lbl {
   font-size:9px; font-weight:700; letter-spacing:.1em;
   text-transform:uppercase; color:#6377ed;
 }
+.v34-airbox-toggle-right {
+  display: flex; align-items: center; gap: 7px;
+}
 .v34-airbox-badge {
   font-size:9px; font-weight:700; padding:2px 8px; border-radius:20px;
 }
+.v34-airbox-chv {
+  font-size: 10px; color: var(--t3);
+  transition: transform .2s;
+}
+.v34-airbox-chv.open { transform: rotate(180deg); }
+.v34-airbox-body {
+  padding: 0 13px 10px;
+  display: none; /* JS toggle */
+}
+.v34-airbox-body.open { display: block; }
 .v34-airbox-main {
   display:flex; align-items:baseline; gap:7px; margin-bottom:6px;
 }
@@ -203,8 +310,22 @@
   font-size:10px; color:var(--t2);
 }
 .v34-airbox-dval { font-weight:600; color:var(--t1); }
+
+/* En desktop: expandido por defecto */
+@media (min-width: 641px) {
+  .v34-airbox-body { display: block !important; }
+  .v34-airbox-chv { display: none; }
+  .v34-airbox-toggle { cursor: default; }
+}
+
 @keyframes v34skel { 0%,100%{opacity:.35} 50%{opacity:.65} }
 .v34-skel { animation:v34skel 1.2s ease infinite; }
+
+/* ═══════════════════════════════════════
+   PATCH NOTES — nota v3.4
+   ═══════════════════════════════════════ */
+.v34-injected { animation: v34FadeIn .3s ease; }
+@keyframes v34FadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
 
   `;
   document.head.appendChild(style);
@@ -229,10 +350,8 @@
     const k=`${jid}-${type}-${ep}`;
     if(k in _airCache) return _airCache[k];
     try{
-      const e2=type==="manga"?"manga":"anime";
-      const f=type==="manga"?"chapters":"episodes";
-      const pg=Math.ceil(ep/100);
-      const r=await _jikanFetch(`https://api.jikan.moe/v4/${e2}/${jid}/${f}?page=${pg}`,8000,1);
+      const e2=type==="manga"?"manga":"anime", f=type==="manga"?"chapters":"episodes";
+      const r=await _jikanFetch(`https://api.jikan.moe/v4/${e2}/${jid}/${f}?page=${Math.ceil(ep/100)}`,8000,1);
       if(!r||!Array.isArray(r.data)) return (_airCache[k]=null);
       const entry=r.data.find(e=>{
         const n=type==="anime"?Number(e.mal_id||e.episode_id||e.episode):parseFloat(e.chapter||e.chapters||"0");
@@ -240,8 +359,8 @@
       });
       if(!entry) return (_airCache[k]=null);
       const from=type==="anime"?(entry.aired?.from||entry.air_date||null):(entry.published?.from||null);
-      return (_airCache[k]={date:from?new Date(from):null, title:entry.title||entry.name||null});
-    }catch(e){ return (_airCache[k]=null); }
+      return (_airCache[k]={date:from?new Date(from):null,title:entry.title||entry.name||null});
+    }catch(e){return(_airCache[k]=null);}
   }
 
   async function _fetchSched(jid){
@@ -256,8 +375,8 @@
       const j=await r.json();
       const nae=j?.data?.Media?.nextAiringEpisode;
       if(!nae) return (_schedCache[jid]=null);
-      return (_schedCache[jid]={episode:nae.episode, date:new Date(nae.airingAt*1000)});
-    }catch(e){ return (_schedCache[jid]=null); }
+      return (_schedCache[jid]={episode:nae.episode,date:new Date(nae.airingAt*1000)});
+    }catch(e){return(_schedCache[jid]=null);}
   }
 
   function _badge(date){
@@ -271,7 +390,7 @@
     return {label:date.toLocaleDateString("es-CL",{day:"numeric",month:"short"}),bg:"rgba(99,119,237,.12)",color:"#a5b4fc"};
   }
 
-  // ── BUILD ITEMS ────────────────────────────────────────────────────
+  // ── BUILD NEWS ITEMS ───────────────────────────────────────────────
   function _items(){
     const now=Date.now(), res=[];
     for(const t of ["manga","anime"]){
@@ -280,10 +399,9 @@
         const upToDate=nc===null&&s.total>0&&!s.jikanPublishing;
         const fresh=s.lastUpdated&&(now-s.lastUpdated)<48*3600*1000;
         res.push({id:s.id,title:s.title,type:t,total:s.total,
-          completed:s.completed?.length||0, nextCap:nc, upToDate,
-          pub:s.jikanPublishing||false, jid:s.jikanId||null,
-          cover:s.cover||"", lu:s.lastUpdated||0,
-          unread:nc!==null&&fresh});
+          completed:s.completed?.length||0,nextCap:nc,upToDate,
+          pub:s.jikanPublishing||false,jid:s.jikanId||null,
+          cover:s.cover||"",lu:s.lastUpdated||0,unread:nc!==null&&fresh});
       });
     }
     return res.sort((a,b)=>{
@@ -293,12 +411,24 @@
     });
   }
 
+  // Series en emisión que están AL DÍA (para "Esta semana")
+  function _upToDatePub(){
+    const res=[];
+    for(const t of ["manga","anime"]){
+      (data[t]||[]).filter(s=>(s.status==="reading"||s.status==="plan")&&s.jikanPublishing&&s.jikanId).forEach(s=>{
+        const nc=typeof nextChapter==="function"?nextChapter(s):null;
+        if(nc===null) res.push({id:s.id,title:s.title,type:t,jid:s.jikanId,cover:s.cover||""});
+      });
+    }
+    return res;
+  }
+
   function _texts(item){
     const L=item.type==="manga"?"Cap.":"Ep.";
-    if(item.unread)       return {sub:`${L} ${item.nextCap} disponible`,   when:_ago(item.lu),      wc:"#34d399"};
-    if(item.nextCap!==null&&item.pub) return {sub:`${L} ${item.nextCap} — próximamente`, when:"En emisión", wc:"#fbbf24"};
-    if(item.upToDate)     return {sub:"Al día ✓",                          when:_ago(item.lu),      wc:"var(--t3)"};
-    if(item.nextCap!==null) return {sub:`${L} ${item.nextCap} pendiente`,  when:_ago(item.lu),      wc:"var(--t2)"};
+    if(item.unread)              return {sub:`${L} ${item.nextCap} disponible`,   when:_ago(item.lu),   wc:"#34d399"};
+    if(item.nextCap!==null&&item.pub) return {sub:`${L} ${item.nextCap} — próx.`, when:"En emisión",    wc:"#fbbf24"};
+    if(item.upToDate)            return {sub:"Al día ✓",                          when:_ago(item.lu),   wc:"var(--t3)"};
+    if(item.nextCap!==null)      return {sub:`${L} ${item.nextCap} pendiente`,    when:_ago(item.lu),   wc:"var(--t2)"};
     return {sub:"",when:"",wc:"var(--t2)"};
   }
 
@@ -311,11 +441,12 @@
     }
   }
 
-  // ── DESKTOP PANEL ─────────────────────────────────────────────────
+  // ── DESKTOP PANEL ──────────────────────────────────────────────────
   function _desktopPanel(items){
     const unread=items.filter(i=>i.unread).length;
     const p=document.createElement("div"); p.id="v34-news-panel";
 
+    // Header
     const hdr=document.createElement("div"); hdr.className="v34-phdr";
     const dot=document.createElement("div"); dot.className="v34-live-dot";
     const ttl=document.createElement("span"); ttl.className="v34-hdr-title"; ttl.textContent="Novedades";
@@ -323,74 +454,99 @@
     if(unread>0){const b=document.createElement("span");b.className="v34-nbadge";b.textContent=`${unread} nuevo${unread>1?"s":""}`;hdr.appendChild(b);}
     p.appendChild(hdr);
 
-    items.slice(0,10).forEach(item=>{
+    // Items con cap pendiente
+    items.slice(0,8).forEach(item=>{
       const ac=item.type==="manga"?"#a78bfa":"#34d399";
       const {sub,when,wc}=_texts(item);
       const el=document.createElement("div");
       el.className="v34-item"+(item.unread?" v34-unread":"");
       if(item.unread) el.style.borderLeftColor=ac;
-
-      // cover
       let cov;
-      if(item.cover){
-        cov=document.createElement("img"); cov.className="v34-cover";
-        cov.src=item.cover; cov.onerror=()=>cov.style.display="none";
-      } else {
-        cov=document.createElement("div"); cov.className="v34-cover-ph";
-        cov.style.cssText=`background:${item.type==="manga"?"rgba(167,139,250,.12)":"rgba(52,211,153,.1)"};color:${ac};`;
-        cov.textContent=item.title.charAt(0);
-      }
-
+      if(item.cover){cov=document.createElement("img");cov.className="v34-cover";cov.src=item.cover;cov.onerror=()=>cov.style.display="none";}
+      else{cov=document.createElement("div");cov.className="v34-cover-ph";cov.style.cssText=`background:${item.type==="manga"?"rgba(167,139,250,.12)":"rgba(52,211,153,.1)"};color:${ac};`;cov.textContent=item.title.charAt(0);}
       const info=document.createElement("div"); info.className="v34-info";
       info.innerHTML=`<span class="v34-tpill" style="background:${item.type==="manga"?"rgba(167,139,250,.15)":"rgba(52,211,153,.1)"};color:${ac};">${item.type==="manga"?"MANGA":"ANIME"}</span><div class="v34-title">${item.title}</div><div class="v34-sub">${sub}</div>`;
-
       const right=document.createElement("div"); right.className="v34-right";
       right.innerHTML=`<div class="v34-when" style="color:${wc};">${when}</div>`;
-
       el.append(cov,info,right);
       if(item.unread){const ud=document.createElement("div");ud.className="v34-udot";el.appendChild(ud);}
       el.onclick=()=>_nav(item);
       p.appendChild(el);
     });
 
+    // Sección "Esta semana" — series al día pero con próximo estreno
+    const upToDate=_upToDatePub();
+    if(upToDate.length>0){
+      const secLbl=document.createElement("div"); secLbl.className="v34-week-hdr";
+      secLbl.textContent="📅 Esta semana";
+      p.appendChild(secLbl);
+      upToDate.slice(0,5).forEach(item=>{
+        const ac=item.type==="manga"?"#a78bfa":"#34d399";
+        const el=document.createElement("div"); el.className="v34-week-item";
+        let cov;
+        if(item.cover){cov=document.createElement("img");cov.className="v34-week-mini-cover";cov.src=item.cover;cov.onerror=()=>cov.style.display="none";}
+        else{cov=document.createElement("div");cov.className="v34-week-mini-ph";cov.style.cssText=`background:${item.type==="manga"?"rgba(167,139,250,.12)":"rgba(52,211,153,.1)"};color:${ac};`;cov.textContent=item.title.charAt(0);}
+        const info=document.createElement("div"); info.className="v34-week-info";
+        info.innerHTML=`<div class="v34-week-title">${item.title}</div><div class="v34-week-sub">Cargando fecha...</div>`;
+        const when=document.createElement("span"); when.className="v34-week-when";
+        when.style.cssText="background:rgba(255,255,255,.06);color:var(--t3);"; when.textContent="...";
+        el.append(cov,info,when);
+        el.onclick=()=>_nav(item);
+        p.appendChild(el);
+        // Cargar fecha real async
+        if(item.type==="anime"&&item.jid){
+          _fetchSched(item.jid).then(sc=>{
+            if(!sc||!document.body.contains(el)) return;
+            const diff=Math.ceil((sc.date.getTime()-Date.now())/86400000);
+            const b=_badge(sc.date);
+            const sub2=el.querySelector(".v34-week-sub");
+            if(sub2) sub2.textContent=`Ep. ${sc.episode} — ${sc.date.toLocaleDateString("es-CL",{day:"numeric",month:"short"})}`;
+            when.textContent=b.label; when.style.background=b.bg; when.style.color=b.color;
+          });
+        } else {
+          const sub2=el.querySelector(".v34-week-sub");
+          if(sub2) sub2.textContent="En emisión — sin fecha exacta";
+          when.textContent="📡"; when.style.color="var(--t2)";
+        }
+      });
+    }
+
     _enrichSched(items,p,"desktop");
     return p;
   }
 
-  // ── MOBILE PANEL ──────────────────────────────────────────────────
+  // ── MOBILE PANEL ───────────────────────────────────────────────────
   function _mobilePanel(items){
     const unread=items.filter(i=>i.unread).length;
     const wrap=document.createElement("div"); wrap.id="v34-mob";
-
     const hdr=document.createElement("div"); hdr.className="v34-phdr";
     const dot=document.createElement("div"); dot.className="v34-live-dot"; dot.style.cssText="width:6px;height:6px;";
     const ttl=document.createElement("span"); ttl.className="v34-hdr-title"; ttl.textContent="Novedades";
     hdr.append(dot,ttl);
     if(unread>0){const b=document.createElement("span");b.className="v34-nbadge";b.textContent=`${unread} nuevo${unread>1?"s":""}`;hdr.appendChild(b);}
     wrap.appendChild(hdr);
-
     const row=document.createElement("div"); row.className="v34-chips";
-    items.slice(0,8).forEach(item=>{
+    // Combinar items pendientes + al día en emisión
+    const upToDate=_upToDatePub().map(i=>({...i,nextCap:null,upToDate:true,pub:true,unread:false,lu:0}));
+    const allItems=[...items.slice(0,6),...upToDate.slice(0,4)];
+    allItems.forEach(item=>{
       const ac=item.type==="manga"?"#a78bfa":"#34d399";
       const {sub,when,wc}=_texts(item);
       const chip=document.createElement("div"); chip.className="v34-chip";
       const stripe=document.createElement("div"); stripe.className="v34-chip-stripe"; stripe.style.background=ac;
       chip.appendChild(stripe);
-      chip.innerHTML+=`<div class="v34-chip-type" style="color:${ac};">${item.type==="manga"?"MANGA":"ANIME"}</div><div class="v34-chip-title">${item.title}</div><div class="v34-chip-sub">${sub}</div><span class="v34-chip-when" style="background:${item.unread?"rgba(52,211,153,.15)":item.pub?"rgba(251,191,36,.1)":"rgba(255,255,255,.05)"};color:${wc};">${when||"—"}</span>`;
+      chip.innerHTML+=`<div class="v34-chip-type" style="color:${ac};">${item.type==="manga"?"MANGA":"ANIME"}</div><div class="v34-chip-title">${item.title}</div><div class="v34-chip-sub">${sub||"Al día · en emisión"}</div><span class="v34-chip-when" style="background:${item.unread?"rgba(52,211,153,.15)":item.pub?"rgba(251,191,36,.1)":"rgba(255,255,255,.05)"};color:${wc||"#fbbf24"};">${when||"En emisión"}</span>`;
       if(item.unread){const ud=document.createElement("div");ud.className="v34-chip-dot";chip.appendChild(ud);}
       chip.onclick=()=>_nav(item);
       row.appendChild(chip);
     });
     wrap.appendChild(row);
-
     const hint=document.createElement("div"); hint.id="v34-mob-hint"; hint.textContent="← desliza →";
     wrap.appendChild(hint);
-
     _enrichSched(items,wrap,"mobile");
     return wrap;
   }
 
-  // Enriquecer con schedule real de AniList (async)
   async function _enrichSched(items,container,mode){
     for(let i=0;i<items.length;i++){
       const item=items[i];
@@ -398,22 +554,19 @@
       try{
         const sc=await _fetchSched(item.jid); if(!sc) continue;
         const diff=Math.ceil((sc.date.getTime()-Date.now())/86400000);
-        const L="Ep.";
-        const newSub=diff<=0?`${L} ${sc.episode} disponible`:`${L} ${sc.episode} — ${sc.date.toLocaleDateString("es-CL",{day:"numeric",month:"short"})}`;
+        const newSub=diff<=0?`Ep. ${sc.episode} disponible`:`Ep. ${sc.episode} — ${sc.date.toLocaleDateString("es-CL",{day:"numeric",month:"short"})}`;
         const newWhen=diff<=0?"Hoy":`En ${diff}d`;
         const newWc=diff<=0?"#34d399":"#fbbf24";
         if(mode==="desktop"){
           const els=container.querySelectorAll(".v34-item");
           const el=els[i]; if(!el) continue;
           const s2=el.querySelector(".v34-sub"), w2=el.querySelector(".v34-when");
-          if(s2) s2.textContent=newSub;
-          if(w2){w2.textContent=newWhen; w2.style.color=newWc;}
+          if(s2) s2.textContent=newSub; if(w2){w2.textContent=newWhen;w2.style.color=newWc;}
         } else {
           const chips=container.querySelectorAll(".v34-chip");
           const chip=chips[i]; if(!chip) continue;
           const s2=chip.querySelector(".v34-chip-sub"), w2=chip.querySelector(".v34-chip-when");
-          if(s2) s2.textContent=newSub;
-          if(w2){w2.textContent=newWhen; w2.style.color=newWc;}
+          if(s2) s2.textContent=newSub; if(w2){w2.textContent=newWhen;w2.style.color=newWc;}
         }
       }catch(e){}
       await new Promise(r=>setTimeout(r,300));
@@ -421,33 +574,114 @@
   }
 
   // ── POSICIONAMIENTO DESKTOP ────────────────────────────────────────
-  // Mide el espacio entre el borde izquierdo de la ventana y el #app.
-  // Si hay ≥256px disponibles → muestra el panel y añade padding al #app.
-  // Si no → oculta el panel y quita el padding.
-  const PANEL_W = 230;
-  const GAP     = 12; // espacio entre panel y #app
-
+  const PANEL_W=230, GAP=12;
   function _positionPanel(){
-    const panel = document.getElementById("v34-news-panel");
-    const appEl = document.getElementById("app");
+    const panel=document.getElementById("v34-news-panel");
+    const appEl=document.getElementById("app");
     if(!panel||!appEl) return;
-
-    const appRect = appEl.getBoundingClientRect();
-    const spaceLeft = appRect.left; // px desde borde izq de ventana hasta #app
-
-    if(spaceLeft >= PANEL_W + GAP*2){
-      // Hay espacio: mostrar panel a la izquierda del #app
-      panel.style.display = "block";
-      const left = appRect.left - PANEL_W - GAP;
-      panel.style.left  = left + "px";
-      panel.style.width = PANEL_W + "px";
+    const appRect=appEl.getBoundingClientRect();
+    const spaceLeft=appRect.left;
+    if(spaceLeft>=PANEL_W+GAP*2){
+      panel.style.display="block";
+      panel.style.left=(appRect.left-PANEL_W-GAP)+"px";
+      panel.style.width=PANEL_W+"px";
     } else {
-      // Sin espacio: ocultar panel desktop (mobile panel lo cubre)
-      panel.style.display = "none";
+      panel.style.display="none";
     }
   }
 
-  // ── AIRBOX en card expandido ───────────────────────────────────────
+  // ── SKELETON "CONTINUAR LEYENDO" ───────────────────────────────────
+  // Inyecta skeletons mientras las imágenes del carrusel cargan
+  function _injectContinueSkeleton(continueRow){
+    if(!continueRow) return;
+    // Solo si hay imágenes aún cargando
+    const imgs=continueRow.querySelectorAll("img");
+    let loading=0;
+    imgs.forEach(img=>{if(!img.complete) loading++;});
+    if(loading===0) return;
+    // Agregar placeholders skeleton al final del row
+    for(let i=0;i<Math.min(loading,2);i++){
+      const sk=document.createElement("div"); sk.className="v34-skel-card";
+      sk.innerHTML=`<div class="v34-skel-cover"></div><div class="v34-skel-line"></div><div class="v34-skel-line short"></div>`;
+      continueRow.appendChild(sk);
+    }
+    // Remover skeletons cuando todas las imágenes carguen
+    let loaded=0;
+    imgs.forEach(img=>{
+      const done=()=>{loaded++;if(loaded>=loading)continueRow.querySelectorAll(".v34-skel-card").forEach(s=>s.remove());};
+      if(img.complete) done();
+      else{img.onload=done;img.onerror=done;}
+    });
+  }
+
+  // ── BADGE "NUEVO" EN TABS ─────────────────────────────────────────
+  function _injectTabBadges(){
+    const mangaNew=(data.manga||[]).filter(s=>{
+      const nc=typeof nextChapter==="function"?nextChapter(s):null;
+      const fresh=s.lastUpdated&&(Date.now()-s.lastUpdated)<48*3600*1000;
+      return nc!==null&&fresh;
+    }).length;
+    const animeNew=(data.anime||[]).filter(s=>{
+      const nc=typeof nextChapter==="function"?nextChapter(s):null;
+      const fresh=s.lastUpdated&&(Date.now()-s.lastUpdated)<48*3600*1000;
+      return nc!==null&&fresh;
+    }).length;
+
+    // Buscar tabs por texto
+    document.querySelectorAll(".tab, button.tab, [class*='tab']").forEach(btn=>{
+      const txt=btn.textContent||"";
+      if(txt.includes("Manga")&&mangaNew>0&&!btn.querySelector(".v34-tab-badge")){
+        const b=document.createElement("span"); b.className="v34-tab-badge"; b.textContent=mangaNew;
+        btn.appendChild(b);
+      }
+      if((txt.includes("Anime"))&&animeNew>0&&!btn.querySelector(".v34-tab-badge")){
+        const b=document.createElement("span"); b.className="v34-tab-badge"; b.textContent=animeNew;
+        btn.appendChild(b);
+      }
+    });
+  }
+
+  // ── INDICADOR EN CATÁLOGO ─────────────────────────────────────────
+  // Construye set de IDs con cap nuevo para lookup O(1)
+  function _buildNewSet(){
+    const newIds=new Set();
+    const now=Date.now();
+    for(const t of ["manga","anime"]){
+      (data[t]||[]).forEach(s=>{
+        const nc=typeof nextChapter==="function"?nextChapter(s):null;
+        const fresh=s.lastUpdated&&(now-s.lastUpdated)<48*3600*1000;
+        if(nc!==null&&fresh) newIds.add(s.id);
+      });
+    }
+    return newIds;
+  }
+
+  function _injectCatalogIndicators(newIds){
+    if(newIds.size===0) return;
+    document.querySelectorAll(".catc").forEach(card=>{
+      if(card.querySelector(".v34-cat-new-dot")) return;
+      // Buscar qué serie es esta card — el onclick tiene pinnedId
+      // Buscamos por la imagen src o el título para matchear
+      const titleEl=card.querySelector(".catt");
+      const title=titleEl?.textContent||"";
+      // Buscar en data por título
+      let found=null;
+      for(const t of ["manga","anime"]){
+        const s=(data[t]||[]).find(s=>s.title===title);
+        if(s){found=s;break;}
+      }
+      if(!found||!newIds.has(found.id)) return;
+      // Inyectar dot y franja
+      const wrap=card.querySelector("div");
+      if(!wrap) return;
+      const dot=document.createElement("div"); dot.className="v34-cat-new-dot";
+      const stripe=document.createElement("div"); stripe.className="v34-cat-new-stripe";
+      wrap.appendChild(dot);
+      wrap.insertBefore(stripe,wrap.firstChild);
+    });
+  }
+
+  // ── AIRBOX en card expandido (colapsable en mobile) ───────────────
   function _injectAirbox(cpnl,series,type){
     if(cpnl.querySelector(".v34-airbox")) return;
     const nc=typeof nextChapter==="function"?nextChapter(series):null;
@@ -455,7 +689,27 @@
     const L=type==="manga"?"Cap.":"Ep.";
 
     const box=document.createElement("div"); box.className="v34-airbox";
-    box.innerHTML=`<div class="v34-airbox-hdr"><span class="v34-airbox-lbl">📅 Próximo por marcar</span><span class="v34-airbox-badge v34-skel" style="background:rgba(255,255,255,.07);color:var(--t3);">cargando...</span></div><div class="v34-airbox-main"><span class="v34-airbox-num">${L} ${nc}</span><span class="v34-airbox-eptitle v34-skel" style="color:var(--t3);">consultando Jikan...</span></div><div class="v34-airbox-dates"><span class="v34-skel" style="color:var(--t3);font-size:10px;">buscando fecha...</span></div>`;
+
+    // Toggle header (colapsable en mobile)
+    const toggle=document.createElement("div"); toggle.className="v34-airbox-toggle";
+    toggle.innerHTML=`<span class="v34-airbox-lbl">📅 Próximo por marcar</span><div class="v34-airbox-toggle-right"><span class="v34-airbox-badge v34-skel" style="background:rgba(255,255,255,.07);color:var(--t3);">cargando...</span><span class="v34-airbox-chv">▼</span></div>`;
+    box.appendChild(toggle);
+
+    // Body
+    const body=document.createElement("div"); body.className="v34-airbox-body";
+    body.innerHTML=`<div class="v34-airbox-main"><span class="v34-airbox-num">${L} ${nc}</span><span class="v34-airbox-eptitle v34-skel" style="color:var(--t3);">consultando Jikan...</span></div><div class="v34-airbox-dates"><span class="v34-skel" style="color:var(--t3);font-size:10px;">buscando fecha...</span></div>`;
+    box.appendChild(body);
+
+    // Toggle click (solo efectivo en mobile)
+    toggle.addEventListener("click",()=>{
+      if(window.innerWidth>640) return;
+      const open=body.classList.toggle("open");
+      const chv=toggle.querySelector(".v34-airbox-chv");
+      if(chv) chv.classList.toggle("open",open);
+    });
+
+    // En desktop abrir por defecto
+    if(window.innerWidth>640) body.classList.add("open");
 
     const firstDsec=cpnl.querySelector(".dsec");
     if(firstDsec) cpnl.insertBefore(box,firstDsec); else cpnl.prepend(box);
@@ -489,7 +743,26 @@
     if(de) de.appendChild(extra);
   }
 
-  // ── MUTATION OBSERVER para airbox ─────────────────────────────────
+  // ── NOTA DEL PARCHE v3.4 ──────────────────────────────────────────
+  // P28_PATCH_NOTES es const en ui.js, no alcanzable via window.
+  // Usamos MutationObserver sobre el body para detectar .patch-panel
+  const V34_HTML=`<div class="patch-version v34-injected"><div class="patch-ver-tag">Parche v3.4 — 2026-05</div><ul class="patch-ver-items"><li>📰 <b>Panel de novedades lateral (desktop)</b> — columna fija a la izquierda del #app con position:fixed; se muestra solo cuando hay espacio disponible (mide getBoundingClientRect); incluye sección "Esta semana" con próximos estrenos de series al día en emisión con fechas reales de AniList</li><li>📱 <b>Carrusel mobile de novedades</b> — banner horizontal scrolleable inline antes de "Continuar leyendo"; chips de 145px con franja de color por tipo (morado manga / verde anime), countdown de días, dot azul para no leídos; incluye series al día en emisión con fecha de próximo estreno</li><li>🟢 <b>Indicador visual en catálogo</b> — punto verde pulsante y franja de gradiente en cards del catálogo cuando hay un cap/ep nuevo disponible (actualizado en las últimas 48h)</li><li>🔴 <b>Badge "nuevo" en tabs</b> — número de series con novedades sobre la tab Manga o Anime correspondiente, desaparece al no haber caps nuevos recientes</li><li>💀 <b>Skeleton loading en Continuar Leyendo</b> — placeholders animados con efecto shimmer mientras cargan las portadas del carrusel horizontal</li><li>📅 <b>Fechas de estreno en card expandido</b> — recuadro colapsable "Próximo por marcar" (se expande al tocar en mobile, abierto por defecto en desktop); fecha exacta de estreno desde Jikan API; para anime en emisión muestra además la fecha del próximo episodio via AniList GraphQL nextAiringEpisode</li><li>⚡ <b>Cache de fechas por sesión</b> — fechas de Jikan y schedules de AniList cacheados en memoria; no re-fetchea al abrir/cerrar el mismo card; respeta rate limit de Jikan (3 req/s)</li></ul></div>`;
+
+  function _injectPatchNote(){
+    const pp=document.querySelector(".patch-panel");
+    if(!pp||pp.querySelector(".v34-injected")) return;
+    const h3=pp.querySelector("h3");
+    if(!h3) return;
+    const div=document.createElement("div");
+    div.innerHTML=V34_HTML;
+    h3.insertAdjacentElement("afterend",div.firstElementChild);
+  }
+
+  // Observer sobre body (no solo #app) para capturar patch-panel
+  const patchObs=new MutationObserver(()=>_injectPatchNote());
+  patchObs.observe(document.body,{childList:true,subtree:true});
+
+  // ── MUTATION OBSERVER para airbox en cards expandidos ────────────
   const obs=new MutationObserver(muts=>{
     muts.forEach(m=>m.addedNodes.forEach(node=>{
       if(!(node instanceof Element)) return;
@@ -510,76 +783,56 @@
   window.render=function(){
     _orig();
 
-    // Limpiar paneles anteriores
+    // 1. Limpiar paneles anteriores
     document.getElementById("v34-news-panel")?.remove();
     document.getElementById("v34-mob")?.remove();
 
     const items=_items();
-    if(!items.length) return;
-
     const appEl=document.getElementById("app");
 
-    // 1. Desktop: panel fixed al body
-    const dp=_desktopPanel(items);
-    document.body.appendChild(dp);
-    _positionPanel();
-
-    // 2. Mobile: panel inline antes de "Continuar leyendo"
-    //    (se muestra via CSS solo cuando el desktop panel no tiene espacio)
-    const mp=_mobilePanel(items);
-    const cont=appEl?.querySelector(".continue-section");
-    if(cont) appEl.insertBefore(mp,cont);
-    else if(appEl){
-      const sr=appEl.querySelector(".sr");
-      if(sr) appEl.insertBefore(mp,sr.nextSibling);
-      else appEl.appendChild(mp);
+    // 2. Panel desktop (body, fixed)
+    if(items.length||_upToDatePub().length){
+      const dp=_desktopPanel(items);
+      document.body.appendChild(dp);
+      _positionPanel();
     }
 
-    // Mostrar/ocultar mobile panel según si el desktop panel tiene espacio
-    const appRect=appEl?.getBoundingClientRect();
-    const spaceLeft=appRect?appRect.left:0;
-    mp.style.display=(spaceLeft>=PANEL_W+GAP*2)?"none":"block";
+    // 3. Panel mobile (inline antes de continuar leyendo)
+    if(items.length||_upToDatePub().length){
+      const mp=_mobilePanel(items);
+      const cont=appEl?.querySelector(".continue-section");
+      if(cont) appEl.insertBefore(mp,cont);
+      else if(appEl){const sr=appEl.querySelector(".sr");if(sr)appEl.insertBefore(mp,sr.nextSibling);else appEl.appendChild(mp);}
+      // Mostrar/ocultar según espacio
+      const appRect=appEl?.getBoundingClientRect();
+      mp.style.display=((appRect?.left||0)>=PANEL_W+GAP*2)?"none":"block";
+    }
+
+    // 4. Skeleton en continuar leyendo
+    const continueRow=appEl?.querySelector(".continue-row");
+    if(continueRow) _injectContinueSkeleton(continueRow);
+
+    // 5. Badges en tabs
+    requestAnimationFrame(_injectTabBadges);
+
+    // 6. Indicadores en catálogo
+    requestAnimationFrame(()=>{
+      const newIds=_buildNewSet();
+      _injectCatalogIndicators(newIds);
+    });
+
+    // 7. Nota del parche (por si ya está visible)
+    requestAnimationFrame(_injectPatchNote);
   };
 
-  // Re-posicionar y re-evaluar al resize
   window.addEventListener("resize",()=>{
     _positionPanel();
     const appEl=document.getElementById("app");
     const appRect=appEl?.getBoundingClientRect();
-    const spaceLeft=appRect?appRect.left:0;
     const mp=document.getElementById("v34-mob");
-    if(mp) mp.style.display=(spaceLeft>=PANEL_W+GAP*2)?"none":"block";
+    if(mp) mp.style.display=((appRect?.left||0)>=PANEL_W+GAP*2)?"none":"block";
   },{passive:true});
 
-  // ── PATCH NOTES v3.4 ──────────────────────────────────────────────
-  // P28_PATCH_NOTES está definido con const en ui.js, por lo que
-  // window.P28_PATCH_NOTES no alcanza el binding local del closure.
-  // Solución: parchear el innerHTML del patch-panel directamente
-  // interceptando el render cuando showPatch===true.
-  const V34_HTML=`<div class="patch-version"><div class="patch-ver-tag">Parche v3.4 — 2026-05</div><ul class="patch-ver-items"><li>📰 <b>Panel de novedades lateral (desktop)</b> — columna fija position:fixed a la izquierda del bloque #app; se muestra únicamente cuando hay espacio real disponible (mide getBoundingClientRect en tiempo real); no afecta el ancho ni el layout del contenido principal; se oculta automáticamente en ventanas más pequeñas o al hacer resize</li><li>📱 <b>Carrusel mobile de novedades</b> — cuando el panel desktop no tiene espacio aparece un banner horizontal scrolleable inline antes de "Continuar leyendo"; chips de 145px con franja de color por tipo (morado manga / verde anime), countdown de días, dot azul para no leídos</li><li>📅 <b>Fechas de estreno en card expandido</b> — recuadro "Próximo por marcar" con número de cap/ep, título del episodio, fecha exacta de estreno desde Jikan API; para anime en emisión muestra además la fecha del próximo episodio a estrenar via AniList GraphQL nextAiringEpisode con countdown en días</li><li>🗓 <b>Countdown dinámico para próximos estrenos</b> — los items del panel y el card muestran "En Nd" para próximos estreno y "✓ Hoy/Hace Nd" para caps ya disponibles; se actualiza via AniList GraphQL sin afectar el rate limit de Jikan</li><li>⚡ <b>Cache de fechas por sesión</b> — las fechas de Jikan y schedules de AniList se cachean en objetos JS; no se re-fetchea al abrir y cerrar el mismo card repetidamente; respeta el rate limit de 3 req/s</li></ul></div>`;
-
-  // Inyectar en el patch-panel después de cada render cuando showPatch===true
-  const _injectPatchNote = () => {
-    const pp = document.querySelector(".patch-panel");
-    if(!pp) return;
-    // Solo inyectar si no está ya
-    if(pp.querySelector(".v34-injected")) return;
-    const h3 = pp.querySelector("h3");
-    if(!h3) return;
-    const div = document.createElement("div");
-    div.className = "v34-injected";
-    div.innerHTML = V34_HTML;
-    // Insertar justo después del h3
-    h3.insertAdjacentElement("afterend", div);
-  };
-
-  // Observar el #app para detectar cuando aparece el patch-panel
-  const patchObs = new MutationObserver(() => _injectPatchNote());
-  patchObs.observe(document.getElementById("app") || document.body, {
-    childList: true, subtree: false
-  });
-
-  // Trigger inicial
   if(typeof render==="function") render();
 
 })();
