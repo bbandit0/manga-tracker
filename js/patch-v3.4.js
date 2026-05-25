@@ -76,8 +76,58 @@
   padding: 1px 6px; border-radius: 20px; flex-shrink: 0;
 }
 
-/* Dot vivo */
-.v34-live-dot {
+/* Botón +1 en items del panel de novedades */
+.v34-plus-btn {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(52,211,153,.35);
+  background: rgba(52,211,153,.12);
+  color: #34d399;
+  font-size: 16px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all .15s;
+  line-height: 1;
+}
+.v34-plus-btn:hover {
+  background: rgba(52,211,153,.25);
+  border-color: rgba(52,211,153,.6);
+  transform: scale(1.08);
+}
+.v34-plus-btn:active { transform: scale(.95); }
+.v34-plus-btn:disabled {
+  opacity: .3; cursor: not-allowed; transform: none;
+}
+.v34-plus-btn.manga-btn {
+  border-color: rgba(167,139,250,.35);
+  background: rgba(167,139,250,.12);
+  color: #a78bfa;
+}
+.v34-plus-btn.manga-btn:hover {
+  background: rgba(167,139,250,.25);
+  border-color: rgba(167,139,250,.6);
+}
+
+/* Mini toast de feedback +1 en panel */
+.v34-mini-toast {
+  position: fixed;
+  z-index: 9999;
+  background: rgba(13,15,26,.95);
+  border: 1px solid rgba(52,211,153,.4);
+  color: #34d399;
+  font-size: 11px; font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 20px;
+  pointer-events: none;
+  animation: v34toastAnim .9s ease forwards;
+}
+@keyframes v34toastAnim {
+  0%   { opacity:0; transform:translateY(0) scale(.8); }
+  20%  { opacity:1; transform:translateY(-8px) scale(1); }
+  70%  { opacity:1; transform:translateY(-12px) scale(1); }
+  100% { opacity:0; transform:translateY(-20px) scale(.9); }
+}
   width: 7px; height: 7px; border-radius: 50%;
   background: #34d399; flex-shrink: 0;
   animation: v34pulse 2s infinite;
@@ -349,6 +399,46 @@
   async function _fetchAir(jid,type,ep){
     const k=`${jid}-${type}-${ep}`;
     if(k in _airCache) return _airCache[k];
+
+    // Para anime: AniList tiene datos de episodios mucho más completos que Jikan.
+    // Estrategia: AniList primero para el episodio actual, Jikan como fallback.
+    if(type==="anime"){
+      try{
+        const gql=`{Media(idMal:${jid},type:ANIME){
+          airingSchedule(page:1,perPage:50){nodes{episode airingAt}}
+          nextAiringEpisode{episode airingAt}
+        }}`;
+        const r=await fetch("https://graphql.anilist.co",{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({query:gql}),signal:AbortSignal.timeout(5000)
+        });
+        if(r.ok){
+          const j=await r.json();
+          const nodes=j?.data?.Media?.airingSchedule?.nodes||[];
+          // Buscar el episodio exacto en el schedule
+          const node=nodes.find(n=>n.episode===ep);
+          if(node&&node.airingAt){
+            const result={date:new Date(node.airingAt*1000),title:null};
+            // Intentar obtener el título del ep de Jikan en paralelo (no bloqueante)
+            _fetchAir_jikanTitle(jid,ep).then(t=>{if(t) result.title=t;});
+            return (_airCache[k]=result);
+          }
+          // Si no está en el schedule pero el ep ya existe (serie finalizada),
+          // buscar por nextAiringEpisode para saber si está antes del próximo
+          const nae=j?.data?.Media?.nextAiringEpisode;
+          if(nae&&ep<nae.episode){
+            // El ep ya se emitió pero AniList no tiene el schedule histórico
+            // Estimar: el ep se emitió semanalmente antes del nae
+            const weeksBack=nae.episode-ep;
+            const estimatedDate=new Date((nae.airingAt-weeksBack*7*86400)*1000);
+            return (_airCache[k]={date:estimatedDate,title:null});
+          }
+        }
+      }catch(e){}
+      // Fallback a Jikan si AniList no tiene datos
+    }
+
+    // Para manga y fallback de anime: Jikan
     try{
       const e2=type==="manga"?"manga":"anime", f=type==="manga"?"chapters":"episodes";
       const r=await _jikanFetch(`https://api.jikan.moe/v4/${e2}/${jid}/${f}?page=${Math.ceil(ep/100)}`,8000,1);
@@ -361,6 +451,15 @@
       const from=type==="anime"?(entry.aired?.from||entry.air_date||null):(entry.published?.from||null);
       return (_airCache[k]={date:from?new Date(from):null,title:entry.title||entry.name||null});
     }catch(e){return(_airCache[k]=null);}
+  }
+
+  // Helper: obtiene solo el título del episodio desde Jikan (no bloquea el flujo principal)
+  async function _fetchAir_jikanTitle(jid,ep){
+    try{
+      const r=await _jikanFetch(`https://api.jikan.moe/v4/anime/${jid}/episodes?page=${Math.ceil(ep/100)}`,5000,1);
+      const entry=r?.data?.find(e=>Number(e.mal_id||e.episode_id||e.episode)===ep);
+      return entry?.title||entry?.name||null;
+    }catch(e){return null;}
   }
 
   async function _fetchSched(jid){
@@ -441,6 +540,55 @@
     }
   }
 
+  // Mini toast flotante para feedback +1 desde el panel
+  function _miniToast(btn, text){
+    const rect=btn.getBoundingClientRect();
+    const t=document.createElement("div"); t.className="v34-mini-toast";
+    t.textContent=text;
+    t.style.left=(rect.left+rect.width/2)+"px";
+    t.style.top=(rect.top-4)+"px";
+    t.style.transform="translateX(-50%)";
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(),950);
+  }
+
+  // Marca +1 desde el panel de novedades sin abrir el card
+  function _markPlusOne(item, btn, subEl, whenEl){
+    if(btn.disabled) return;
+    btn.disabled=true;
+    const series=(data[item.type]||[]).find(s=>s.id===item.id);
+    if(!series){btn.disabled=false;return;}
+    const nc=typeof nextChapter==="function"?nextChapter(series):null;
+    if(nc===null){btn.disabled=false;return;}
+    // Marcar
+    if(!series.completed.includes(nc)) series.completed.push(nc);
+    series.completed.sort((a,b)=>a-b);
+    series.lastUpdated=Date.now();
+    if(series.jikanPublishing&&nc>series.total) series.total=nc;
+    const wasCompleted=series.completed.length===series.total&&series.total>0&&!series.jikanPublishing;
+    if(wasCompleted){series.status="completed";}
+    else if(series.status==="plan") series.status="reading";
+    // Efectos
+    if(typeof p29PlayTick==="function") p29PlayTick();
+    if(typeof p29BumpGoal==="function") p29BumpGoal();
+    if(typeof p28TouchStreak==="function") p28TouchStreak();
+    const L=item.type==="manga"?"Cap.":"Ep.";
+    _miniToast(btn,`${L} ${nc} ✓`);
+    if(typeof save==="function") save();
+    // Actualizar UI del item en el panel sin re-renderizar todo
+    const newNc=typeof nextChapter==="function"?nextChapter(series):null;
+    if(subEl){
+      if(newNc===null&&series.jikanPublishing) subEl.textContent="Al día · en emisión";
+      else if(newNc===null) subEl.textContent="Al día ✓";
+      else subEl.textContent=`${L} ${newNc} disponible`;
+    }
+    if(whenEl){whenEl.textContent="ahora";whenEl.style.color="#34d399";}
+    if(newNc===null) btn.disabled=true; // al día: deshabilitar
+    else btn.disabled=false;
+    // Re-render diferido para actualizar contadores
+    setTimeout(()=>{ if(typeof render==="function") render(); },400);
+  }
+
   // ── DESKTOP PANEL ──────────────────────────────────────────────────
   function _desktopPanel(items){
     const unread=items.filter(i=>i.unread).length;
@@ -461,16 +609,41 @@
       const el=document.createElement("div");
       el.className="v34-item"+(item.unread?" v34-unread":"");
       if(item.unread) el.style.borderLeftColor=ac;
+
       let cov;
       if(item.cover){cov=document.createElement("img");cov.className="v34-cover";cov.src=item.cover;cov.onerror=()=>cov.style.display="none";}
       else{cov=document.createElement("div");cov.className="v34-cover-ph";cov.style.cssText=`background:${item.type==="manga"?"rgba(167,139,250,.12)":"rgba(52,211,153,.1)"};color:${ac};`;cov.textContent=item.title.charAt(0);}
+
       const info=document.createElement("div"); info.className="v34-info";
-      info.innerHTML=`<span class="v34-tpill" style="background:${item.type==="manga"?"rgba(167,139,250,.15)":"rgba(52,211,153,.1)"};color:${ac};">${item.type==="manga"?"MANGA":"ANIME"}</span><div class="v34-title">${item.title}</div><div class="v34-sub">${sub}</div>`;
+      const subSpan=document.createElement("div"); subSpan.className="v34-sub"; subSpan.textContent=sub;
+      info.innerHTML=`<span class="v34-tpill" style="background:${item.type==="manga"?"rgba(167,139,250,.15)":"rgba(52,211,153,.1)"};color:${ac};">${item.type==="manga"?"MANGA":"ANIME"}</span><div class="v34-title">${item.title}</div>`;
+      info.appendChild(subSpan);
+
       const right=document.createElement("div"); right.className="v34-right";
-      right.innerHTML=`<div class="v34-when" style="color:${wc};">${when}</div>`;
-      el.append(cov,info,right);
+      const whenEl=document.createElement("div"); whenEl.className="v34-when"; whenEl.style.color=wc; whenEl.textContent=when;
+      right.appendChild(whenEl);
+
+      // Botón +1 — solo si hay cap pendiente
+      const plusBtn=document.createElement("button");
+      plusBtn.className="v34-plus-btn"+(item.type==="manga"?" manga-btn":"");
+      plusBtn.textContent="+";
+      plusBtn.title=`Marcar ${item.type==="manga"?"cap.":"ep."} ${item.nextCap}`;
+      if(item.nextCap===null) plusBtn.disabled=true;
+
+      plusBtn.addEventListener("click",(e)=>{
+        e.stopPropagation(); // no navegar al card
+        _markPlusOne(item,plusBtn,subSpan,whenEl);
+      });
+
+      el.append(cov,info,right,plusBtn);
       if(item.unread){const ud=document.createElement("div");ud.className="v34-udot";el.appendChild(ud);}
-      el.onclick=()=>_nav(item);
+
+      // Click en el item (no en el botón +1) navega al card
+      el.addEventListener("click",(e)=>{
+        if(e.target===plusBtn||plusBtn.contains(e.target)) return;
+        _nav(item);
+      });
+
       p.appendChild(el);
     });
 
@@ -772,7 +945,7 @@
   // ── NOTA DEL PARCHE v3.4 ──────────────────────────────────────────
   // P28_PATCH_NOTES es const en ui.js, no alcanzable via window.
   // Usamos MutationObserver sobre el body para detectar .patch-panel
-  const V34_HTML=`<div class="patch-version v34-injected"><div class="patch-ver-tag">Parche v3.4 — 2026-05</div><ul class="patch-ver-items"><li>📰 <b>Panel de novedades lateral (desktop)</b> — columna fija a la izquierda del #app con position:fixed; se muestra solo cuando hay espacio disponible (mide getBoundingClientRect); incluye sección "Esta semana" con próximos estrenos de series al día en emisión con fechas reales de AniList</li><li>📱 <b>Carrusel mobile de novedades</b> — banner horizontal scrolleable inline antes de "Continuar leyendo"; chips de 145px con franja de color por tipo (morado manga / verde anime), countdown de días, dot azul para no leídos; incluye series al día en emisión con fecha de próximo estreno</li><li>🟢 <b>Indicador visual de novedades en vista catálogo</b> — dot verde pulsante, franja de gradiente superior y badge "NUEVO" sobre la portada de cards con cap/ep disponible en las últimas 48h</li><li>📋 <b>Indicador visual de novedades en vista lista</b> — franja izquierda verde y badge "NUEVO" inline junto al título de la serie en el card de lista; visible sin necesidad de expandir la tarjeta</li><li>🔴 <b>Fix badge "nuevo" en tabs</b> — corregido bug donde el badge aparecía en Perfil, Descubrir e Historial; ahora solo se muestra en los tabs Manga y Anime (identificados por presencia de .tab-c); se limpia y recalcula en cada render</li><li>💀 <b>Skeleton loading en Continuar Leyendo</b> — placeholders animados con efecto shimmer mientras cargan las portadas del carrusel horizontal</li><li>📅 <b>Fechas de estreno en card expandido (colapsable)</b> — recuadro "Próximo por marcar" colapsable en mobile (expandido por defecto en desktop); fecha exacta desde Jikan API; para anime en emisión muestra además el próximo episodio a estrenar via AniList GraphQL nextAiringEpisode con countdown en días</li><li>⚡ <b>Cache de fechas por sesión</b> — fechas de Jikan y schedules de AniList cacheados en objetos JS en memoria; no re-fetchea al abrir/cerrar el mismo card; respeta rate limit de Jikan</li></ul></div>`;
+  const V34_HTML=`<div class="patch-version v34-injected"><div class="patch-ver-tag">Parche v3.4 — 2026-05</div><ul class="patch-ver-items"><li>📰 <b>Panel de novedades lateral (desktop)</b> — columna fija a la izquierda del #app con position:fixed; se muestra solo cuando hay espacio disponible (mide getBoundingClientRect); incluye sección "Esta semana" con próximos estrenos de series al día en emisión con fechas reales de AniList</li><li>➕ <b>Botón +1 directo en el panel de novedades</b> — cada item del panel tiene un botón +1 para marcar el cap/ep sin abrir el card; actualiza el estado del item en tiempo real con mini toast de feedback; anti-doble-tap incluido</li><li>📅 <b>AniList como fuente primaria de fechas para anime</b> — el recuadro "Próximo por marcar" ahora consulta AniList airingSchedule antes que Jikan para obtener fechas exactas de emisión; Jikan queda como fallback; para eps ya emitidos sin schedule histórico estima la fecha por diferencia semanal respecto al próximo ep conocido</li><li>📱 <b>Carrusel mobile de novedades</b> — banner horizontal scrolleable inline antes de "Continuar leyendo"; chips de 145px con franja de color por tipo, countdown de días, dot azul para no leídos</li><li>🟢 <b>Indicador visual en catálogo</b> — dot verde pulsante, franja de gradiente y badge "NUEVO" en cards con cap disponible en las últimas 48h</li><li>📋 <b>Indicador en vista lista</b> — franja izquierda verde y badge "NUEVO" junto al título de la serie; visible sin expandir el card</li><li>🔴 <b>Fix badge en tabs</b> — corregido bug donde el badge aparecía en Perfil, Descubrir e Historial; ahora solo se aplica a los tabs Manga y Anime (identificados por .tab-c)</li><li>💀 <b>Skeleton loading en Continuar Leyendo</b> — placeholders animados con shimmer mientras cargan las portadas</li><li>📅 <b>Fechas de estreno colapsables en card expandido</b> — recuadro "Próximo por marcar" colapsable en mobile, expandido en desktop; fecha desde AniList/Jikan con countdown en días</li></ul></div>`;
 
   function _injectPatchNote(){
     const pp=document.querySelector(".patch-panel");
