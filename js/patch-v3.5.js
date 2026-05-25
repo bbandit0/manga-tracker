@@ -475,64 +475,60 @@
 
 
 
-  // ── INTERCEPCIÓN DEFINITIVA ──────────────────────────────────────
-  // Interceptamos el setter de innerHTML del container ANTES de que
-  // community.js lo use. Cuando escribe el perfil, lo capturamos,
-  // lo procesamos y escribimos el rediseño en su lugar.
-  // Esta es la única estrategia 100% confiable sin tocar community.js.
+  // ── INTERCEPCIÓN DEFINITIVA v4 ───────────────────────────────────
+  // El container se crea en cada render() de ui.js (tab friends).
+  // Observamos el #app con subtree:true. Cuando aparece el container,
+  // instalamos el interceptor de innerHTML INMEDIATAMENTE (sin setTimeout).
+  // Cuando community.js escribe el perfil, lo capturamos y rediseñamos.
 
-  function _waitForContainerAndIntercept(){
-    const c = document.getElementById("friends-panel-container");
-    if(!c){
-      setTimeout(_waitForContainerAndIntercept, 100);
-      return;
-    }
-    if(c._v35intercepted) return;
+  function _installInterceptor(c){
+    if(!c||c._v35intercepted) return;
     c._v35intercepted = true;
 
-    // Guardar el setter/getter originales
-    const proto = Object.getPrototypeOf(c); // HTMLDivElement → HTMLElement → Element
-    const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
-    const origSet = descriptor.set;
-    const origGet = descriptor.get;
-
-    // Definir setter personalizado solo para ESTE elemento
+    const desc = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
     Object.defineProperty(c, 'innerHTML', {
-      get: function(){ return origGet.call(this); },
-      set: function(html){
-        // Escribir el HTML original primero
-        origSet.call(this, html);
-        // Si contiene .fn-profile, aplicar rediseño
-        const fp = this.querySelector('.fn-profile');
-        if(fp && !fp.dataset.v35){
-          // Pequeño delay para que community.js termine de configurar
-          // sus propias referencias (avatarUrl, etc.)
-          requestAnimationFrame(()=>{
-            const fp2 = this.querySelector('.fn-profile');
-            if(fp2 && !fp2.dataset.v35) _rebuildProfile(fp2);
-          });
-        }
+      get(){ return desc.get.call(this); },
+      set(html){
+        desc.set.call(this, html);
+        // Verificar si hay .fn-profile en el nuevo contenido
+        requestAnimationFrame(()=>{
+          const fp = c.querySelector('.fn-profile');
+          if(fp && !fp.dataset.v35) _rebuildProfile(fp);
+        });
       },
       configurable: true
     });
   }
 
-  // Iniciar cuando el DOM esté listo
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', _waitForContainerAndIntercept);
-  } else {
-    _waitForContainerAndIntercept();
-  }
+  // Observer sobre el #app (donde se añade el container)
+  function _startAppObserver(){
+    const app = document.getElementById('app');
+    if(!app){ setTimeout(_startAppObserver, 50); return; }
 
-  // También observar cuando se crea el container (si render() aún no corrió)
-  new MutationObserver(muts=>{
-    muts.forEach(m=>m.addedNodes.forEach(node=>{
-      if(!(node instanceof Element)) return;
-      if(node.id==='friends-panel-container') _waitForContainerAndIntercept();
-      const c2 = node.querySelector && node.querySelector('#friends-panel-container');
-      if(c2) _waitForContainerAndIntercept();
-    }));
-  }).observe(document.body,{childList:true,subtree:true});
+    // Si el container ya existe (navegación rápida), interceptar de inmediato
+    const existing = app.querySelector('#friends-panel-container');
+    if(existing) _installInterceptor(existing);
+
+    new MutationObserver(muts=>{
+      muts.forEach(m=>{
+        m.addedNodes.forEach(node=>{
+          if(!(node instanceof Element)) return;
+          // El container puede ser el nodo mismo o estar dentro
+          if(node.id === 'friends-panel-container'){
+            _installInterceptor(node);
+          } else {
+            const c = node.querySelector && node.querySelector('#friends-panel-container');
+            if(c) _installInterceptor(c);
+          }
+          // También aplicar rediseño si ya hay .fn-profile
+          const fp = node.classList?.contains('fn-profile') ? node
+            : node.querySelector && node.querySelector('.fn-profile');
+          if(fp && !fp.dataset.v35) _rebuildProfile(fp);
+        });
+      });
+    }).observe(app, {childList:true, subtree:true});
+  }
+  _startAppObserver();
 
   // ── PATCH NOTES v3.5 ───────────────────────────────────────────────
   const V35=`<div class="patch-version v35-injected"><div class="patch-ver-tag">Parche v3.5 — 2026-05</div><ul class="patch-ver-items"><li>🎨 <b>Rediseño perfil de amigo</b> — banner 200px con overlay dramático, nuevo layout de avatar solapado sobre el banner, sin modificar community.js (MutationObserver reemplaza el DOM post-render)</li><li>🏅 <b>Sistema de rango</b> — badge junto al @username por caps totales: 📜 Lector → ⚔️ Katana → 🐉 Ryuu → ⚡ Kami → 💀 Shinigami (5000+)</li><li>📊 <b>Stats enriquecidas</b> — caps, eps, tiempo estimado (8min/cap · 23min/ep) y completados; reemplaza el grid genérico anterior</li><li>🎯 <b>Compatibilidad rediseñada</b> — emoji grande, barra animada y chips de tags en común</li><li>🤝 <b>Series en común mejoradas</b> — chips con punto de color indicando manga (morado) o anime (verde)</li><li>🖼 <b>Tab "Portadas"</b> — mini-grid 3×2 con portadas de las series en progreso; placeholder con gradiente único por título</li><li>📚 <b>Portadas en todas las listas</b> — thumbnails 36×50px en En progreso, Completados y Pausados</li><li>🗂 <b>Tabs: En progreso / Portadas / Completados / Pausados</b> — con sub-tabs Manga/Anime dentro de "En progreso"</li></ul></div>`;
