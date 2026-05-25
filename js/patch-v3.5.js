@@ -475,32 +475,44 @@
 
 
 
-  // ── OBSERVER: detecta .fn-profile en #friends-panel-container ─────
-  // community.js hace container.innerHTML = `...<div class="fn-profile">...`
-  // Esto dispara childList en el CONTAINER, no en el body.
-  // Doble estrategia: observer sobre el container + wrap de renderFriendsPanel.
-  function _startObs(){
-    const c=document.getElementById("friends-panel-container");
-    if(!c){ setTimeout(_startObs,300); return; }
-    new MutationObserver(()=>{
-      const fp=c.querySelector(".fn-profile");
-      if(fp&&!fp.dataset.v35) _rebuildProfile(fp);
-    }).observe(c,{childList:true,subtree:false});
+  // ── OBSERVER DEFINITIVO ──────────────────────────────────────────
+  // El container #friends-panel-container existe en el DOM cuando carga
+  // el parche, pero su contenido (innerHTML) se escribe 80ms después via
+  // renderFriendsPanel(). Observamos el container con childList:true
+  // Y TAMBIÉN el body con subtree:true como doble red de seguridad.
+  // Además hacemos polling con setInterval como última garantía.
+  function _checkAndApply(){
+    const fp=document.querySelector("#friends-panel-container .fn-profile");
+    if(fp&&!fp.dataset.v35) _rebuildProfile(fp);
   }
-  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",_startObs);
-  else _startObs();
 
-  // Wrap de renderFriendsPanel como segunda red de seguridad
-  if(typeof window.renderFriendsPanel==="function"){
-    const _oRFP=window.renderFriendsPanel;
-    window.renderFriendsPanel=async function(){
-      await _oRFP.apply(this,arguments);
-      setTimeout(()=>{
-        const fp=document.querySelector("#friends-panel-container .fn-profile");
-        if(fp&&!fp.dataset.v35) _rebuildProfile(fp);
-      },60);
-    };
+  // Observer 1: sobre el container directo
+  function _observeContainer(){
+    const c=document.getElementById("friends-panel-container");
+    if(c){
+      new MutationObserver(_checkAndApply).observe(c,{childList:true,subtree:true});
+    }
   }
+
+  // Observer 2: sobre el body para detectar cuando se crea el container
+  new MutationObserver(muts=>{
+    _checkAndApply();
+    // Si el container acaba de aparecer, empezar a observarlo también
+    muts.forEach(m=>m.addedNodes.forEach(node=>{
+      if(node instanceof Element&&node.id==="friends-panel-container") _observeContainer();
+      if(node instanceof Element){
+        const c=node.querySelector&&node.querySelector("#friends-panel-container");
+        if(c) _observeContainer();
+      }
+    }));
+  }).observe(document.body,{childList:true,subtree:true});
+
+  // Polling de seguridad: verifica cada 500ms durante 30s
+  let _v35polls=0;
+  const _v35poll=setInterval(()=>{
+    _checkAndApply();
+    if(++_v35polls>60) clearInterval(_v35poll);
+  },500);
 
   // ── PATCH NOTES v3.5 ───────────────────────────────────────────────
   const V35=`<div class="patch-version v35-injected"><div class="patch-ver-tag">Parche v3.5 — 2026-05</div><ul class="patch-ver-items"><li>🎨 <b>Rediseño perfil de amigo</b> — banner 200px con overlay dramático, nuevo layout de avatar solapado sobre el banner, sin modificar community.js (MutationObserver reemplaza el DOM post-render)</li><li>🏅 <b>Sistema de rango</b> — badge junto al @username por caps totales: 📜 Lector → ⚔️ Katana → 🐉 Ryuu → ⚡ Kami → 💀 Shinigami (5000+)</li><li>📊 <b>Stats enriquecidas</b> — caps, eps, tiempo estimado (8min/cap · 23min/ep) y completados; reemplaza el grid genérico anterior</li><li>🎯 <b>Compatibilidad rediseñada</b> — emoji grande, barra animada y chips de tags en común</li><li>🤝 <b>Series en común mejoradas</b> — chips con punto de color indicando manga (morado) o anime (verde)</li><li>🖼 <b>Tab "Portadas"</b> — mini-grid 3×2 con portadas de las series en progreso; placeholder con gradiente único por título</li><li>📚 <b>Portadas en todas las listas</b> — thumbnails 36×50px en En progreso, Completados y Pausados</li><li>🗂 <b>Tabs: En progreso / Portadas / Completados / Pausados</b> — con sub-tabs Manga/Anime dentro de "En progreso"</li></ul></div>`;
