@@ -317,6 +317,114 @@ async function _srcAniListByTitle(title, type){
   }catch(e){return 0;}
 }
 
+// ── Mapeo ep absoluto → etiqueta de temporada ────────────────────────────────
+// Dado un número de episodio absoluto (ej: 14) y el array seasons de la serie,
+// retorna "S2 · Ep. 2" o null si no hay temporadas definidas o el ep no cae en ninguna.
+// Esta función es pura: no modifica estado ni hace fetch.
+function getSeasonLabel(epNum, seasons){
+  if(!seasons||!seasons.length||!epNum) return null;
+  for(let i=0;i<seasons.length;i++){
+    const sn=seasons[i];
+    if(epNum>=sn.from&&epNum<=sn.to){
+      const epLocal=epNum-sn.from+1;
+      return `S${i+1} · Ep. ${epLocal}`;
+    }
+  }
+  return null;
+}
+
+// ── Fetch automático de estructura de temporadas desde AniList ────────────────
+// Dado el MAL ID de una serie de anime, consulta AniList para obtener los episodios
+// de la serie principal y sus secuelas directas de tipo TV, construye el array de
+// rangos {name, from, to} y lo guarda en s.seasons sin tocar ningún otro campo.
+// Disparo: async sin bloquear el render. Falla silenciosamente si AniList no responde.
+async function _fetchAniListSeasons(serieId, malId, tabKey){
+  if(!malId||tabKey!=="anime") return;
+  try{
+    const gql=`
+    query($id:Int){
+      Media(idMal:$id,type:ANIME){
+        idMal
+        episodes
+        status
+        nextAiringEpisode{ episode }
+        relations{
+          edges{
+            relationType(version:2)
+            node{
+              idMal
+              type
+              format
+              status
+              episodes
+              nextAiringEpisode{ episode }
+            }
+          }
+        }
+      }
+    }`;
+    const res=await fetch("https://graphql.anilist.co",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Accept":"application/json"},
+      body:JSON.stringify({query:gql,variables:{id:malId}}),
+      signal:AbortSignal.timeout(8000)
+    });
+    if(!res.ok) return;
+    const json=await res.json();
+    const media=json?.data?.Media;
+    if(!media) return;
+
+    // Eps del item raíz (S1)
+    const rootEps=media.nextAiringEpisode?.episode>0
+      ? media.nextAiringEpisode.episode-1
+      : (media.episodes||0);
+    if(!rootEps) return; // Sin dato de eps no podemos construir rangos
+
+    // Recopilar secuelas directas de tipo TV ordenadas por idMal
+    const sequels=[];
+    for(const edge of (media.relations?.edges||[])){
+      if(edge.relationType!=="SEQUEL") continue;
+      if(edge.node?.type!=="ANIME") continue;
+      // Solo TV — excluir OVA, Movie, Special
+      if(edge.node?.format&&!["TV","TV_SHORT"].includes(edge.node.format)) continue;
+      const eps=edge.node.nextAiringEpisode?.episode>0
+        ? edge.node.nextAiringEpisode.episode-1
+        : (edge.node.episodes||0);
+      if(!eps) continue; // Secuela sin dato de eps → ignorar
+      sequels.push({malId:edge.node.idMal, eps});
+    }
+
+    // Si no hay secuelas con datos, no tiene sentido guardar temporadas
+    if(!sequels.length) return;
+
+    // Ordenar secuelas por malId ascendente (idMal más bajo = más antigua)
+    sequels.sort((a,b)=>(a.malId||999999)-(b.malId||999999));
+
+    // Construir rangos acumulados
+    const ranges=[];
+    let cursor=1;
+    // S1 = item raíz
+    ranges.push({name:"T1", from:cursor, to:cursor+rootEps-1});
+    cursor+=rootEps;
+    // S2, S3, ... = secuelas
+    sequels.forEach((sq,idx)=>{
+      ranges.push({name:`T${idx+2}`, from:cursor, to:cursor+sq.eps-1});
+      cursor+=sq.eps;
+    });
+
+    // Guardar solo si la serie todavía existe y sus seasons están vacíos
+    // (no sobreescribir si el usuario ya los configuró manualmente)
+    const series=data[tabKey]?.find(x=>x.id===serieId);
+    if(!series) return;
+    if(series.seasons&&series.seasons.length>0) return; // ya tiene temporadas, respetar
+    series.seasons=ranges;
+    save();
+    // No llamar render() — no hay nada visual que cambiar en este momento
+  }catch(e){
+    // Falla silenciosamente — el usuario no nota nada
+  }
+}
+
 // ── Búsqueda primaria de anime via AniList GraphQL ───────────────────────────
 // AniList modela secuelas explícitamente en `relations`, lo que permite obtener
 // el total acumulado real de episodios de toda la franquicia en una sola query.
@@ -2227,7 +2335,7 @@ if(!x.completed.includes(nxt))x.completed.push(nxt);
 x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();
 // Para series en emisión: si el cap marcado supera el total conocido, extender total automáticamente
 if(x.jikanPublishing&&nxt>x.total){x.total=nxt;}
-const wasCompleted=x.completed.length===x.total&&x.total>0&&!x.jikanPublishing;if(wasCompleted){x.status="completed";actLogComplete(x.title,tab,x.total);}else if(x.status==="plan")x.status="reading";actLogChapter(x.title,tab,nxt,x.completed.length,x.total);p28TouchStreak();const streak=p28GetStreak();const goalData=p29BumpGoal();const isGoalHit=goalData.todayCount===goalData.goal;const isUpToDate=!wasCompleted&&x.jikanPublishing&&x.completed.length>=x.total;if(wasCompleted){p29PlayCompleteSound();p29ShowConfetti(ac,"complete");p28ShowPlusAnim(tab,x.title,streak,false,true,false);}else if(isGoalHit){p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,true,false,false);}else if(isUpToDate){p29PlayUpToDateSound();p29ShowConfetti(ac,"uptodate");p28ShowPlusAnim(tab,x.title,streak,false,false,true);}else{p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,false,false,false);}save();setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxt} ✓${wasCompleted?" · 🎉 ¡Completado!":isUpToDate?" · ✓ ¡Al día!":""}`);},200);};sa.appendChild(qb);}sa.appendChild(h("button","ib dng",svg.trash,{onclick:e=>{e.stopPropagation();showModal("Eliminar",`¿Eliminar <b>${s.title}</b>?`,"🗑",()=>{data[tab]=data[tab].filter(x=>x.id!==s.id);save();render();showToast(`"${s.title}" eliminado`);});}}));sa.appendChild(h("div","ib",isExp?svg.chu:svg.chd));sh.appendChild(sa);sc.appendChild(sh);
+const wasCompleted=x.completed.length===x.total&&x.total>0&&!x.jikanPublishing;if(wasCompleted){x.status="completed";actLogComplete(x.title,tab,x.total);}else if(x.status==="plan")x.status="reading";actLogChapter(x.title,tab,nxt,x.completed.length,x.total);p28TouchStreak();const streak=p28GetStreak();const goalData=p29BumpGoal();const isGoalHit=goalData.todayCount===goalData.goal;const isUpToDate=!wasCompleted&&x.jikanPublishing&&x.completed.length>=x.total;if(wasCompleted){p29PlayCompleteSound();p29ShowConfetti(ac,"complete");p28ShowPlusAnim(tab,x.title,streak,false,true,false);}else if(isGoalHit){p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,true,false,false);}else if(isUpToDate){p29PlayUpToDateSound();p29ShowConfetti(ac,"uptodate");p28ShowPlusAnim(tab,x.title,streak,false,false,true);}else{p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,false,false,false);}const _snLblQb=tab==="anime"?getSeasonLabel(nxt,x.seasons):null;save();setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxt}${_snLblQb?" ("+_snLblQb+")":""} ✓${wasCompleted?" · 🎉 ¡Completado!":isUpToDate?" · ✓ ¡Al día!":""}`);},200);};sa.appendChild(qb);}sa.appendChild(h("button","ib dng",svg.trash,{onclick:e=>{e.stopPropagation();showModal("Eliminar",`¿Eliminar <b>${s.title}</b>?`,"🗑",()=>{data[tab]=data[tab].filter(x=>x.id!==s.id);save();render();showToast(`"${s.title}" eliminado`);});}}));sa.appendChild(h("div","ib",isExp?svg.chu:svg.chd));sh.appendChild(sa);sc.appendChild(sh);
 // ── Expanded panel ──
 if(isExp){const cp=h("div","cpnl");
 // ── SECCIÓN ESTADO ──
@@ -2281,14 +2389,14 @@ if(tab==="anime"){const dSe=h("div","dsec");const dSeHdr=h("div","dsec-hdr");dSe
 const ctl=h("div","cctl");
 const nxtCh=nextChapter(s);
 const pillBtn=h("button","qnext-pill",null);pillBtn.disabled=!nxtCh;
-pillBtn.innerHTML=`<span style="font-size:13px;font-weight:700">+1</span>${nxtCh?`<span class="cap-num">${tab==="manga"?"cap.":"ep."} ${nxtCh}</span>`:"<span class='cap-num'>completo</span>"}`;
+pillBtn.innerHTML=`<span style="font-size:13px;font-weight:700">+1</span>${nxtCh?`<span class="cap-num">${tab==="manga"?"cap.":"ep."} ${nxtCh}${tab==="anime"&&s.seasons?.length?((lbl=>lbl?` <span style="opacity:.65;font-size:10px">(${lbl})</span>`:"")(getSeasonLabel(nxtCh,s.seasons))):""}</span>`:"<span class='cap-num'>completo</span>"}`;
 pillBtn.onclick=e=>{e.stopPropagation();if(!nxtCh||pillBtn.disabled)return;pillBtn.disabled=true;// FIX #13
 const x=data[tab].find(z=>z.id===s.id);if(!x){pillBtn.disabled=false;return;}
 if(!x.completed.includes(nxtCh))x.completed.push(nxtCh);
 x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();
 // Para series en emisión: extender total si el cap marcado lo supera
 if(x.jikanPublishing&&nxtCh>x.total){x.total=nxtCh;}
-const wasCompleted=x.completed.length===x.total&&x.total>0&&!x.jikanPublishing;if(wasCompleted){x.status="completed";actLogComplete(x.title,tab,x.total);}else if(x.status==="plan")x.status="reading";actLogChapter(x.title,tab,nxtCh,x.completed.length,x.total);p28TouchStreak();const streak=p28GetStreak();const goalData=p29BumpGoal();const isGoalHit=goalData.todayCount===goalData.goal;const isUpToDate=!wasCompleted&&x.jikanPublishing&&x.completed.length>=x.total;if(wasCompleted){p29PlayCompleteSound();p29ShowConfetti(ac,"complete");p28ShowPlusAnim(tab,x.title,streak,false,true,false);}else if(isGoalHit){p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,true,false,false);}else if(isUpToDate){p29PlayUpToDateSound();p29ShowConfetti(ac,"uptodate");p28ShowPlusAnim(tab,x.title,streak,false,false,true);}else{p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,false,false,false);}save();setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxtCh} ✓${wasCompleted?" · 🎉 ¡Completado!":isUpToDate?" · ✓ ¡Al día!":""}`);},200);};
+const wasCompleted=x.completed.length===x.total&&x.total>0&&!x.jikanPublishing;if(wasCompleted){x.status="completed";actLogComplete(x.title,tab,x.total);}else if(x.status==="plan")x.status="reading";actLogChapter(x.title,tab,nxtCh,x.completed.length,x.total);p28TouchStreak();const streak=p28GetStreak();const goalData=p29BumpGoal();const isGoalHit=goalData.todayCount===goalData.goal;const isUpToDate=!wasCompleted&&x.jikanPublishing&&x.completed.length>=x.total;if(wasCompleted){p29PlayCompleteSound();p29ShowConfetti(ac,"complete");p28ShowPlusAnim(tab,x.title,streak,false,true,false);}else if(isGoalHit){p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,true,false,false);}else if(isUpToDate){p29PlayUpToDateSound();p29ShowConfetti(ac,"uptodate");p28ShowPlusAnim(tab,x.title,streak,false,false,true);}else{p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,false,false,false);}const _snLblPill=tab==="anime"?getSeasonLabel(nxtCh,x.seasons):null;save();setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxtCh}${_snLblPill?" ("+_snLblPill+")":""} ✓${wasCompleted?" · 🎉 ¡Completado!":isUpToDate?" · ✓ ¡Al día!":""}`);},200);};
 ctl.appendChild(pillBtn);
 const cbtns=h("div","");cbtns.style.cssText="display:flex;gap:5px;flex-wrap:wrap";
 cbtns.appendChild(h("button","bs",svg.edit+" Total",{onclick:()=>{editTotal=editTotal===s.id?null:s.id;editTotalVal=String(s.total);render();}}));
@@ -3021,6 +3129,11 @@ data[tab].push(migrate({id:newId,title:t,total:safeTotal,completed:[],cover:newC
 // Limpiar estado global DESPUÉS de capturar en variables locales
 newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";newTitle="";newTotal="";window._pendingJikanId=null;window._pendingJikanPublishing=false;
 save();render();showToast(`"${t}" agregado ✓`);actLogAdd(t,tab,safeTotal);
+// Fetch automático de temporadas para anime con jikanId (async, no bloquea, falla silencioso)
+if(tab==="anime"&&_pendingId){
+  const _sidForSeasons=newId;const _malForSeasons=_pendingId;const _tabForSeasons=tab;
+  setTimeout(()=>_fetchAniListSeasons(_sidForSeasons,_malForSeasons,_tabForSeasons),800);
+}
 // FIX BUG #1: Si en publicación, fetchear caps reales SIEMPRE (no solo cuando total<1)
 // para corregir el mínimo de 1 que pusimos arriba, o actualizar un total ya conocido
 if(_pendingPub&&_pendingId){
