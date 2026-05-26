@@ -462,11 +462,19 @@ async function _renderFriendsPanelInner(container){
     // Banner mejorado — pre-calcular estilos para evitar template literals anidados
     const _profBannerFallbackBg=`linear-gradient(135deg,${_b1} 0%,${_b2} 55%,${_b3} 100%)`;
     // FIX: mostrar label siempre (con o sin imagen de banner)
-    const _profileBannerHtml=`<div class="fn-profile-banner-v5 fnv3-banner-profile" data-fnv3-un="${_pUsername}" style="position:relative;overflow:hidden;height:160px">
+    const _chLabel=_topS?.type==="A"?"Ep.":"Cap.";
+    const _profileBannerHtml=`<div class="fn-profile-banner-v5 fnv3-banner-profile" data-fnv3-un="${_pUsername}" style="position:relative;overflow:hidden;height:170px">
       <svg class="fnv3-banner-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%;z-index:1"></svg>
-      <div style="position:absolute;inset:0;z-index:2;background:linear-gradient(to bottom,rgba(8,12,20,0) 20%,rgba(8,12,20,.97) 100%)"></div>
+      <div style="position:absolute;inset:0;z-index:2;background:linear-gradient(to bottom,rgba(8,12,20,.15) 0%,rgba(8,12,20,.5) 50%,rgba(8,12,20,1) 100%)"></div>
       <div class="fnv3-accent-line" id="fp-accent-line" style="position:absolute;top:0;left:0;right:0;height:3px;z-index:4"></div>
-      ${_topS?`<div id="fp-banner-lbl" style="position:absolute;bottom:10px;left:18px;right:18px;display:flex;align-items:center;gap:7px;z-index:3"><span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.8);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 8px rgba(0,0,0,.9)">▶ ${_topS.title}</span><span style="font-size:9px;font-family:Space Mono,monospace;color:rgba(255,255,255,.5);background:rgba(0,0,0,.5);padding:1px 6px;border-radius:4px;flex-shrink:0">${_topPct}%</span></div>`:""}
+      ${_topS?`<div id="fp-banner-lbl" style="position:absolute;bottom:14px;left:18px;right:18px;z-index:3;display:flex;align-items:center;gap:8px">
+        <span style="flex:1;min-width:0">
+          <div style="font-size:8px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:2px">${_topS.type==="A"?"🎬 Anime en progreso":"📖 Manga en progreso"}</div>
+          <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 8px rgba(0,0,0,.9)">${_topS.title}</div>
+          ${_topS.total>0?`<div style="margin-top:5px;height:3px;background:rgba(255,255,255,.12);border-radius:2px;overflow:hidden"><div style="height:100%;width:${_topPct}%;background:rgba(255,255,255,.7);border-radius:2px"></div></div>`:""}
+        </span>
+        ${_topS.total>0?`<span style="font-size:10px;font-family:'Space Mono',monospace;font-weight:700;color:rgba(255,255,255,.55);background:rgba(0,0,0,.55);padding:3px 8px;border-radius:20px;flex-shrink:0;white-space:nowrap">${_chLabel} ${_topS.completed||0}/${_topS.total}</span>`:""}
+      </div>`:""}
     </div>`;
     // series en común
     const myMangaTitles=new Set(data.manga.map(s=>s.title.toLowerCase().trim()));
@@ -511,69 +519,91 @@ async function _renderFriendsPanelInner(container){
       :myTotalCaps<friendTotalCaps
       ?`@${_pUsername} te lleva <b style="color:var(--dng)">${diffCaps} caps</b>`
       :`Están <b style="color:var(--suc)">empatados</b> en caps totales`;
+    // Nivel estimado desde total de series
+    const _lvl=Math.max(1,Math.floor(Math.sqrt((pData.mangaCount||0)+(pData.animeCount||0))));
+    // Badges de logros
+    const _profBadges=[];
+    if((pData.mangaCount||0)===0&&(pData.animeCount||0)>0) _profBadges.push({t:"🎬 Solo anime",c:"var(--aa)",bg:"rgba(34,197,94,.08)",bd:"rgba(34,197,94,.22)"});
+    if((pData.animeCount||0)===0&&(pData.mangaCount||0)>0) _profBadges.push({t:"📚 Solo manga",c:ac,bg:"rgba(99,179,237,.08)",bd:"rgba(99,179,237,.22)"});
+    if(completed.length>=10) _profBadges.push({t:"🏆 Top lector",c:"#ffaa00",bg:"rgba(255,170,0,.1)",bd:"rgba(255,170,0,.28)"});
+    if(_pCompat.score>=90) _profBadges.push({t:"✨ Alma gemela",c:"#f59e0b",bg:"rgba(245,158,11,.1)",bd:"rgba(245,158,11,.28)"});
+    if(reading.length>0) _profBadges.push({t:"▶ Activo",c:"var(--suc)",bg:"rgba(0,255,136,.07)",bd:"rgba(0,255,136,.22)"});
+    const _badgesHtml=_profBadges.slice(0,4).map(b=>`<span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:9px;font-weight:700;color:${b.c};background:${b.bg};border:1px solid ${b.bd};letter-spacing:.02em">${b.t}</span>`).join("");
     container.innerHTML=`
       <div class="fn-profile" style="padding:0">
-        <div style="padding:14px 16px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.05)">
+        <div style="padding:12px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.05)">
           <button class="fn-btn sec" onclick="friendsState.view='list';friendsState.viewingUid=null;friendsState.viewingData=null;renderFriendsPanel()" style="font-size:11px;padding:6px 12px">&larr; Volver</button>
           <span style="flex:1"></span>
           <button style="padding:6px 12px;border:1px solid rgba(231,76,76,.3);background:rgba(231,76,76,.07);color:var(--t3);font-size:10px;border-radius:10px;cursor:pointer;font-weight:600;font-family:'Outfit',sans-serif;transition:.15s" onmouseover="this.style.color='var(--dng)';this.style.borderColor='var(--dng)'" onmouseout="this.style.color='var(--t3)';this.style.borderColor='rgba(231,76,76,.3)'" onclick="showModal('Eliminar amigo','¿Eliminar a @${_pUsername} de tus amigos?','❌',()=>fnRemoveFriend('${vuid}'))">✕ Eliminar</button>
         </div>
         ${_profileBannerHtml}
-        <div style="display:flex;align-items:flex-end;gap:14px;padding:0 20px 16px;margin-top:-40px;position:relative;z-index:3;border-bottom:1px solid rgba(255,255,255,.06)">
-          ${_pAv}
-          <div style="flex:1;min-width:0;padding-bottom:2px">
-            <div class="fn-profile-name">@${_pUsername}</div>
-            <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
-              <span style="font-size:10px;color:var(--t3);font-family:'Space Mono',monospace">${pData.mangaCount||0} manga</span>
-              <span style="font-size:10px;color:var(--t3)">·</span>
-              <span style="font-size:10px;color:var(--t3);font-family:'Space Mono',monospace">${pData.animeCount||0} anime</span>
-              <span style="font-size:10px;color:var(--t3)">·</span>
-              <span style="font-size:10px;color:var(--suc);font-family:'Space Mono',monospace">${reading.length} en curso</span>
+        <!-- IDENTIDAD: fondo sólido propio, NO superpuesto al banner -->
+        <div style="background:#0d1219;padding:16px 18px 14px;border-bottom:1px solid rgba(255,255,255,.06)">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
+            <!-- Avatar con fondo sólido para tapar el banner SVG -->
+            <div style="position:relative;flex-shrink:0">
+              ${_pAv}
+              <div style="position:absolute;bottom:-4px;right:-4px;background:#0d1219;border:2px solid rgba(255,255,255,.12);border-radius:20px;padding:1px 7px;font-size:9px;font-weight:800;color:#a0b0cc;font-family:'Space Mono',monospace;white-space:nowrap">Lv${_lvl}</div>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div class="fn-profile-name">@${_pUsername}</div>
+              <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;align-items:center">
+                <span style="font-size:10px;color:var(--t3);font-family:'Space Mono',monospace">${pData.mangaCount||0}M · ${pData.animeCount||0}A</span>
+                <span style="width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,.18);flex-shrink:0;display:inline-block"></span>
+                <span style="font-size:10px;color:var(--suc);font-family:'Space Mono',monospace;font-weight:700">${reading.length} en curso</span>
+              </div>
             </div>
           </div>
+          ${_badgesHtml?`<div style="display:flex;flex-wrap:wrap;gap:5px">${_badgesHtml}</div>`:""}
         </div>
+        <!-- STATS -->
         <div class="fn-profile-stats" style="grid-template-columns:repeat(4,1fr)">
           <div class="fn-ps"><div class="fn-ps-v" style="color:${ac}">${totalMangaCh}</div><div class="fn-ps-l">📖 Caps</div></div>
           <div class="fn-ps"><div class="fn-ps-v" style="color:var(--aa)">${totalAnimeEp}</div><div class="fn-ps-l">▶ Eps</div></div>
           <div class="fn-ps"><div class="fn-ps-v" style="color:var(--wrn)">${completed.length}</div><div class="fn-ps-l">✅ Complet.</div></div>
-          <div class="fn-ps"><div class="fn-ps-v" style="color:var(--purple)">${pData.mangaCount+pData.animeCount||0}</div><div class="fn-ps-l">🗂 Total</div></div>
+          <div class="fn-ps"><div class="fn-ps-v" style="color:var(--purple)">${(pData.mangaCount||0)+(pData.animeCount||0)}</div><div class="fn-ps-l">🗂 Total</div></div>
         </div>
-        <div style="margin:14px 16px 10px;padding:12px 16px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.07);border-radius:14px">
+        <!-- COMPATIBILIDAD -->
+        <div style="margin:14px 16px 10px;padding:14px 16px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.07);border-radius:14px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--t3)">${_pCompat.emoji} ${_pCompat.label}</span>
-            <span style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:${_pCompat.color}">${_pCompat.score}%</span>
+            <div>
+              <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--t3);margin-bottom:3px">Compatibilidad de gustos</div>
+              <div style="font-size:13px;font-weight:700;color:${_pCompat.color}">${_pCompat.emoji} ${_pCompat.label}</div>
+            </div>
+            <span style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:${_pCompat.color}">${_pCompat.score}%</span>
           </div>
-          <div style="height:6px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;margin-bottom:10px">
-            <div style="height:100%;width:${_pCompat.score}%;background:linear-gradient(90deg,${_pCompat.color}99,${_pCompat.color});border-radius:4px;transition:width .8s cubic-bezier(.34,1.56,.64,1)"></div>
+          <div style="height:7px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;margin-bottom:10px">
+            <div style="height:100%;width:${_pCompat.score}%;background:linear-gradient(90deg,${_pCompat.color}77,${_pCompat.color});border-radius:4px;transition:width .8s cubic-bezier(.34,1.56,.64,1)"></div>
           </div>
           <div style="font-size:11px;color:var(--t2)">${compareText}</div>
+          ${allCommon.length>0?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)">
+            <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--t3);margin-bottom:7px">🤝 En común</div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px">${allCommon.map(t=>`<span style="background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.2);color:var(--t1);font-size:10px;padding:3px 10px;border-radius:20px">${t}</span>`).join("")}</div>
+          </div>`:""}
         </div>
-        ${allCommon.length>0?`
-        <div style="margin:0 16px 14px;padding:12px 14px;background:rgba(99,179,237,.06);border:1px solid rgba(99,179,237,.15);border-radius:12px">
-          <div style="font-size:9px;font-weight:700;color:${ac};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🤝 En común</div>
-          <div style="display:flex;flex-wrap:wrap;gap:5px">${allCommon.map(t=>`<span style="background:rgba(99,179,237,.12);border:1px solid rgba(99,179,237,.22);color:var(--t1);font-size:10px;padding:3px 9px;border-radius:20px">${t}</span>`).join("")}</div>
-        </div>`:""} 
+        <!-- TABS PROGRESO -->
         ${reading.length>0?`
         <div class="fn-prof-tabs" id="fn-prof-tabs-reading">
           <button class="fn-prof-tab${friendsState.profileInlineTab!=='anime'?' active':''}" onclick="friendsState.profileInlineTab='manga';document.getElementById('fn-prof-tab-manga').style.display='';document.getElementById('fn-prof-tab-anime').style.display='none';this.className='fn-prof-tab active';this.nextElementSibling.className='fn-prof-tab'">📚 Manga (${readingManga.length})</button>
           <button class="fn-prof-tab${friendsState.profileInlineTab==='anime'?' active':''}" onclick="friendsState.profileInlineTab='anime';document.getElementById('fn-prof-tab-manga').style.display='none';document.getElementById('fn-prof-tab-anime').style.display='';this.className='fn-prof-tab active';this.previousElementSibling.className='fn-prof-tab'">🎬 Anime (${readingAnime.length})</button>
         </div>
-        <div id="fn-prof-tab-manga" style="padding:14px 16px 6px;${friendsState.profileInlineTab==='anime'?'display:none':''}">
+        <div id="fn-prof-tab-manga" style="padding:12px 16px 6px;${friendsState.profileInlineTab==='anime'?'display:none':''}">
           ${readingManga.length>0?buildList(readingManga,"—"):`<div class="fn-status">Sin manga en progreso</div>`}
         </div>
-        <div id="fn-prof-tab-anime" style="padding:14px 16px 6px;${friendsState.profileInlineTab!=='anime'?'display:none':''}">
+        <div id="fn-prof-tab-anime" style="padding:12px 16px 6px;${friendsState.profileInlineTab!=='anime'?'display:none':''}">
           ${readingAnime.length>0?buildList(readingAnime,"—"):`<div class="fn-status">Sin anime en progreso</div>`}
         </div>`:`<div class="fn-status" style="margin:14px 16px">Nada en progreso actualmente</div>`}
         ${completed.length>0?`
-        <div style="padding:14px 16px 6px">
+        <div style="padding:12px 16px 6px">
           <div class="fn-profile-list-title" style="padding:0 0 10px">✅ Últimos completados</div>
           ${buildList(completed,"—")}
         </div>`:""}
         ${paused.length>0?`
-        <div style="padding:14px 16px 14px">
+        <div style="padding:12px 16px 14px">
           <div class="fn-profile-list-title" style="padding:0 0 10px">⏸ En pausa / Pendientes</div>
           ${buildList(paused,"—")}
         </div>`:""}
+        <div style="height:10px"></div>
       </div>`;
     return;
   }
@@ -1254,26 +1284,26 @@ async function _renderFriendsPanelInner(container){
 .fn-profile{border-radius:16px!important;overflow:hidden!important;border:1px solid rgba(255,255,255,.08)!important;background:#0d1219!important;animation:fnv3in .22s ease!important}
 @keyframes fnv3in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .fn-profile-banner-v5{background:#0d1219!important}
-.fn-profile-avatar{width:68px!important;height:68px!important;border-radius:50%!important;border:3px solid #00ff88!important;overflow:hidden!important;object-fit:cover!important;display:block!important;flex-shrink:0!important;box-shadow:0 0 18px rgba(0,255,136,.3)!important}
-.fn-profile-avatar-ph{width:68px!important;height:68px!important;border-radius:50%!important;border:3px solid #00ff88!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:26px!important;font-weight:800!important;color:#fff!important;background:#141c2a!important;flex-shrink:0!important;box-shadow:0 0 18px rgba(0,255,136,.3)!important}
-.fn-profile-name{font-size:20px!important;font-weight:800!important;color:#f0f4ff!important;letter-spacing:-.02em!important}
-.fn-profile-stats{display:grid!important;border-top:1px solid rgba(255,255,255,.06)!important;border-bottom:1px solid rgba(255,255,255,.06)!important;margin-top:4px!important}
-.fn-ps{text-align:center!important;padding:14px 5px!important;border-right:1px solid rgba(255,255,255,.06)!important}
+.fn-profile-avatar{width:70px!important;height:70px!important;border-radius:50%!important;border:3px solid #00ff88!important;overflow:hidden!important;object-fit:cover!important;display:block!important;flex-shrink:0!important;box-shadow:0 0 20px rgba(0,255,136,.3)!important;background:#0d1219!important}
+.fn-profile-avatar-ph{width:70px!important;height:70px!important;border-radius:50%!important;border:3px solid #00ff88!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:26px!important;font-weight:800!important;color:#fff!important;background:#0d1219!important;flex-shrink:0!important;box-shadow:0 0 20px rgba(0,255,136,.3)!important}
+.fn-profile-name{font-size:21px!important;font-weight:900!important;color:#f0f4ff!important;letter-spacing:-.025em!important}
+.fn-profile-stats{display:grid!important;border-top:1px solid rgba(255,255,255,.06)!important;border-bottom:1px solid rgba(255,255,255,.06)!important}
+.fn-ps{text-align:center!important;padding:14px 5px!important;border-right:1px solid rgba(255,255,255,.06)!important;position:relative!important;overflow:hidden!important}
 .fn-ps:last-child{border-right:none!important}
-.fn-ps-v{display:block!important;font-family:'Space Mono',monospace!important;font-size:20px!important;font-weight:700!important}
-.fn-ps-l{display:block!important;font-size:8px!important;color:#3d4e6a!important;text-transform:uppercase!important;letter-spacing:.08em!important;margin-top:2px!important}
-.fn-prof-tabs{display:flex!important;border-bottom:1px solid rgba(255,255,255,.06)!important;padding:0 16px!important;margin-top:6px!important}
-.fn-prof-tab{padding:9px 14px!important;font-size:11px!important;font-weight:700!important;color:#3d4e6a!important;border:none!important;border-bottom:2px solid transparent!important;background:none!important;cursor:pointer!important;transition:all .15s!important;font-family:'Outfit',sans-serif!important}
+.fn-ps-v{display:block!important;font-family:'Space Mono',monospace!important;font-size:20px!important;font-weight:700!important;line-height:1.1!important}
+.fn-ps-l{display:block!important;font-size:8px!important;color:#3d4e6a!important;text-transform:uppercase!important;letter-spacing:.08em!important;margin-top:3px!important}
+.fn-prof-tabs{display:flex!important;border-bottom:1px solid rgba(255,255,255,.06)!important;padding:0 16px!important;margin-top:4px!important}
+.fn-prof-tab{padding:10px 14px!important;font-size:11px!important;font-weight:700!important;color:#3d4e6a!important;border:none!important;border-bottom:2px solid transparent!important;background:none!important;cursor:pointer!important;transition:all .15s!important;font-family:'Outfit',sans-serif!important}
 .fn-prof-tab.active{color:#f0f4ff!important;border-bottom-color:#00ff88!important}
-.fn-series-item{display:grid!important;grid-template-columns:38px 1fr auto!important;align-items:center!important;gap:9px!important;padding:8px 12px!important;background:rgba(255,255,255,.02)!important;transition:background .1s!important}
-.fn-series-item:nth-child(even){background:rgba(255,255,255,.038)!important}
-.fn-series-cover{width:38px!important;height:54px!important;border-radius:5px!important;object-fit:cover!important;display:block!important}
-.fn-series-cover-ph{width:38px!important;height:54px!important;border-radius:5px!important;background:rgba(255,255,255,.06)!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:16px!important;font-weight:800!important;flex-shrink:0!important}
+.fn-series-item{display:grid!important;grid-template-columns:42px 1fr auto!important;align-items:center!important;gap:10px!important;padding:8px 12px!important;border-radius:10px!important;transition:background .1s!important;margin-bottom:3px!important}
+.fn-series-item:hover{background:rgba(255,255,255,.04)!important}
+.fn-series-cover{width:42px!important;height:58px!important;border-radius:6px!important;object-fit:cover!important;display:block!important;border:1px solid rgba(255,255,255,.08)!important}
+.fn-series-cover-ph{width:42px!important;height:58px!important;border-radius:6px!important;background:rgba(255,255,255,.06)!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:16px!important;font-weight:800!important;flex-shrink:0!important;border:1px solid rgba(255,255,255,.08)!important}
 .fn-series-info{min-width:0!important}
-.fn-series-title{font-size:11px!important;font-weight:700!important;color:#f0f4ff!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;margin-bottom:2px!important}
-.fn-series-prog{font-size:9px!important;color:#3d4e6a!important;font-family:'Space Mono',monospace!important;margin-bottom:4px!important}
+.fn-series-title{font-size:11px!important;font-weight:700!important;color:#d8e4f8!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;margin-bottom:2px!important}
+.fn-series-prog{font-size:9px!important;color:#3d4e6a!important;font-family:'Space Mono',monospace!important;margin-bottom:5px!important}
 .fn-series-pbar{height:3px!important;border-radius:2px!important;background:rgba(255,255,255,.07)!important;overflow:hidden!important}
-.fn-series-pfill{height:100%!important;border-radius:2px!important;transition:width .4s!important}
+.fn-series-pfill{height:100%!important;border-radius:2px!important;transition:width .5s ease!important}
 .fn-profile-list-title{font-size:9px!important;font-weight:800!important;letter-spacing:.09em!important;text-transform:uppercase!important;color:#3d4e6a!important}
 .fn-status{padding:16px!important;font-size:11px!important;color:#3d4e6a!important;text-align:center!important;font-style:italic!important}
 
