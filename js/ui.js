@@ -2333,6 +2333,7 @@ const x=data[tab].find(z=>z.id===s.id);if(!x){qb.disabled=false;return;}
 // Evitar duplicados en completed
 if(!x.completed.includes(nxt))x.completed.push(nxt);
 x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();
+if(typeof logManguActivity==="function")logManguActivity(x,1);
 // Para series en emisión: si el cap marcado supera el total conocido, extender total automáticamente
 if(x.jikanPublishing&&nxt>x.total){x.total=nxt;}
 const wasCompleted=x.completed.length===x.total&&x.total>0&&!x.jikanPublishing;if(wasCompleted){x.status="completed";actLogComplete(x.title,tab,x.total);}else if(x.status==="plan")x.status="reading";actLogChapter(x.title,tab,nxt,x.completed.length,x.total);p28TouchStreak();const streak=p28GetStreak();const goalData=p29BumpGoal();const isGoalHit=goalData.todayCount===goalData.goal;const isUpToDate=!wasCompleted&&x.jikanPublishing&&x.completed.length>=x.total;if(wasCompleted){p29PlayCompleteSound();p29ShowConfetti(ac,"complete");p28ShowPlusAnim(tab,x.title,streak,false,true,false);}else if(isGoalHit){p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,true,false,false);}else if(isUpToDate){p29PlayUpToDateSound();p29ShowConfetti(ac,"uptodate");p28ShowPlusAnim(tab,x.title,streak,false,false,true);}else{p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,false,false,false);}const _snLblQb=tab==="anime"?getSeasonLabel(nxt,x.seasons):null;save();setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxt}${_snLblQb?" ("+_snLblQb+")":""} ✓${wasCompleted?" · 🎉 ¡Completado!":isUpToDate?" · ✓ ¡Al día!":""}`);},200);};sa.appendChild(qb);}sa.appendChild(h("button","ib dng",svg.trash,{onclick:e=>{e.stopPropagation();showModal("Eliminar",`¿Eliminar <b>${s.title}</b>?`,"🗑",()=>{data[tab]=data[tab].filter(x=>x.id!==s.id);save();render();showToast(`"${s.title}" eliminado`);});}}));sa.appendChild(h("div","ib",isExp?svg.chu:svg.chd));sh.appendChild(sa);sc.appendChild(sh);
@@ -2394,6 +2395,7 @@ pillBtn.onclick=e=>{e.stopPropagation();if(!nxtCh||pillBtn.disabled)return;pillB
 const x=data[tab].find(z=>z.id===s.id);if(!x){pillBtn.disabled=false;return;}
 if(!x.completed.includes(nxtCh))x.completed.push(nxtCh);
 x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();
+if(typeof logManguActivity==="function")logManguActivity(x,1);
 // Para series en emisión: extender total si el cap marcado lo supera
 if(x.jikanPublishing&&nxtCh>x.total){x.total=nxtCh;}
 const wasCompleted=x.completed.length===x.total&&x.total>0&&!x.jikanPublishing;if(wasCompleted){x.status="completed";actLogComplete(x.title,tab,x.total);}else if(x.status==="plan")x.status="reading";actLogChapter(x.title,tab,nxtCh,x.completed.length,x.total);p28TouchStreak();const streak=p28GetStreak();const goalData=p29BumpGoal();const isGoalHit=goalData.todayCount===goalData.goal;const isUpToDate=!wasCompleted&&x.jikanPublishing&&x.completed.length>=x.total;if(wasCompleted){p29PlayCompleteSound();p29ShowConfetti(ac,"complete");p28ShowPlusAnim(tab,x.title,streak,false,true,false);}else if(isGoalHit){p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,true,false,false);}else if(isUpToDate){p29PlayUpToDateSound();p29ShowConfetti(ac,"uptodate");p28ShowPlusAnim(tab,x.title,streak,false,false,true);}else{p29PlayTick();p28ShowPlusAnim(tab,x.title,streak,false,false,false);}const _snLblPill=tab==="anime"?getSeasonLabel(nxtCh,x.seasons):null;save();setTimeout(()=>{render();showToast(`${tab==="manga"?"Cap.":"Ep."} ${nxtCh}${_snLblPill?" ("+_snLblPill+")":""} ✓${wasCompleted?" · 🎉 ¡Completado!":isUpToDate?" · ✓ ¡Al día!":""}`);},200);};
@@ -2584,6 +2586,7 @@ function p28RenderContinueRow(root){
       if(!x.completed.includes(nc))x.completed.push(nc);// evitar duplicados
       x.completed.sort((a,b)=>a-b);
       x.lastUpdated=Date.now();
+      if(typeof logManguActivity==="function")logManguActivity(x,1);
       if(x.completed.length===x.total)x.status="completed";
       else if(x.status==="plan")x.status="reading";
       p28TouchStreak();
@@ -3009,6 +3012,7 @@ function p28RenderQuickReadFAB(){
       const x=data[type].find(z=>z.id===s.id);
       if(!x||!nc)return;
       x.completed.push(nc);x.completed.sort((a,b)=>a-b);x.lastUpdated=Date.now();
+      if(typeof logManguActivity==="function")logManguActivity(x,1);
       if(x.completed.length===x.total){x.status="completed";actLogComplete(x.title,type,x.total);}
       else if(x.status==="plan")x.status="reading";
       actLogChapter(x.title,type,nc,x.completed.length,x.total);
