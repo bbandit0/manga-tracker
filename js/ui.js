@@ -2075,17 +2075,23 @@ if(tab==="dashboard"){
   const all=[...data.manga,...data.anime];
   const ti=timeInvested();
   const rr=readingRate();
-  // ── Top stats row (5 cards) ──
-  const sr=h("div","sr");
-  sr.style.cssText="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:20px";
+  // ── Top stats row ──
   const mCap=data.manga.reduce((s,x)=>s+x.completed.length,0);
   const aEp=data.anime.reduce((s,x)=>s+x.completed.length,0);
   const streak29=p28GetStreak();
   const avgM=avgScore(data.manga);const avgA=avgScore(data.anime);
   const compM=completionRate(data.manga);const compA=completionRate(data.anime);
-  sr.style.cssText="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:8px;margin-bottom:20px";
-  sr.innerHTML=`<div class="stc"><div class="stc-glare"></div><span class="stc-icon">📚</span><span class="stv">${data.manga.length}</span><span class="stl">Manga</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">🎬</span><span class="stv">${data.anime.length}</span><span class="stl">Anime</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">📖</span><span class="stv">${mCap}</span><span class="stl">Caps leídos</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">▶</span><span class="stv">${aEp}</span><span class="stl">Eps vistos</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">⏱</span><span class="stv">${ti.val}</span><span class="stl">Tiempo</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">🔥</span><span class="stv">${streak29||0}</span><span class="stl">Racha</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">⭐</span><span class="stv">${avgM||"—"}</span><span class="stl">Score manga</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">⭐</span><span class="stv">${avgA||"—"}</span><span class="stl">Score anime</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">✅</span><span class="stv">${compM}%</span><span class="stl">Manga complet.</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">✅</span><span class="stv">${compA}%</span><span class="stl">Anime complet.</span></div>`;
-  root.appendChild(sr);
+  const _mkDCard=(cls,iconCls,val,lbl,extra="")=>`<div class="stc ${cls}"><div class="stc-corner"></div><div class="stc-content"><i class="ti ${iconCls} stc-icon" aria-hidden="true"></i><div class="stc-divider"></div><span class="stv">${val}</span><span class="stl">${lbl}</span>${extra}</div></div>`;
+  const srWrap=h("div","sr-wrap");
+  const srHdrM=h("div","sr-header");srHdrM.innerHTML=`<span class="sr-pill sr-pill-manga">Manga</span><div class="sr-line"></div>`;
+  const srM=h("div","sr");
+  srM.innerHTML=_mkDCard("st-series","ti-books",data.manga.length,"Series")+_mkDCard("st-read","ti-check",mCap,"Caps leídos")+_mkDCard("st-progress","ti-chart-bar",compM+"%","Completado",`<div class="stc-pbar"><div class="stc-pbar-fill" style="width:${compM}%"></div></div>`)+_mkDCard("st-time","ti-star",avgM||"—","Score")+_mkDCard("st-series","ti-flame",streak29||0,"Racha");
+  srWrap.appendChild(srHdrM);srWrap.appendChild(srM);
+  const srHdrA=h("div","sr-header");srHdrA.style.marginTop="16px";srHdrA.innerHTML=`<span class="sr-pill sr-pill-anime">Anime</span><div class="sr-line"></div>`;
+  const srA=h("div","sr");
+  srA.innerHTML=_mkDCard("st-series","ti-device-tv",data.anime.length,"Series")+_mkDCard("st-watched","ti-eye",aEp,"Eps vistos")+_mkDCard("st-progress","ti-chart-bar",compA+"%","Completado",`<div class="stc-pbar"><div class="stc-pbar-fill" style="width:${compA}%"></div></div>`)+_mkDCard("st-time","ti-star",avgA||"—","Score")+_mkDCard("st-time","ti-clock",ti.val,"Tiempo");
+  srWrap.appendChild(srHdrA);srWrap.appendChild(srA);
+  root.appendChild(srWrap);
   const dash=h("div","dash");dash.appendChild(h("div","dash-t",`${svg.chart} Estadísticas`));const dg=h("div","dash-g");
 
   // ── CARD 1: Donut manga vs anime ──
