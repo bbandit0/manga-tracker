@@ -2245,143 +2245,110 @@ addS.appendChild(addHdr);
 const addBody=h("div","add-body");
 addS.appendChild(addBody);
 
-// ── Input de búsqueda — construido como HTML puro para evitar conflictos CSS ──
-const titleWrap=document.createElement("div");
-titleWrap.className="jikan-wrap";
-titleWrap.style.cssText="position:relative;display:block;width:100%;flex:none";
+// ── Campos: buscar + capítulos ── construidos con <table> real para ser inmunes a CSS externo
+const _isManga=tab==="manga";
+const _searchLabel=_isManga?"Buscar manga":"Buscar anime";
+const _capLabel=_isManga?"Capítulos":"Episodios";
 
-// Shell: tabla de 3 columnas fijas para garantizar alineación horizontal
-const inputShell=document.createElement("div");
-inputShell.style.cssText=[
-  "display:table;width:100%;table-layout:fixed",
-  "background:rgba(127,119,221,.09)",
-  "border:1px solid rgba(127,119,221,.28)",
-  "border-radius:14px;overflow:hidden;box-sizing:border-box",
-].join(";");
+// CAMPO 1: buscador
+const searchTable=document.createElement("table");
+searchTable.style.cssText="width:100%;border-collapse:collapse;background:rgba(127,119,221,.09);border:1px solid rgba(127,119,221,.28);border-radius:14px;overflow:hidden;table-layout:auto";
+const searchTr=document.createElement("tr");
 
-const prefixCell=document.createElement("div");
-prefixCell.style.cssText=[
-  "display:table-cell;white-space:nowrap;vertical-align:middle",
-  "padding:0 14px 0 16px",
-  "border-right:1px solid rgba(127,119,221,.2)",
-  "width:1px", // shrink to content
-  "color:rgba(175,169,236,.8);font-family:'Outfit',sans-serif",
-  "font-size:13px;font-weight:600",
-].join(";");
-prefixCell.innerHTML=`<span style="display:inline-flex;align-items:center;gap:8px;height:48px"><i class="ti ti-search" style="font-size:15px;color:#AFA9EC" aria-hidden="true"></i>${tab==="manga"?"Buscar manga":"Buscar anime"}</span>`;
+const searchTdPrefix=document.createElement("td");
+searchTdPrefix.style.cssText="padding:0 14px 0 16px;white-space:nowrap;border-right:1px solid rgba(127,119,221,.2);color:rgba(175,169,236,.8);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;vertical-align:middle;height:48px";
+searchTdPrefix.innerHTML=`<span style="display:inline-flex;align-items:center;gap:8px"><i class="ti ti-search" style="font-size:15px;color:#AFA9EC" aria-hidden="true"></i>${_searchLabel}</span>`;
 
-const inputCell=document.createElement("div");
-inputCell.style.cssText="display:table-cell;vertical-align:middle;width:100%";
+const searchTdInput=document.createElement("td");
+searchTdInput.style.cssText="width:100%;vertical-align:middle;padding:0";
 
 const sIcon=document.createElement("span");sIcon.style.display="none";
-
 const ti=document.createElement("input");
 ti.id="add-title";ti.type="text";ti.value=newTitle||"";ti.placeholder="Título, autor...";
-ti.setAttribute("autocomplete","off");ti.setAttribute("autocorrect","off");
-ti.setAttribute("autocapitalize","off");ti.setAttribute("spellcheck","false");
-ti.style.cssText=[
-  "display:block;width:100%;height:48px",
-  "padding:0 12px;box-sizing:border-box",
-  "background:transparent;border:none;outline:none",
-  "color:rgba(255,255,255,.88);font-family:'Outfit',sans-serif;font-size:14px",
-].join(";");
+ti.setAttribute("autocomplete","off");ti.setAttribute("autocorrect","off");ti.setAttribute("autocapitalize","off");ti.setAttribute("spellcheck","false");
+ti.style.cssText="display:block;width:100%;height:48px;padding:0 12px;background:transparent;border:none;outline:none;color:rgba(255,255,255,.88);font-family:'Outfit',sans-serif;font-size:14px;box-sizing:border-box";
 ti.oninput=e=>{newTitle=e.target.value;clearTimeout(jikanSearchTimeout);if(e.target.value.length>=2){jikanSearchTimeout=setTimeout(()=>{searchJikan(e.target.value,tab).finally(()=>{});},500);}else{jikanResults=[];removeJikanDrop();}};
 ti.onkeydown=e=>{if(e.key==="Enter"){jikanResults=[];removeJikanDrop();doAdd();}if(e.key==="Escape"){jikanResults=[];removeJikanDrop();}};
-inputShell.addEventListener("focusin",()=>{inputShell.style.borderColor="rgba(127,119,221,.65)";inputShell.style.background="rgba(127,119,221,.14)";});
-inputShell.addEventListener("focusout",()=>{inputShell.style.borderColor="rgba(127,119,221,.28)";inputShell.style.background="rgba(127,119,221,.09)";});
-inputCell.appendChild(ti);
+searchTdInput.appendChild(ti);
 
-const badgeCell=document.createElement("div");
-badgeCell.style.cssText="display:table-cell;white-space:nowrap;vertical-align:middle;padding-right:12px;width:1px";
-const malBadge=document.createElement("span");
-malBadge.style.cssText=[
-  "display:inline-block;padding:3px 8px;border-radius:6px",
-  "background:rgba(127,119,221,.2);border:1px solid rgba(127,119,221,.3)",
-  "font-size:10px;font-weight:700;color:#AFA9EC;letter-spacing:.06em",
-].join(";");
-malBadge.textContent="MAL";
-badgeCell.appendChild(malBadge);
+const searchTdBadge=document.createElement("td");
+searchTdBadge.style.cssText="white-space:nowrap;padding-right:12px;vertical-align:middle";
+searchTdBadge.innerHTML=`<span style="display:inline-block;padding:3px 8px;border-radius:6px;background:rgba(127,119,221,.2);border:1px solid rgba(127,119,221,.3);font-size:10px;font-weight:700;color:#AFA9EC;letter-spacing:.06em">MAL</span>`;
 
-inputShell.append(prefixCell,inputCell,badgeCell);
-titleWrap.appendChild(inputShell);
+searchTr.append(searchTdPrefix,searchTdInput,searchTdBadge);
+searchTable.appendChild(searchTr);
+searchTable.addEventListener("focusin",()=>{searchTable.style.borderColor="rgba(127,119,221,.65)";searchTable.style.background="rgba(127,119,221,.14)";});
+searchTable.addEventListener("focusout",()=>{searchTable.style.borderColor="rgba(127,119,221,.28)";searchTable.style.background="rgba(127,119,221,.09)";});
+
+// El jikan-wrap envuelve la tabla para que el dropdown se posicione correctamente
+const titleWrap=document.createElement("div");
+titleWrap.className="jikan-wrap";
+titleWrap.style.cssText="position:relative;display:block;width:100%";
+titleWrap.appendChild(searchTable);
 addBody.appendChild(titleWrap);
-const row2=h("div","add-row2");
-row2.style.cssText="display:flex;gap:8px;align-items:center";
-// FIX BUG #1: Si ya hay un jikanId seleccionado, el usuario NO debe ingresar caps manualmente.
-// Mostrar un badge informativo en lugar del input. Si aún no hay jikanId (ingreso manual),
-// mostrar el input solo para series finalizadas (publicación = polling lo maneja).
+
+// FILA 2: caps + portada + agregar
+const row2=document.createElement("div");
+row2.style.cssText="display:flex;gap:8px;align-items:center;width:100%";
+
 const _hasPendingJikan=!!window._pendingJikanId;
 const _isPendingPub=window._pendingJikanPublishing||false;
 let ni;
 if(_hasPendingJikan){
-  // Serie seleccionada desde MAL: ocultar input y mostrar badge de estado
   ni=h("input","add-cap-input",null,{type:"hidden",id:"add-total",value:newTotal||"1"});
   const capBadge=h("div","add-cap-badge","");
-  capBadge.style.cssText="flex:1;padding:10px 14px;background:var(--bg3);border:1px solid rgba(99,179,237,.3);border-radius:9px;color:#7ec8f4;font-family:'Outfit',sans-serif;font-size:12px;display:flex;align-items:center;gap:6px;min-width:0";
-  if(newTotal&&parseInt(newTotal)>0){
-    capBadge.innerHTML=`<span style="font-size:15px">📖</span><span><b style="font-size:13px">${newTotal}</b> ${tab==="manga"?"caps":"eps"}${_isPendingPub?" <span style='opacity:.5;font-size:10px'>· en emisión</span>":""}</span>`;
-  }else{
-    capBadge.innerHTML=`<span style="font-size:13px">⏳</span><span style="opacity:.7">Buscando caps...</span>`;
-  }
+  capBadge.style.cssText="flex:1;padding:10px 14px;background:var(--bg3);border:1px solid rgba(99,179,237,.3);border-radius:14px;color:#7ec8f4;font-family:'Outfit',sans-serif;font-size:12px;display:flex;align-items:center;gap:6px;min-width:0";
+  capBadge.innerHTML=newTotal&&parseInt(newTotal)>0
+    ?`<span>📖</span><span><b>${newTotal}</b> ${_isManga?"caps":"eps"}${_isPendingPub?" <span style='opacity:.5;font-size:10px'>· en emisión</span>":""}</span>`
+    :`<span>⏳</span><span style="opacity:.7">Buscando caps...</span>`;
   row2.append(ni,capBadge);
 }else{
-  // Ingreso manual: campo con prefijo label + hint — tabla para garantizar alineación
-  const capShell=document.createElement("div");
-  capShell.style.cssText=[
-    "display:table;table-layout:fixed;flex:1;min-width:0",
-    "background:rgba(55,138,221,.07)",
-    "border:1px solid rgba(55,138,221,.2)",
-    "border-radius:14px;overflow:hidden;box-sizing:border-box",
-  ].join(";");
-  capShell.addEventListener("focusin",()=>{capShell.style.borderColor="rgba(55,138,221,.55)";capShell.style.background="rgba(55,138,221,.12)";});
-  capShell.addEventListener("focusout",()=>{capShell.style.borderColor="rgba(55,138,221,.2)";capShell.style.background="rgba(55,138,221,.07)";});
+  // CAMPO 2: capítulos — también con <table> real
+  const capTable=document.createElement("table");
+  capTable.style.cssText="flex:1;min-width:0;border-collapse:collapse;background:rgba(55,138,221,.07);border:1px solid rgba(55,138,221,.2);border-radius:14px;overflow:hidden;table-layout:auto";
+  const capTr=document.createElement("tr");
 
-  const capLabelCell=document.createElement("div");
-  capLabelCell.style.cssText=[
-    "display:table-cell;white-space:nowrap;vertical-align:middle",
-    "padding:0 12px 0 14px;width:1px",
-    "border-right:1px solid rgba(55,138,221,.18)",
-    "color:rgba(133,183,235,.7);font-family:'Outfit',sans-serif",
-    "font-size:12px;font-weight:600",
-  ].join(";");
-  capLabelCell.innerHTML=`<span style="display:inline-flex;align-items:center;gap:7px;height:48px"><i class="ti ti-bookmark" style="font-size:15px;color:#85B7EB" aria-hidden="true"></i>${tab==="manga"?"Capítulos":"Episodios"}</span>`;
+  const capTdLabel=document.createElement("td");
+  capTdLabel.style.cssText="padding:0 12px 0 14px;white-space:nowrap;border-right:1px solid rgba(55,138,221,.18);color:rgba(133,183,235,.7);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;vertical-align:middle;height:48px";
+  capTdLabel.innerHTML=`<span style="display:inline-flex;align-items:center;gap:7px"><i class="ti ti-bookmark" style="font-size:15px;color:#85B7EB" aria-hidden="true"></i>${_capLabel}</span>`;
 
-  const capInputCell=document.createElement("div");
-  capInputCell.style.cssText="display:table-cell;vertical-align:middle;width:100%";
+  const capTdInput=document.createElement("td");
+  capTdInput.style.cssText="width:100%;vertical-align:middle;padding:0";
   ni=document.createElement("input");
   ni.id="add-total";ni.type="number";ni.min="1";ni.value=newTotal||"";ni.placeholder="—";
-  ni.style.cssText=[
-    "display:block;width:100%;height:48px",
-    "padding:0 10px;box-sizing:border-box",
-    "background:transparent;border:none;outline:none",
-    "color:rgba(255,255,255,.9);font-family:'Space Mono',monospace",
-    "font-size:18px;font-weight:700;letter-spacing:-.5px",
-  ].join(";");
+  ni.style.cssText="display:block;width:100%;height:48px;padding:0 10px;background:transparent;border:none;outline:none;color:rgba(255,255,255,.9);font-family:'Space Mono',monospace;font-size:18px;font-weight:700;letter-spacing:-.5px;box-sizing:border-box";
   ni.oninput=e=>{newTotal=e.target.value;};
   ni.onkeydown=e=>{if(e.key==="Enter")doAdd();};
-  capInputCell.appendChild(ni);
+  capTdInput.appendChild(ni);
 
-  const capHintCell=document.createElement("div");
-  capHintCell.style.cssText="display:table-cell;white-space:nowrap;vertical-align:middle;padding-right:12px;width:1px;font-size:10px;color:rgba(133,183,235,.4)";
-  capHintCell.textContent="total";
+  const capTdHint=document.createElement("td");
+  capTdHint.style.cssText="white-space:nowrap;padding-right:12px;vertical-align:middle;font-size:10px;color:rgba(133,183,235,.4)";
+  capTdHint.textContent="total";
 
-  capShell.append(capLabelCell,capInputCell,capHintCell);
-  row2.append(capShell);
+  capTr.append(capTdLabel,capTdInput,capTdHint);
+  capTable.appendChild(capTr);
+  capTable.addEventListener("focusin",()=>{capTable.style.borderColor="rgba(55,138,221,.55)";capTable.style.background="rgba(55,138,221,.12)";});
+  capTable.addEventListener("focusout",()=>{capTable.style.borderColor="rgba(55,138,221,.2)";capTable.style.background="rgba(55,138,221,.07)";});
+  row2.appendChild(capTable);
 }
-const fi=h("input","hidden",null,{type:"file",accept:"image/*",id:"acf"});fi.onchange=e=>{const f=e.target.files?.[0];if(!f)return;resizeImg(f,b=>{newCover=b;render();});e.target.value="";};
+
+const fi=h("input","hidden",null,{type:"file",accept:"image/*",id:"acf"});
+fi.onchange=e=>{const f=e.target.files?.[0];if(!f)return;resizeImg(f,b=>{newCover=b;render();});e.target.value="";};
 const coverBtn=document.createElement("button");
-coverBtn.style.cssText="display:flex;align-items:center;gap:7px;padding:0 15px;height:48px;background:rgba(29,158,117,.08);border:1px solid rgba(29,158,117,.22);border-radius:14px;color:rgba(93,202,165,.65);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:.15s";
+coverBtn.style.cssText="display:flex;align-items:center;gap:7px;padding:0 15px;height:48px;flex-shrink:0;background:rgba(29,158,117,.08);border:1px solid rgba(29,158,117,.22);border-radius:14px;color:rgba(93,202,165,.65);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:.15s";
 coverBtn.innerHTML='<i class="ti ti-upload" style="font-size:13px" aria-hidden="true"></i> Portada';
 coverBtn.onmouseenter=()=>{coverBtn.style.borderColor="rgba(29,158,117,.5)";coverBtn.style.color="#5DCAA5";coverBtn.style.background="rgba(29,158,117,.14)";};
 coverBtn.onmouseleave=()=>{coverBtn.style.borderColor="rgba(29,158,117,.22)";coverBtn.style.color="rgba(93,202,165,.65)";coverBtn.style.background="rgba(29,158,117,.08)";};
 coverBtn.onclick=()=>document.getElementById("acf").click();
+
 const ab=document.createElement("button");
 ab.style.cssText="display:flex;align-items:center;justify-content:center;width:48px;height:48px;flex-shrink:0;border:1px solid rgba(93,202,165,.25);border-radius:14px;cursor:pointer;color:#fff;background:#1D9E75;transition:.15s";
 ab.innerHTML='<i class="ti ti-plus" style="font-size:20px" aria-hidden="true"></i>';
 ab.title="Agregar";ab.onclick=doAdd;
 ab.onmouseenter=()=>{ab.style.background="#22b584";ab.style.transform="scale(1.05)";};
 ab.onmouseleave=()=>{ab.style.background="#1D9E75";ab.style.transform="scale(1)";};
-row2.append(fi,coverBtn,ab);addBody.appendChild(row2);addBody.appendChild(h("div","add-divider"));const stSec=h("div","add-status-section");stSec.appendChild(h("div","add-status-label","Estado"));const spRow=h("div","add-status-pills");STATUSES.forEach(st=>{const lbl=(st.key==="reading"&&tab==="anime")?"Viendo":getStatusLabel(st.key);const pill=h("button","add-status-pill"+(newStatus===st.key?" sp-"+st.key:""),st.icon+" "+lbl);pill.onclick=()=>{newStatus=st.key;spRow.querySelectorAll(".add-status-pill").forEach(p=>{p.className="add-status-pill";});pill.className="add-status-pill sp-"+st.key;};spRow.appendChild(pill);});stSec.appendChild(spRow);addBody.appendChild(stSec);const genSec=h("div","add-genres-section");genSec.appendChild(h("div","add-genres-label","Generos"));const genGrid=h("div","add-genres-grid");const allTagsList=[...ALL_TAGS,...(theme.customTags||[])];allTagsList.forEach(t=>{const isCustom=!ALL_TAGS.includes(t);const wrapper=isCustom?h("div","tag-custom"):null;const chip=h("button","genre-chip"+(newTags.includes(t)?(animeCls?" anime-on":" on"):""),t);chip.onclick=()=>{if(newTags.includes(t)){newTags=newTags.filter(x=>x!==t);chip.className="genre-chip";}else{newTags.push(t);chip.className="genre-chip"+(animeCls?" anime-on":" on");}};if(isCustom&&wrapper){const dx=h("button","tag-del-x","✕");dx.onclick=e=>{e.stopPropagation();theme.customTags=(theme.customTags||[]).filter(c=>c!==t);newTags=newTags.filter(x=>x!==t);saveLocal();render();};wrapper.append(chip,dx);genGrid.appendChild(wrapper);}else{genGrid.appendChild(chip);}});const addGenChip=h("button","genre-add-chip","+ tag");addGenChip.onclick=()=>{const nm=prompt("Nombre del nuevo tag:");if(!nm||!nm.trim())return;const nt=nm.trim();if(allTagsList.includes(nt)){showToast("Ya existe ese tag");return;}if(!theme.customTags)theme.customTags=[];theme.customTags.push(nt);newTags.push(nt);saveLocal();render();};genGrid.appendChild(addGenChip);genSec.appendChild(genGrid);addBody.appendChild(genSec);if(newCover){const prevW=h("div","add-cover-preview");prevW.append(Object.assign(h("img","cvmn"),{src:newCover}),h("button","bcx","✕ quitar",{onclick:()=>{newCover="";render();}}));addBody.appendChild(prevW);}root.appendChild(addS);
+row2.append(fi,coverBtn,ab);
+addBody.appendChild(row2);addBody.appendChild(h("div","add-divider"));const stSec=h("div","add-status-section");stSec.appendChild(h("div","add-status-label","Estado"));const spRow=h("div","add-status-pills");STATUSES.forEach(st=>{const lbl=(st.key==="reading"&&tab==="anime")?"Viendo":getStatusLabel(st.key);const pill=h("button","add-status-pill"+(newStatus===st.key?" sp-"+st.key:""),st.icon+" "+lbl);pill.onclick=()=>{newStatus=st.key;spRow.querySelectorAll(".add-status-pill").forEach(p=>{p.className="add-status-pill";});pill.className="add-status-pill sp-"+st.key;};spRow.appendChild(pill);});stSec.appendChild(spRow);addBody.appendChild(stSec);const genSec=h("div","add-genres-section");genSec.appendChild(h("div","add-genres-label","Generos"));const genGrid=h("div","add-genres-grid");const allTagsList=[...ALL_TAGS,...(theme.customTags||[])];allTagsList.forEach(t=>{const isCustom=!ALL_TAGS.includes(t);const wrapper=isCustom?h("div","tag-custom"):null;const chip=h("button","genre-chip"+(newTags.includes(t)?(animeCls?" anime-on":" on"):""),t);chip.onclick=()=>{if(newTags.includes(t)){newTags=newTags.filter(x=>x!==t);chip.className="genre-chip";}else{newTags.push(t);chip.className="genre-chip"+(animeCls?" anime-on":" on");}};if(isCustom&&wrapper){const dx=h("button","tag-del-x","✕");dx.onclick=e=>{e.stopPropagation();theme.customTags=(theme.customTags||[]).filter(c=>c!==t);newTags=newTags.filter(x=>x!==t);saveLocal();render();};wrapper.append(chip,dx);genGrid.appendChild(wrapper);}else{genGrid.appendChild(chip);}});const addGenChip=h("button","genre-add-chip","+ tag");addGenChip.onclick=()=>{const nm=prompt("Nombre del nuevo tag:");if(!nm||!nm.trim())return;const nt=nm.trim();if(allTagsList.includes(nt)){showToast("Ya existe ese tag");return;}if(!theme.customTags)theme.customTags=[];theme.customTags.push(nt);newTags.push(nt);saveLocal();render();};genGrid.appendChild(addGenChip);genSec.appendChild(genGrid);addBody.appendChild(genSec);if(newCover){const prevW=h("div","add-cover-preview");prevW.append(Object.assign(h("img","cvmn"),{src:newCover}),h("button","bcx","✕ quitar",{onclick:()=>{newCover="";render();}}));addBody.appendChild(prevW);}root.appendChild(addS);
 const filtered=sortList(filterList(list));if(filtered.length===0){const emptyWrap=h("div","");emptyWrap.appendChild(h("div","empty",`<div class="icn">${icon}</div><p>${list.length===0?`Agrega tu primer ${tab==="manga"?"manga":"anime"}`:"Sin resultados"}</p>`));if(list.length===0){p28RenderOnboardingExamples(emptyWrap,tab);}root.appendChild(emptyWrap);return;}
 // Catalog view
 if(viewMode==="catalog"){const cat=h("div","catalog");filtered.forEach(s=>{const pct=s.total>0?Math.min(100,(s.completed.length/s.total)*100):0;const cc=h("div","catc");cc.onclick=()=>{pinnedId=s.id;viewMode="list";expanded[s.id]=true;render();};const st=SM[s.status];const statusIcon=st?(s.status==="reading"&&tab==="anime"?"👁️":st.icon):"";cc.innerHTML=`<div style="position:relative">${s.cover?`<img class="catcv" src="${s.cover}">`:`<div class="catph">${icon}</div>`}${s.favorite?`<div class="cat-fav">★</div>`:""}${s.score?`<div class="cat-score">${s.score}</div>`:""}${pct>0?`<div class="cat-pct">${Math.round(pct)}%</div>`:""}${statusIcon?`<div class="cat-status-ov">${statusIcon}</div>`:""}</div><div class="cati"><div class="catt">${s.title}</div><div class="catp">${s.completed.length}/${s.total}</div><div class="catb"><div class="catf" style="width:${pct}%;background:${ac}"></div></div></div>`;cat.appendChild(cc);});root.appendChild(cat);return;}
