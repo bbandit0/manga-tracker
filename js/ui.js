@@ -2245,20 +2245,33 @@ addS.appendChild(addHdr);
 const addBody=h("div","add-body");
 addS.appendChild(addBody);
 
-// ── Input de búsqueda ──
-const titleRow=h("div","add-title-row");
-
+// ── Input de búsqueda — construido como HTML puro para evitar conflictos CSS ──
 const titleWrap=document.createElement("div");
 titleWrap.className="jikan-wrap";
-titleWrap.style.cssText="position:relative;display:block;width:100%";
+titleWrap.style.cssText="position:relative;display:block;width:100%;flex:none";
 
+// Shell: tabla de 3 columnas fijas para garantizar alineación horizontal
 const inputShell=document.createElement("div");
-inputShell.className="add-search-shell";
-inputShell.style.cssText="display:flex;align-items:center;width:100%;background:rgba(127,119,221,.09);border:1px solid rgba(127,119,221,.28);border-radius:14px;overflow:hidden;box-sizing:border-box";
+inputShell.style.cssText=[
+  "display:table;width:100%;table-layout:fixed",
+  "background:rgba(127,119,221,.09)",
+  "border:1px solid rgba(127,119,221,.28)",
+  "border-radius:14px;overflow:hidden;box-sizing:border-box",
+].join(";");
 
-const searchPrefix=document.createElement("div");
-searchPrefix.className="add-search-prefix";
-searchPrefix.innerHTML=`<i class="ti ti-search" aria-hidden="true"></i><span>${tab==="manga"?"Buscar manga":"Buscar anime"}</span>`;
+const prefixCell=document.createElement("div");
+prefixCell.style.cssText=[
+  "display:table-cell;white-space:nowrap;vertical-align:middle",
+  "padding:0 14px 0 16px",
+  "border-right:1px solid rgba(127,119,221,.2)",
+  "width:1px", // shrink to content
+  "color:rgba(175,169,236,.8);font-family:'Outfit',sans-serif",
+  "font-size:13px;font-weight:600",
+].join(";");
+prefixCell.innerHTML=`<span style="display:inline-flex;align-items:center;gap:8px;height:48px"><i class="ti ti-search" style="font-size:15px;color:#AFA9EC" aria-hidden="true"></i>${tab==="manga"?"Buscar manga":"Buscar anime"}</span>`;
+
+const inputCell=document.createElement("div");
+inputCell.style.cssText="display:table-cell;vertical-align:middle;width:100%";
 
 const sIcon=document.createElement("span");sIcon.style.display="none";
 
@@ -2266,18 +2279,32 @@ const ti=document.createElement("input");
 ti.id="add-title";ti.type="text";ti.value=newTitle||"";ti.placeholder="Título, autor...";
 ti.setAttribute("autocomplete","off");ti.setAttribute("autocorrect","off");
 ti.setAttribute("autocapitalize","off");ti.setAttribute("spellcheck","false");
-ti.style.cssText="flex:1;width:0;min-width:0;padding:0 12px;height:48px;background:transparent!important;border:none!important;outline:none;color:rgba(255,255,255,.88);font-family:'Outfit',sans-serif;font-size:14px;box-sizing:border-box;border-radius:0";
+ti.style.cssText=[
+  "display:block;width:100%;height:48px",
+  "padding:0 12px;box-sizing:border-box",
+  "background:transparent;border:none;outline:none",
+  "color:rgba(255,255,255,.88);font-family:'Outfit',sans-serif;font-size:14px",
+].join(";");
 ti.oninput=e=>{newTitle=e.target.value;clearTimeout(jikanSearchTimeout);if(e.target.value.length>=2){jikanSearchTimeout=setTimeout(()=>{searchJikan(e.target.value,tab).finally(()=>{});},500);}else{jikanResults=[];removeJikanDrop();}};
 ti.onkeydown=e=>{if(e.key==="Enter"){jikanResults=[];removeJikanDrop();doAdd();}if(e.key==="Escape"){jikanResults=[];removeJikanDrop();}};
+inputShell.addEventListener("focusin",()=>{inputShell.style.borderColor="rgba(127,119,221,.65)";inputShell.style.background="rgba(127,119,221,.14)";});
+inputShell.addEventListener("focusout",()=>{inputShell.style.borderColor="rgba(127,119,221,.28)";inputShell.style.background="rgba(127,119,221,.09)";});
+inputCell.appendChild(ti);
 
+const badgeCell=document.createElement("div");
+badgeCell.style.cssText="display:table-cell;white-space:nowrap;vertical-align:middle;padding-right:12px;width:1px";
 const malBadge=document.createElement("span");
-malBadge.className="add-search-badge";
+malBadge.style.cssText=[
+  "display:inline-block;padding:3px 8px;border-radius:6px",
+  "background:rgba(127,119,221,.2);border:1px solid rgba(127,119,221,.3)",
+  "font-size:10px;font-weight:700;color:#AFA9EC;letter-spacing:.06em",
+].join(";");
 malBadge.textContent="MAL";
+badgeCell.appendChild(malBadge);
 
-inputShell.append(searchPrefix,ti,malBadge);
+inputShell.append(prefixCell,inputCell,badgeCell);
 titleWrap.appendChild(inputShell);
-titleRow.appendChild(titleWrap);
-addBody.appendChild(titleRow);
+addBody.appendChild(titleWrap);
 const row2=h("div","add-row2");
 row2.style.cssText="display:flex;gap:8px;align-items:center";
 // FIX BUG #1: Si ya hay un jikanId seleccionado, el usuario NO debe ingresar caps manualmente.
@@ -2298,20 +2325,47 @@ if(_hasPendingJikan){
   }
   row2.append(ni,capBadge);
 }else{
-  // Ingreso manual: campo con prefijo label + hint
+  // Ingreso manual: campo con prefijo label + hint — tabla para garantizar alineación
   const capShell=document.createElement("div");
-  capShell.className="add-cap-shell";
-  const capLabel=document.createElement("div");
-  capLabel.className="add-cap-label";
-  capLabel.innerHTML=`<i class="ti ti-bookmark" aria-hidden="true"></i><span>${tab==="manga"?"Capítulos":"Episodios"}</span>`;
+  capShell.style.cssText=[
+    "display:table;table-layout:fixed;flex:1;min-width:0",
+    "background:rgba(55,138,221,.07)",
+    "border:1px solid rgba(55,138,221,.2)",
+    "border-radius:14px;overflow:hidden;box-sizing:border-box",
+  ].join(";");
+  capShell.addEventListener("focusin",()=>{capShell.style.borderColor="rgba(55,138,221,.55)";capShell.style.background="rgba(55,138,221,.12)";});
+  capShell.addEventListener("focusout",()=>{capShell.style.borderColor="rgba(55,138,221,.2)";capShell.style.background="rgba(55,138,221,.07)";});
+
+  const capLabelCell=document.createElement("div");
+  capLabelCell.style.cssText=[
+    "display:table-cell;white-space:nowrap;vertical-align:middle",
+    "padding:0 12px 0 14px;width:1px",
+    "border-right:1px solid rgba(55,138,221,.18)",
+    "color:rgba(133,183,235,.7);font-family:'Outfit',sans-serif",
+    "font-size:12px;font-weight:600",
+  ].join(";");
+  capLabelCell.innerHTML=`<span style="display:inline-flex;align-items:center;gap:7px;height:48px"><i class="ti ti-bookmark" style="font-size:15px;color:#85B7EB" aria-hidden="true"></i>${tab==="manga"?"Capítulos":"Episodios"}</span>`;
+
+  const capInputCell=document.createElement("div");
+  capInputCell.style.cssText="display:table-cell;vertical-align:middle;width:100%";
   ni=document.createElement("input");
   ni.id="add-total";ni.type="number";ni.min="1";ni.value=newTotal||"";ni.placeholder="—";
+  ni.style.cssText=[
+    "display:block;width:100%;height:48px",
+    "padding:0 10px;box-sizing:border-box",
+    "background:transparent;border:none;outline:none",
+    "color:rgba(255,255,255,.9);font-family:'Space Mono',monospace",
+    "font-size:18px;font-weight:700;letter-spacing:-.5px",
+  ].join(";");
   ni.oninput=e=>{newTotal=e.target.value;};
   ni.onkeydown=e=>{if(e.key==="Enter")doAdd();};
-  const capHint=document.createElement("span");
-  capHint.className="add-cap-hint";
-  capHint.textContent="total";
-  capShell.append(capLabel,ni,capHint);
+  capInputCell.appendChild(ni);
+
+  const capHintCell=document.createElement("div");
+  capHintCell.style.cssText="display:table-cell;white-space:nowrap;vertical-align:middle;padding-right:12px;width:1px;font-size:10px;color:rgba(133,183,235,.4)";
+  capHintCell.textContent="total";
+
+  capShell.append(capLabelCell,capInputCell,capHintCell);
   row2.append(capShell);
 }
 const fi=h("input","hidden",null,{type:"file",accept:"image/*",id:"acf"});fi.onchange=e=>{const f=e.target.files?.[0];if(!f)return;resizeImg(f,b=>{newCover=b;render();});e.target.value="";};
