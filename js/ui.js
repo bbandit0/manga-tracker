@@ -2075,23 +2075,17 @@ if(tab==="dashboard"){
   const all=[...data.manga,...data.anime];
   const ti=timeInvested();
   const rr=readingRate();
-  // ── Top stats row ──
+  // ── Top stats row (5 cards) ──
+  const sr=h("div","sr");
+  sr.style.cssText="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:20px";
   const mCap=data.manga.reduce((s,x)=>s+x.completed.length,0);
   const aEp=data.anime.reduce((s,x)=>s+x.completed.length,0);
   const streak29=p28GetStreak();
   const avgM=avgScore(data.manga);const avgA=avgScore(data.anime);
   const compM=completionRate(data.manga);const compA=completionRate(data.anime);
-  const _mkDCard=(cls,iconCls,val,lbl,extra="")=>`<div class="stc ${cls}"><div class="stc-corner"></div><div class="stc-content"><i class="ti ${iconCls} stc-icon" aria-hidden="true"></i><div class="stc-divider"></div><span class="stv">${val}</span><span class="stl">${lbl}</span>${extra}</div></div>`;
-  const srWrap=h("div","sr-wrap");
-  const srHdrM=h("div","sr-header");srHdrM.innerHTML=`<span class="sr-pill sr-pill-manga">Manga</span><div class="sr-line"></div>`;
-  const srM=h("div","sr");
-  srM.innerHTML=_mkDCard("st-series","ti-books",data.manga.length,"Series")+_mkDCard("st-read","ti-check",mCap,"Caps leídos")+_mkDCard("st-progress","ti-chart-bar",compM+"%","Completado",`<div class="stc-pbar"><div class="stc-pbar-fill" style="width:${compM}%"></div></div>`)+_mkDCard("st-time","ti-star",avgM||"—","Score")+_mkDCard("st-series","ti-flame",streak29||0,"Racha");
-  srWrap.appendChild(srHdrM);srWrap.appendChild(srM);
-  const srHdrA=h("div","sr-header");srHdrA.style.marginTop="16px";srHdrA.innerHTML=`<span class="sr-pill sr-pill-anime">Anime</span><div class="sr-line"></div>`;
-  const srA=h("div","sr");
-  srA.innerHTML=_mkDCard("st-series","ti-device-tv",data.anime.length,"Series")+_mkDCard("st-watched","ti-eye",aEp,"Eps vistos")+_mkDCard("st-progress","ti-chart-bar",compA+"%","Completado",`<div class="stc-pbar"><div class="stc-pbar-fill" style="width:${compA}%"></div></div>`)+_mkDCard("st-time","ti-star",avgA||"—","Score")+_mkDCard("st-time","ti-clock",ti.val,"Tiempo");
-  srWrap.appendChild(srHdrA);srWrap.appendChild(srA);
-  root.appendChild(srWrap);
+  sr.style.cssText="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:8px;margin-bottom:20px";
+  sr.innerHTML=`<div class="stc"><div class="stc-glare"></div><span class="stc-icon">📚</span><span class="stv">${data.manga.length}</span><span class="stl">Manga</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">🎬</span><span class="stv">${data.anime.length}</span><span class="stl">Anime</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">📖</span><span class="stv">${mCap}</span><span class="stl">Caps leídos</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">▶</span><span class="stv">${aEp}</span><span class="stl">Eps vistos</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">⏱</span><span class="stv">${ti.val}</span><span class="stl">Tiempo</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">🔥</span><span class="stv">${streak29||0}</span><span class="stl">Racha</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">⭐</span><span class="stv">${avgM||"—"}</span><span class="stl">Score manga</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">⭐</span><span class="stv">${avgA||"—"}</span><span class="stl">Score anime</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">✅</span><span class="stv">${compM}%</span><span class="stl">Manga complet.</span></div><div class="stc"><div class="stc-glare"></div><span class="stc-icon">✅</span><span class="stv">${compA}%</span><span class="stl">Anime complet.</span></div>`;
+  root.appendChild(sr);
   const dash=h("div","dash");dash.appendChild(h("div","dash-t",`${svg.chart} Estadísticas`));const dg=h("div","dash-g");
 
   // ── CARD 1: Donut manga vs anime ──
@@ -2208,149 +2202,124 @@ if(tab==="history"){
   return;
 }
 const list=data[tab];const tRead=list.reduce((s,x)=>s+x.completed.length,0);const tAll=list.reduce((s,x)=>s+x.total,0);
-if(list.length>0){const ti=timeInvested();const pctVal=tAll>0?Math.round(tRead/tAll*100):0;const isManga=tab==="manga";const srWrap=h("div","sr-wrap");const srHdr=h("div","sr-header");srHdr.innerHTML=`<span class="sr-pill ${isManga?"sr-pill-manga":"sr-pill-anime"}">${isManga?"Manga":"Anime"}</span><div class="sr-line"></div>`;srWrap.appendChild(srHdr);const sr=h("div","sr");const _mkCard=(cls,iconCls,val,lbl,extra="")=>`<div class="stc ${cls}"><div class="stc-corner"></div><div class="stc-content"><i class="ti ${iconCls} stc-icon" aria-hidden="true"></i><div class="stc-divider"></div><span class="stv">${val}</span><span class="stl">${lbl}</span>${extra}</div></div>`;const readLbl=isManga?"Leídos":"Vistos";const watchCls=isManga?"st-read":"st-watched";const watchIcon=isManga?"ti-check":"ti-eye";sr.innerHTML=_mkCard("st-series",isManga?"ti-books":"ti-device-tv",list.length,"Series")+_mkCard(watchCls,watchIcon,tRead,readLbl)+_mkCard("st-progress","ti-chart-bar",pctVal+"%","Progreso",`<div class="stc-pbar"><div class="stc-pbar-fill" style="width:${pctVal}%"></div></div>`)+_mkCard("st-time","ti-clock",ti.val,"Tiempo");srWrap.appendChild(sr);root.appendChild(srWrap);}
+if(list.length>0){const ti=timeInvested();const sr=h("div","sr");const pctVal=tAll>0?Math.round(tRead/tAll*100):0;sr.innerHTML=`<div class="stc"><span class="stc-icon">${tab==="manga"?"📚":"🎬"}</span><span class="stv">${list.length}</span><span class="stl">Series</span></div><div class="stc"><span class="stc-icon">✅</span><span class="stv">${tRead}</span><span class="stl">${tab==="manga"?"Leídos":"Vistos"}</span></div><div class="stc"><span class="stc-icon">▶</span><span class="stv">${pctVal}%</span><span class="stl">Progreso</span><div class="stc-pbar"><div class="stc-pbar-fill" style="width:${pctVal}%"></div></div></div><div class="stc"><span class="stc-icon">⏱</span><span class="stv">${ti.val}</span><span class="stl">Tiempo</span></div>`;root.appendChild(sr);}
 // Toolbar
-const tb=h("div","tb");const tbl=h("div","tb-l");const sbar=h("div","sb");sbar.innerHTML=svg.search;const sinp=h("input","",null,{placeholder:"Buscar...",value:search});let _localSearchDebounce=null;function _restoreSearchFocus(pos){const _inp=document.querySelector(".sb input");if(_inp){_inp.focus();try{_inp.setSelectionRange(pos,pos);}catch(err){}}}sinp.oninput=e=>{search=e.target.value;clearTimeout(_localSearchDebounce);_localSearchDebounce=setTimeout(()=>{const _pos=sinp.selectionStart;render();_restoreSearchFocus(_pos);},400);};sinp.onkeydown=e=>{if(e.key==="Enter"){clearTimeout(_localSearchDebounce);const _pos=sinp.selectionStart;render();_restoreSearchFocus(_pos);}if(e.key==="Escape"){search="";sinp.value="";clearTimeout(_localSearchDebounce);render();}};sbar.appendChild(sinp);tbl.appendChild(sbar);const tbr=h("div","tb-r");const sel=h("select","srt");[{key:"recent",l:"Reciente"},{key:"updated",l:"Actualizado"},{key:"name-asc",l:"A→Z"},{key:"name-desc",l:"Z→A"},{key:"progress-desc",l:"Mayor %"},{key:"progress-asc",l:"Menor %"},{key:"score",l:"Puntuación"},{key:"total-desc",l:"Más cap."}].forEach(o=>{const op=h("option","",o.l,{value:o.key});if(o.key===sortKey)op.selected=true;sel.appendChild(op);});sel.onchange=e=>{sortKey=e.target.value;render();};tbr.appendChild(sel);tbr.appendChild(h("button",`ib ${viewMode==="list"?"on":""}`,svg.list,{onclick:()=>{viewMode="list";render();}}));tbr.appendChild(h("button",`ib ${viewMode==="catalog"?"on":""}`,svg.grid,{onclick:()=>{viewMode="catalog";render();}}));tb.append(tbl,tbr);root.appendChild(tb);
+const tb=h("div","tb");const tbl=h("div","tb-l");const sbar=h("div","sb");sbar.innerHTML=svg.search;const sinp=h("input","",null,{placeholder:"Buscar...",value:search});let _localSearchDebounce=null;sinp.oninput=e=>{search=e.target.value;clearTimeout(_localSearchDebounce);_localSearchDebounce=setTimeout(()=>{render();},300);};sinp.onkeydown=e=>{if(e.key==="Enter"){clearTimeout(_localSearchDebounce);render();}if(e.key==="Escape"){search="";sinp.value="";clearTimeout(_localSearchDebounce);render();}};sbar.appendChild(sinp);tbl.appendChild(sbar);const tbr=h("div","tb-r");const sel=h("select","srt");[{key:"recent",l:"Reciente"},{key:"updated",l:"Actualizado"},{key:"name-asc",l:"A→Z"},{key:"name-desc",l:"Z→A"},{key:"progress-desc",l:"Mayor %"},{key:"progress-asc",l:"Menor %"},{key:"score",l:"Puntuación"},{key:"total-desc",l:"Más cap."}].forEach(o=>{const op=h("option","",o.l,{value:o.key});if(o.key===sortKey)op.selected=true;sel.appendChild(op);});sel.onchange=e=>{sortKey=e.target.value;render();};tbr.appendChild(sel);tbr.appendChild(h("button",`ib ${viewMode==="list"?"on":""}`,svg.list,{onclick:()=>{viewMode="list";render();}}));tbr.appendChild(h("button",`ib ${viewMode==="catalog"?"on":""}`,svg.grid,{onclick:()=>{viewMode="catalog";render();}}));tb.append(tbl,tbr);root.appendChild(tb);
 // Filters
 const fbar=h("div","fbar");fbar.appendChild(h("button",`fchip${animeCls}${showFavsOnly?" on":""}`,`★ Fav`,{onclick:()=>{showFavsOnly=!showFavsOnly;render();}}));fbar.appendChild(h("div","fsep"));[{key:"all",label:"Todos"},...STATUSES].forEach(s=>{const dispLabel=s.key==="reading"&&tab==="anime"?"👁️ Viendo":s.icon?s.icon+" "+s.label:s.label;fbar.appendChild(h("button",`fchip${animeCls}${filterStatus===s.key?" on":""}`,dispLabel,{onclick:()=>{filterStatus=s.key;render();}}));});const usedTags=[...new Set(list.flatMap(s=>s.tags||[]))].sort();if(usedTags.length>0){fbar.appendChild(h("div","fsep"));usedTags.forEach(t=>{fbar.appendChild(h("button",`fchip${animeCls}${filterTag===t?" on":""}`,t,{onclick:()=>{filterTag=filterTag===t?"all":t;render();}}));});}root.appendChild(fbar);
 // Add
-// ── BLOQUE ADD — clases propias mangu-add-* para evitar conflictos CSS ──
-if(!document.getElementById("mangu-add-styles")){
-  const _addStyle=document.createElement("style");
-  _addStyle.id="mangu-add-styles";
-  _addStyle.textContent=`
-    .mangu-add{margin-bottom:20px;border-radius:20px;overflow:hidden;background:#080d1a;border:1px solid rgba(127,119,221,.25)}
-    .mangu-add-accent{height:3px;display:flex}
-    .mangu-add-accent span:nth-child(1){flex:1;background:#7F77DD}
-    .mangu-add-accent span:nth-child(2){flex:1;background:#378ADD}
-    .mangu-add-accent span:nth-child(3){flex:1;background:#1D9E75}
-    .mangu-add-hdr{display:flex;align-items:center;justify-content:space-between;padding:15px 20px 14px;border-bottom:1px solid rgba(127,119,221,.12);background:rgba(127,119,221,.06)}
-    .mangu-add-icon{width:38px;height:38px;border-radius:11px;background:#16122b;border:1px solid rgba(127,119,221,.4);display:flex;align-items:center;justify-content:center;color:#AFA9EC;font-size:18px;flex-shrink:0}
-    .mangu-add-body{padding:18px 20px;display:flex;flex-direction:column;gap:10px}
-    .mangu-search-tbl{width:100%;border-collapse:collapse;border-radius:14px;overflow:hidden;background:rgba(127,119,221,.09);border:1px solid rgba(127,119,221,.28)}
-    .mangu-search-tbl:focus-within{border-color:rgba(127,119,221,.65)!important;background:rgba(127,119,221,.14)!important}
-    .mangu-search-prefix{padding:0 14px 0 16px;white-space:nowrap;border-right:1px solid rgba(127,119,221,.2);color:rgba(175,169,236,.8);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;vertical-align:middle;height:48px}
-    .mangu-search-input-td{width:100%;vertical-align:middle;padding:0}
-    .mangu-search-input-td input{display:block;width:100%;height:48px;padding:0 12px;background:transparent!important;border:none!important;outline:none!important;color:rgba(255,255,255,.88)!important;font-family:'Outfit',sans-serif!important;font-size:14px!important;box-sizing:border-box}
-    .mangu-search-input-td input::placeholder{color:rgba(255,255,255,.2)!important}
-    .mangu-search-badge-td{white-space:nowrap;padding-right:12px;vertical-align:middle}
-    .mangu-search-badge{display:inline-block;padding:3px 8px;border-radius:6px;background:rgba(127,119,221,.2);border:1px solid rgba(127,119,221,.3);font-size:10px;font-weight:700;color:#AFA9EC;letter-spacing:.06em}
-    .mangu-row2{display:flex;gap:8px;align-items:center;width:100%}
-    .mangu-cap-tbl{flex:1;min-width:0;border-collapse:collapse;border-radius:14px;overflow:hidden;background:rgba(55,138,221,.07);border:1px solid rgba(55,138,221,.2)}
-    .mangu-cap-tbl:focus-within{border-color:rgba(55,138,221,.55)!important;background:rgba(55,138,221,.12)!important}
-    .mangu-cap-label{padding:0 12px 0 14px;white-space:nowrap;border-right:1px solid rgba(55,138,221,.18);color:rgba(133,183,235,.7);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;vertical-align:middle;height:48px}
-    .mangu-cap-input-td{width:100%;vertical-align:middle;padding:0}
-    .mangu-cap-input-td input{display:block;width:100%;height:48px;padding:0 10px;background:transparent!important;border:none!important;outline:none!important;color:rgba(255,255,255,.9)!important;font-family:'Space Mono',monospace!important;font-size:18px!important;font-weight:700!important;letter-spacing:-.5px!important;box-sizing:border-box}
-    .mangu-cap-input-td input::placeholder{color:rgba(255,255,255,.18)!important;font-family:'Outfit',sans-serif!important;font-size:13px!important;font-weight:400!important;letter-spacing:0!important}
-    .mangu-cap-hint{white-space:nowrap;padding-right:12px;vertical-align:middle;font-size:10px;color:rgba(133,183,235,.4)}
-    .mangu-cover-btn{display:flex;align-items:center;gap:7px;padding:0 15px;height:48px;flex-shrink:0;background:rgba(29,158,117,.08);border:1px solid rgba(29,158,117,.22);border-radius:14px;color:rgba(93,202,165,.65);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:.15s}
-    .mangu-cover-btn:hover{border-color:rgba(29,158,117,.5)!important;color:#5DCAA5!important;background:rgba(29,158,117,.14)!important}
-    .mangu-add-btn{display:flex;align-items:center;justify-content:center;width:48px;height:48px;flex-shrink:0;border:1px solid rgba(93,202,165,.25);border-radius:14px;cursor:pointer;color:#fff;background:#1D9E75;transition:.15s}
-    .mangu-add-btn:hover{background:#22b584!important;transform:scale(1.05)}
-    .mangu-limpiar{font-size:11px;font-weight:500;color:rgba(255,255,255,.25);background:transparent;border:1px solid rgba(255,255,255,.08);cursor:pointer;padding:5px 12px;border-radius:8px;font-family:'Outfit',sans-serif;transition:.15s;flex-shrink:0}
-    .mangu-limpiar:hover{color:#F09595!important;border-color:rgba(240,149,149,.3)!important;background:rgba(240,149,149,.07)!important}
-  `;
-  document.head.appendChild(_addStyle);
-}
-const addS=document.createElement("div");
-addS.className="mangu-add";
-const _accentBar=document.createElement("div");
-_accentBar.className="mangu-add-accent";
-_accentBar.innerHTML="<span></span><span></span><span></span>";
-addS.appendChild(_accentBar);
-const _hdr=document.createElement("div");
-_hdr.className="mangu-add-hdr";
-const _hdrL=document.createElement("div");
-_hdrL.style.cssText="display:flex;align-items:center;gap:12px";
-const _icon=document.createElement("div");
-_icon.className="mangu-add-icon";
-_icon.innerHTML=tab==="manga"?'<i class="ti ti-books" aria-hidden="true"></i>':'<i class="ti ti-device-tv" aria-hidden="true"></i>';
-const _hdrTxt=document.createElement("div");
-const _hdrT=document.createElement("div");
-_hdrT.style.cssText="font-size:14px;font-weight:700;color:#e2e8f8;letter-spacing:.15px";
-_hdrT.textContent="Agregar "+(tab==="manga"?"manga":"anime");
-const _hdrS=document.createElement("div");
-_hdrS.style.cssText="font-size:11px;color:rgba(175,169,236,.5);margin-top:2px";
-_hdrS.textContent="Busca directamente en MyAnimeList";
-_hdrTxt.append(_hdrT,_hdrS);
-_hdrL.append(_icon,_hdrTxt);
-const _limpiar=document.createElement("button");
-_limpiar.className="mangu-limpiar";
-_limpiar.textContent="Limpiar";
-_limpiar.onclick=()=>{newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;jikanResults=[];render();};
-_hdr.append(_hdrL,_limpiar);
-addS.appendChild(_hdr);
-const addBody=document.createElement("div");
-addBody.className="mangu-add-body";
+const addS=h("div","add");
+
+// ── Header del buscador — visual upgrade ──
+const addHdr=h("div","add-header");
+addHdr.style.cssText=`
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px 12px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(135deg,rgba(${tab==="manga"?"99,119,237":"52,211,153"},.08) 0%,transparent 60%);
+`;
+const addHdrL=h("div","add-header-left");
+addHdrL.style.cssText="display:flex;align-items:center;gap:10px";
+
+// Icono con glow
+const addIconWrap=document.createElement("div");
+addIconWrap.style.cssText=`
+  width:36px;height:36px;border-radius:10px;
+  background:linear-gradient(135deg,${tab==="manga"?"rgba(99,119,237,.25)":"rgba(52,211,153,.25)"} 0%,${tab==="manga"?"rgba(99,119,237,.08)":"rgba(52,211,153,.08)"} 100%);
+  border:1px solid ${tab==="manga"?"rgba(99,119,237,.3)":"rgba(52,211,153,.3)"};
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  box-shadow:0 0 12px ${tab==="manga"?"rgba(99,119,237,.15)":"rgba(52,211,153,.15)"};
+`;
+addIconWrap.textContent=tab==="manga"?"📚":"🎬";
+
+const addHdrText=document.createElement("div");
+const addHdrTitle=document.createElement("div");
+addHdrTitle.style.cssText="font-size:13px;font-weight:700;color:var(--t1);letter-spacing:.01em";
+addHdrTitle.textContent="➕ Agregar "+(tab==="manga"?"manga":"anime");
+const addHdrSub=document.createElement("div");
+addHdrSub.style.cssText="font-size:10px;color:var(--t3);margin-top:1px";
+addHdrSub.textContent="Busca directamente en MyAnimeList";
+addHdrText.append(addHdrTitle,addHdrSub);
+addHdrL.append(addIconWrap,addHdrText);
+
+const addResetBtn=h("button","add-reset-btn","Limpiar");
+addResetBtn.style.cssText="font-size:11px;padding:5px 11px;border-radius:8px;opacity:.7";
+addResetBtn.onclick=()=>{newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;jikanResults=[];render();};
+addHdr.append(addHdrL,addResetBtn);
+addS.appendChild(addHdr);
+
+const addBody=h("div","add-body");
 addS.appendChild(addBody);
-const _isManga=tab==="manga";
-const searchTable=document.createElement("table");
-searchTable.className="mangu-search-tbl";
-const _sTr=searchTable.insertRow();
-const _sPfx=document.createElement("td");
-_sPfx.className="mangu-search-prefix";
-_sPfx.innerHTML=`<span style="display:inline-flex;align-items:center;gap:8px"><i class="ti ti-search" style="font-size:15px;color:#AFA9EC" aria-hidden="true"></i>${_isManga?"Buscar manga":"Buscar anime"}</span>`;
-const _sInpTd=document.createElement("td");
-_sInpTd.className="mangu-search-input-td";
-const sIcon=document.createElement("span");sIcon.style.display="none";
-const ti=document.createElement("input");
-ti.id="add-title";ti.type="text";ti.value=newTitle||"";ti.placeholder="Título, autor...";
-ti.setAttribute("autocomplete","off");ti.setAttribute("autocorrect","off");ti.setAttribute("autocapitalize","off");ti.setAttribute("spellcheck","false");
-ti.oninput=e=>{newTitle=e.target.value;clearTimeout(jikanSearchTimeout);if(e.target.value.length>=2){jikanSearchTimeout=setTimeout(()=>{searchJikan(e.target.value,tab).finally(()=>{});},500);}else{jikanResults=[];removeJikanDrop();}};
+
+// ── Input de búsqueda — visual upgrade ──
+const titleRow=h("div","add-title-row");
+const titleWrap=h("div","jikan-wrap");
+titleWrap.style.cssText="position:relative;";
+
+// Contenedor del input con icono integrado
+const inputShell=document.createElement("div");
+inputShell.style.cssText=`
+  display:flex;align-items:center;gap:8px;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:12px;
+  padding:0 14px;
+  transition:border-color .2s,box-shadow .2s;
+`;
+inputShell.addEventListener("focusin",()=>{
+  inputShell.style.borderColor=tab==="manga"?"rgba(99,119,237,.5)":"rgba(52,211,153,.5)";
+  inputShell.style.boxShadow=`0 0 0 3px ${tab==="manga"?"rgba(99,119,237,.1)":"rgba(52,211,153,.1)"}`;
+});
+inputShell.addEventListener("focusout",()=>{
+  inputShell.style.borderColor="rgba(255,255,255,.1)";
+  inputShell.style.boxShadow="none";
+});
+
+const sIcon=document.createElement("span");
+// NO usar clase CSS externa — el main.css puede tener position:absolute que rompe el flex layout
+sIcon.style.cssText="font-size:15px;opacity:.5;flex-shrink:0;transition:opacity .2s;pointer-events:none;line-height:1;user-select:none";
+sIcon.textContent="🔍";
+
+const ti=h("input","",null,{placeholder:"Buscar en MyAnimeList...",id:"add-title",value:newTitle,autocomplete:"off",autocorrect:"off",autocapitalize:"off",spellcheck:"false"});
+ti.style.cssText=`
+  flex:1;background:none;border:none;outline:none;
+  color:var(--t1);font-size:13px;
+  font-family:'Outfit',sans-serif;
+  padding:12px 0;
+`;
+ti.oninput=e=>{newTitle=e.target.value;clearTimeout(jikanSearchTimeout);if(e.target.value.length>=2){sIcon.textContent="⏳";sIcon.style.opacity="1";jikanSearchTimeout=setTimeout(()=>{searchJikan(e.target.value,tab).finally(()=>{sIcon.textContent="🔍";sIcon.style.opacity=".5";});},500);}else{jikanResults=[];removeJikanDrop();sIcon.textContent="🔍";sIcon.style.opacity=".5";}};
 ti.onkeydown=e=>{if(e.key==="Enter"){jikanResults=[];removeJikanDrop();doAdd();}if(e.key==="Escape"){jikanResults=[];removeJikanDrop();}};
-_sInpTd.appendChild(ti);
-const _sBadgeTd=document.createElement("td");
-_sBadgeTd.className="mangu-search-badge-td";
-_sBadgeTd.innerHTML='<span class="mangu-search-badge">MAL</span>';
-_sTr.append(_sPfx,_sInpTd,_sBadgeTd);
-const titleWrap=document.createElement("div");
-titleWrap.className="jikan-wrap";
-titleWrap.style.cssText="position:relative;display:block;width:100%";
-titleWrap.appendChild(searchTable);
-addBody.appendChild(titleWrap);
-const row2=document.createElement("div");
-row2.className="mangu-row2";
+
+inputShell.append(sIcon,ti);
+titleWrap.appendChild(inputShell);
+titleRow.appendChild(titleWrap);
+addBody.appendChild(titleRow);
+const row2=h("div","add-row2");
+// FIX BUG #1: Si ya hay un jikanId seleccionado, el usuario NO debe ingresar caps manualmente.
+// Mostrar un badge informativo en lugar del input. Si aún no hay jikanId (ingreso manual),
+// mostrar el input solo para series finalizadas (publicación = polling lo maneja).
 const _hasPendingJikan=!!window._pendingJikanId;
 const _isPendingPub=window._pendingJikanPublishing||false;
 let ni;
 if(_hasPendingJikan){
+  // Serie seleccionada desde MAL: ocultar input y mostrar badge de estado
   ni=h("input","add-cap-input",null,{type:"hidden",id:"add-total",value:newTotal||"1"});
-  const capBadge=document.createElement("div");
-  capBadge.style.cssText="flex:1;padding:10px 14px;background:rgba(99,179,237,.07);border:1px solid rgba(99,179,237,.3);border-radius:14px;color:#7ec8f4;font-family:'Outfit',sans-serif;font-size:12px;display:flex;align-items:center;gap:6px;min-width:0";
-  capBadge.innerHTML=newTotal&&parseInt(newTotal)>0?`<span>📖</span><span><b>${newTotal}</b> ${_isManga?"caps":"eps"}${_isPendingPub?" <span style='opacity:.5;font-size:10px'>· en emisión</span>":""}</span>`:`<span>⏳</span><span style="opacity:.7">Buscando caps...</span>`;
+  const capBadge=h("div","add-cap-badge","");
+  capBadge.style.cssText="flex:1;padding:10px 14px;background:var(--bg3);border:1px solid rgba(99,179,237,.3);border-radius:9px;color:#7ec8f4;font-family:'Outfit',sans-serif;font-size:12px;display:flex;align-items:center;gap:6px;min-width:0";
+  if(newTotal&&parseInt(newTotal)>0){
+    capBadge.innerHTML=`<span style="font-size:15px">📖</span><span><b style="font-size:13px">${newTotal}</b> ${tab==="manga"?"caps":"eps"}${_isPendingPub?" <span style='opacity:.5;font-size:10px'>· en emisión</span>":""}</span>`;
+  }else{
+    capBadge.innerHTML=`<span style="font-size:13px">⏳</span><span style="opacity:.7">Buscando caps...</span>`;
+  }
   row2.append(ni,capBadge);
 }else{
-  const capTable=document.createElement("table");
-  capTable.className="mangu-cap-tbl";
-  const _cTr=capTable.insertRow();
-  const _cLbl=document.createElement("td");
-  _cLbl.className="mangu-cap-label";
-  _cLbl.innerHTML=`<span style="display:inline-flex;align-items:center;gap:7px"><i class="ti ti-bookmark" style="font-size:15px;color:#85B7EB" aria-hidden="true"></i>${_isManga?"Capítulos":"Episodios"}</span>`;
-  const _cInpTd=document.createElement("td");
-  _cInpTd.className="mangu-cap-input-td";
-  ni=document.createElement("input");
-  ni.id="add-total";ni.type="number";ni.min="1";ni.value=newTotal||"";ni.placeholder="—";
+  // Ingreso manual: mostrar input normal
+  ni=h("input","add-cap-input",null,{placeholder:tab==="manga"?"Total de capitulos *":"Total de ep. * (todas las temp.)",type:"number",min:"1",id:"add-total",value:newTotal});
   ni.oninput=e=>{newTotal=e.target.value;};
   ni.onkeydown=e=>{if(e.key==="Enter")doAdd();};
-  _cInpTd.appendChild(ni);
-  const _cHint=document.createElement("td");
-  _cHint.className="mangu-cap-hint";
-  _cHint.textContent="total";
-  _cTr.append(_cLbl,_cInpTd,_cHint);
-  row2.appendChild(capTable);
+  row2.append(ni);
 }
-const fi=h("input","hidden",null,{type:"file",accept:"image/*",id:"acf"});
-fi.onchange=e=>{const f=e.target.files?.[0];if(!f)return;resizeImg(f,b=>{newCover=b;render();});e.target.value="";};
-const coverBtn=document.createElement("button");
-coverBtn.className="mangu-cover-btn";
-coverBtn.innerHTML='<i class="ti ti-upload" style="font-size:13px" aria-hidden="true"></i> Portada';
-coverBtn.onclick=()=>document.getElementById("acf").click();
-const ab=document.createElement("button");
-ab.className="mangu-add-btn";
-ab.innerHTML='<i class="ti ti-plus" style="font-size:20px" aria-hidden="true"></i>';
-ab.title="Agregar";ab.onclick=doAdd;
-row2.append(fi,coverBtn,ab);
-addBody.appendChild(row2);
+const fi=h("input","hidden",null,{type:"file",accept:"image/*",id:"acf"});fi.onchange=e=>{const f=e.target.files?.[0];if(!f)return;resizeImg(f,b=>{newCover=b;render();});e.target.value="";};const coverBtn=h("button","add-cover-btn",svg.up+" Portada");coverBtn.onclick=()=>document.getElementById("acf").click();const ab=h("button","add-submit-btn",svg.plus);ab.style.background=ac;ab.title="Agregar";ab.onclick=doAdd;row2.append(fi,coverBtn,ab);addBody.appendChild(row2);addBody.appendChild(h("div","add-divider"));const stSec=h("div","add-status-section");stSec.appendChild(h("div","add-status-label","Estado"));const spRow=h("div","add-status-pills");STATUSES.forEach(st=>{const lbl=(st.key==="reading"&&tab==="anime")?"Viendo":getStatusLabel(st.key);const pill=h("button","add-status-pill"+(newStatus===st.key?" sp-"+st.key:""),st.icon+" "+lbl);pill.onclick=()=>{newStatus=st.key;spRow.querySelectorAll(".add-status-pill").forEach(p=>{p.className="add-status-pill";});pill.className="add-status-pill sp-"+st.key;};spRow.appendChild(pill);});stSec.appendChild(spRow);addBody.appendChild(stSec);const genSec=h("div","add-genres-section");genSec.appendChild(h("div","add-genres-label","Generos"));const genGrid=h("div","add-genres-grid");const allTagsList=[...ALL_TAGS,...(theme.customTags||[])];allTagsList.forEach(t=>{const isCustom=!ALL_TAGS.includes(t);const wrapper=isCustom?h("div","tag-custom"):null;const chip=h("button","genre-chip"+(newTags.includes(t)?(animeCls?" anime-on":" on"):""),t);chip.onclick=()=>{if(newTags.includes(t)){newTags=newTags.filter(x=>x!==t);chip.className="genre-chip";}else{newTags.push(t);chip.className="genre-chip"+(animeCls?" anime-on":" on");}};if(isCustom&&wrapper){const dx=h("button","tag-del-x","✕");dx.onclick=e=>{e.stopPropagation();theme.customTags=(theme.customTags||[]).filter(c=>c!==t);newTags=newTags.filter(x=>x!==t);saveLocal();render();};wrapper.append(chip,dx);genGrid.appendChild(wrapper);}else{genGrid.appendChild(chip);}});const addGenChip=h("button","genre-add-chip","+ tag");addGenChip.onclick=()=>{const nm=prompt("Nombre del nuevo tag:");if(!nm||!nm.trim())return;const nt=nm.trim();if(allTagsList.includes(nt)){showToast("Ya existe ese tag");return;}if(!theme.customTags)theme.customTags=[];theme.customTags.push(nt);newTags.push(nt);saveLocal();render();};genGrid.appendChild(addGenChip);genSec.appendChild(genGrid);addBody.appendChild(genSec);if(newCover){const prevW=h("div","add-cover-preview");prevW.append(Object.assign(h("img","cvmn"),{src:newCover}),h("button","bcx","✕ quitar",{onclick:()=>{newCover="";render();}}));addBody.appendChild(prevW);}root.appendChild(addS);
 const filtered=sortList(filterList(list));if(filtered.length===0){const emptyWrap=h("div","");emptyWrap.appendChild(h("div","empty",`<div class="icn">${icon}</div><p>${list.length===0?`Agrega tu primer ${tab==="manga"?"manga":"anime"}`:"Sin resultados"}</p>`));if(list.length===0){p28RenderOnboardingExamples(emptyWrap,tab);}root.appendChild(emptyWrap);return;}
 // Catalog view
 if(viewMode==="catalog"){const cat=h("div","catalog");filtered.forEach(s=>{const pct=s.total>0?Math.min(100,(s.completed.length/s.total)*100):0;const cc=h("div","catc");cc.onclick=()=>{pinnedId=s.id;viewMode="list";expanded[s.id]=true;render();};const st=SM[s.status];const statusIcon=st?(s.status==="reading"&&tab==="anime"?"👁️":st.icon):"";cc.innerHTML=`<div style="position:relative">${s.cover?`<img class="catcv" src="${s.cover}">`:`<div class="catph">${icon}</div>`}${s.favorite?`<div class="cat-fav">★</div>`:""}${s.score?`<div class="cat-score">${s.score}</div>`:""}${pct>0?`<div class="cat-pct">${Math.round(pct)}%</div>`:""}${statusIcon?`<div class="cat-status-ov">${statusIcon}</div>`:""}</div><div class="cati"><div class="catt">${s.title}</div><div class="catp">${s.completed.length}/${s.total}</div><div class="catb"><div class="catf" style="width:${pct}%;background:${ac}"></div></div></div>`;cat.appendChild(cc);});root.appendChild(cat);return;}
