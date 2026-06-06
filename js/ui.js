@@ -2245,28 +2245,35 @@ addS.appendChild(addHdr);
 const addBody=h("div","add-body");
 addS.appendChild(addBody);
 
-// ── Input de búsqueda — visual upgrade ──
-const titleRow=h("div","add-title-row");
-const titleWrap=h("div","jikan-wrap");
-titleWrap.style.cssText="position:relative;";
+// ── Input de búsqueda ──
+const titleRow=document.createElement("div");
+titleRow.className="add-title-row";
+titleRow.style.cssText="position:relative";
 
-// Contenedor del input con prefijo label + badge MAL
+const titleWrap=document.createElement("div");
+titleWrap.className="jikan-wrap";
+titleWrap.style.cssText="position:relative";
+
 const inputShell=document.createElement("div");
-inputShell.className="add-search-shell";
+inputShell.style.cssText="display:flex;align-items:center;background:rgba(127,119,221,.09);border:1px solid rgba(127,119,221,.28);border-radius:14px;overflow:hidden;transition:.2s";
+inputShell.addEventListener("focusin",()=>{inputShell.style.borderColor="rgba(127,119,221,.65)";inputShell.style.background="rgba(127,119,221,.14)";});
+inputShell.addEventListener("focusout",()=>{inputShell.style.borderColor="rgba(127,119,221,.28)";inputShell.style.background="rgba(127,119,221,.09)";});
 
 const searchPrefix=document.createElement("div");
-searchPrefix.className="add-search-prefix";
-searchPrefix.innerHTML=`<i class="ti ti-search" aria-hidden="true"></i>${tab==="manga"?"Buscar manga":"Buscar anime"}`;
+searchPrefix.style.cssText="display:flex;align-items:center;gap:8px;padding:0 14px 0 16px;border-right:1px solid rgba(127,119,221,.2);height:48px;flex-shrink:0;color:rgba(175,169,236,.75);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;white-space:nowrap";
+searchPrefix.innerHTML=`<i class="ti ti-search" style="font-size:16px;color:#AFA9EC" aria-hidden="true"></i>${tab==="manga"?"Buscar manga":"Buscar anime"}`;
 
-const sIcon=document.createElement("span");
-sIcon.style.cssText="display:none";
+const sIcon=document.createElement("span");sIcon.style.cssText="display:none";
 
-const ti=h("input","",null,{placeholder:"Título, autor...",id:"add-title",value:newTitle,autocomplete:"off",autocorrect:"off",autocapitalize:"off",spellcheck:"false"});
+const ti=document.createElement("input");
+ti.id="add-title";ti.value=newTitle;ti.placeholder="Título, autor...";
+ti.autocomplete="off";ti.autocorrect="off";ti.autocapitalize="off";ti.spellcheck=false;
+ti.style.cssText="flex:1;padding:14px 12px;background:transparent;border:none;outline:none;color:rgba(255,255,255,.88);font-family:'Outfit',sans-serif;font-size:14px;min-width:0";
 ti.oninput=e=>{newTitle=e.target.value;clearTimeout(jikanSearchTimeout);if(e.target.value.length>=2){jikanSearchTimeout=setTimeout(()=>{searchJikan(e.target.value,tab).finally(()=>{});},500);}else{jikanResults=[];removeJikanDrop();}};
 ti.onkeydown=e=>{if(e.key==="Enter"){jikanResults=[];removeJikanDrop();doAdd();}if(e.key==="Escape"){jikanResults=[];removeJikanDrop();}};
 
 const malBadge=document.createElement("span");
-malBadge.className="add-search-badge";
+malBadge.style.cssText="margin-right:12px;padding:3px 8px;border-radius:6px;background:rgba(127,119,221,.2);border:1px solid rgba(127,119,221,.3);font-size:10px;font-weight:700;color:#AFA9EC;letter-spacing:.06em;white-space:nowrap;flex-shrink:0";
 malBadge.textContent="MAL";
 
 inputShell.append(searchPrefix,ti,malBadge);
@@ -2274,6 +2281,7 @@ titleWrap.appendChild(inputShell);
 titleRow.appendChild(titleWrap);
 addBody.appendChild(titleRow);
 const row2=h("div","add-row2");
+row2.style.cssText="display:flex;gap:8px;align-items:center";
 // FIX BUG #1: Si ya hay un jikanId seleccionado, el usuario NO debe ingresar caps manualmente.
 // Mostrar un badge informativo en lugar del input. Si aún no hay jikanId (ingreso manual),
 // mostrar el input solo para series finalizadas (publicación = polling lo maneja).
@@ -2292,22 +2300,41 @@ if(_hasPendingJikan){
   }
   row2.append(ni,capBadge);
 }else{
-  // Ingreso manual: mostrar campo con prefijo label + hint
+  // Ingreso manual: campo con prefijo label + hint
   const capShell=document.createElement("div");
-  capShell.className="add-cap-shell";
+  capShell.style.cssText="flex:1;display:flex;align-items:center;background:rgba(55,138,221,.07);border:1px solid rgba(55,138,221,.2);border-radius:14px;overflow:hidden;transition:.2s;min-width:0";
+  capShell.addEventListener("focusin",()=>{capShell.style.borderColor="rgba(55,138,221,.55)";capShell.style.background="rgba(55,138,221,.12)";});
+  capShell.addEventListener("focusout",()=>{capShell.style.borderColor="rgba(55,138,221,.2)";capShell.style.background="rgba(55,138,221,.07)";});
   const capLabel=document.createElement("div");
-  capLabel.className="add-cap-label";
-  capLabel.innerHTML=`<i class="ti ti-bookmark" aria-hidden="true"></i>${tab==="manga"?"Capítulos":"Episodios"}`;
-  ni=h("input","add-cap-input",null,{placeholder:"—",type:"number",min:"1",id:"add-total",value:newTotal});
+  capLabel.style.cssText="display:flex;align-items:center;gap:7px;padding:0 12px 0 14px;border-right:1px solid rgba(55,138,221,.18);height:48px;flex-shrink:0;color:rgba(133,183,235,.7);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;white-space:nowrap";
+  capLabel.innerHTML=`<i class="ti ti-bookmark" style="font-size:15px;color:#85B7EB" aria-hidden="true"></i>${tab==="manga"?"Capítulos":"Episodios"}`;
+  ni=document.createElement("input");
+  ni.id="add-total";ni.type="number";ni.min="1";ni.value=newTotal;ni.placeholder="—";
+  ni.style.cssText="flex:1;padding:13px 10px;background:transparent;border:none;outline:none;color:rgba(255,255,255,.9);font-family:'Space Mono',monospace;font-size:18px;font-weight:700;letter-spacing:-.5px;min-width:0";
+  ni.addEventListener("focus",()=>{if(!ni.value)ni.style.fontFamily="'Outfit',sans-serif";});
+  ni.addEventListener("blur",()=>{ni.style.fontFamily="'Space Mono',monospace";});
   ni.oninput=e=>{newTotal=e.target.value;};
   ni.onkeydown=e=>{if(e.key==="Enter")doAdd();};
   const capHint=document.createElement("span");
-  capHint.className="add-cap-hint";
+  capHint.style.cssText="font-size:10px;color:rgba(133,183,235,.4);padding-right:12px;white-space:nowrap;flex-shrink:0";
   capHint.textContent="total";
   capShell.append(capLabel,ni,capHint);
   row2.append(capShell);
 }
-const fi=h("input","hidden",null,{type:"file",accept:"image/*",id:"acf"});fi.onchange=e=>{const f=e.target.files?.[0];if(!f)return;resizeImg(f,b=>{newCover=b;render();});e.target.value="";};const coverBtn=h("button","add-cover-btn",'<i class="ti ti-upload" style="font-size:13px" aria-hidden="true"></i> Portada');coverBtn.onclick=()=>document.getElementById("acf").click();const ab=h("button","add-submit-btn",'<i class="ti ti-plus" style="font-size:20px" aria-hidden="true"></i>');ab.style.background="#1D9E75";ab.title="Agregar";ab.onclick=doAdd;row2.append(fi,coverBtn,ab);addBody.appendChild(row2);addBody.appendChild(h("div","add-divider"));const stSec=h("div","add-status-section");stSec.appendChild(h("div","add-status-label","Estado"));const spRow=h("div","add-status-pills");STATUSES.forEach(st=>{const lbl=(st.key==="reading"&&tab==="anime")?"Viendo":getStatusLabel(st.key);const pill=h("button","add-status-pill"+(newStatus===st.key?" sp-"+st.key:""),st.icon+" "+lbl);pill.onclick=()=>{newStatus=st.key;spRow.querySelectorAll(".add-status-pill").forEach(p=>{p.className="add-status-pill";});pill.className="add-status-pill sp-"+st.key;};spRow.appendChild(pill);});stSec.appendChild(spRow);addBody.appendChild(stSec);const genSec=h("div","add-genres-section");genSec.appendChild(h("div","add-genres-label","Generos"));const genGrid=h("div","add-genres-grid");const allTagsList=[...ALL_TAGS,...(theme.customTags||[])];allTagsList.forEach(t=>{const isCustom=!ALL_TAGS.includes(t);const wrapper=isCustom?h("div","tag-custom"):null;const chip=h("button","genre-chip"+(newTags.includes(t)?(animeCls?" anime-on":" on"):""),t);chip.onclick=()=>{if(newTags.includes(t)){newTags=newTags.filter(x=>x!==t);chip.className="genre-chip";}else{newTags.push(t);chip.className="genre-chip"+(animeCls?" anime-on":" on");}};if(isCustom&&wrapper){const dx=h("button","tag-del-x","✕");dx.onclick=e=>{e.stopPropagation();theme.customTags=(theme.customTags||[]).filter(c=>c!==t);newTags=newTags.filter(x=>x!==t);saveLocal();render();};wrapper.append(chip,dx);genGrid.appendChild(wrapper);}else{genGrid.appendChild(chip);}});const addGenChip=h("button","genre-add-chip","+ tag");addGenChip.onclick=()=>{const nm=prompt("Nombre del nuevo tag:");if(!nm||!nm.trim())return;const nt=nm.trim();if(allTagsList.includes(nt)){showToast("Ya existe ese tag");return;}if(!theme.customTags)theme.customTags=[];theme.customTags.push(nt);newTags.push(nt);saveLocal();render();};genGrid.appendChild(addGenChip);genSec.appendChild(genGrid);addBody.appendChild(genSec);if(newCover){const prevW=h("div","add-cover-preview");prevW.append(Object.assign(h("img","cvmn"),{src:newCover}),h("button","bcx","✕ quitar",{onclick:()=>{newCover="";render();}}));addBody.appendChild(prevW);}root.appendChild(addS);
+const fi=h("input","hidden",null,{type:"file",accept:"image/*",id:"acf"});fi.onchange=e=>{const f=e.target.files?.[0];if(!f)return;resizeImg(f,b=>{newCover=b;render();});e.target.value="";};
+const coverBtn=document.createElement("button");
+coverBtn.style.cssText="display:flex;align-items:center;gap:7px;padding:0 15px;height:48px;background:rgba(29,158,117,.08);border:1px solid rgba(29,158,117,.22);border-radius:14px;color:rgba(93,202,165,.65);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:.15s";
+coverBtn.innerHTML='<i class="ti ti-upload" style="font-size:13px" aria-hidden="true"></i> Portada';
+coverBtn.onmouseenter=()=>{coverBtn.style.borderColor="rgba(29,158,117,.5)";coverBtn.style.color="#5DCAA5";coverBtn.style.background="rgba(29,158,117,.14)";};
+coverBtn.onmouseleave=()=>{coverBtn.style.borderColor="rgba(29,158,117,.22)";coverBtn.style.color="rgba(93,202,165,.65)";coverBtn.style.background="rgba(29,158,117,.08)";};
+coverBtn.onclick=()=>document.getElementById("acf").click();
+const ab=document.createElement("button");
+ab.style.cssText="display:flex;align-items:center;justify-content:center;width:48px;height:48px;flex-shrink:0;border:1px solid rgba(93,202,165,.25);border-radius:14px;cursor:pointer;color:#fff;background:#1D9E75;transition:.15s";
+ab.innerHTML='<i class="ti ti-plus" style="font-size:20px" aria-hidden="true"></i>';
+ab.title="Agregar";ab.onclick=doAdd;
+ab.onmouseenter=()=>{ab.style.background="#22b584";ab.style.transform="scale(1.05)";};
+ab.onmouseleave=()=>{ab.style.background="#1D9E75";ab.style.transform="scale(1)";};
+row2.append(fi,coverBtn,ab);addBody.appendChild(row2);addBody.appendChild(h("div","add-divider"));const stSec=h("div","add-status-section");stSec.appendChild(h("div","add-status-label","Estado"));const spRow=h("div","add-status-pills");STATUSES.forEach(st=>{const lbl=(st.key==="reading"&&tab==="anime")?"Viendo":getStatusLabel(st.key);const pill=h("button","add-status-pill"+(newStatus===st.key?" sp-"+st.key:""),st.icon+" "+lbl);pill.onclick=()=>{newStatus=st.key;spRow.querySelectorAll(".add-status-pill").forEach(p=>{p.className="add-status-pill";});pill.className="add-status-pill sp-"+st.key;};spRow.appendChild(pill);});stSec.appendChild(spRow);addBody.appendChild(stSec);const genSec=h("div","add-genres-section");genSec.appendChild(h("div","add-genres-label","Generos"));const genGrid=h("div","add-genres-grid");const allTagsList=[...ALL_TAGS,...(theme.customTags||[])];allTagsList.forEach(t=>{const isCustom=!ALL_TAGS.includes(t);const wrapper=isCustom?h("div","tag-custom"):null;const chip=h("button","genre-chip"+(newTags.includes(t)?(animeCls?" anime-on":" on"):""),t);chip.onclick=()=>{if(newTags.includes(t)){newTags=newTags.filter(x=>x!==t);chip.className="genre-chip";}else{newTags.push(t);chip.className="genre-chip"+(animeCls?" anime-on":" on");}};if(isCustom&&wrapper){const dx=h("button","tag-del-x","✕");dx.onclick=e=>{e.stopPropagation();theme.customTags=(theme.customTags||[]).filter(c=>c!==t);newTags=newTags.filter(x=>x!==t);saveLocal();render();};wrapper.append(chip,dx);genGrid.appendChild(wrapper);}else{genGrid.appendChild(chip);}});const addGenChip=h("button","genre-add-chip","+ tag");addGenChip.onclick=()=>{const nm=prompt("Nombre del nuevo tag:");if(!nm||!nm.trim())return;const nt=nm.trim();if(allTagsList.includes(nt)){showToast("Ya existe ese tag");return;}if(!theme.customTags)theme.customTags=[];theme.customTags.push(nt);newTags.push(nt);saveLocal();render();};genGrid.appendChild(addGenChip);genSec.appendChild(genGrid);addBody.appendChild(genSec);if(newCover){const prevW=h("div","add-cover-preview");prevW.append(Object.assign(h("img","cvmn"),{src:newCover}),h("button","bcx","✕ quitar",{onclick:()=>{newCover="";render();}}));addBody.appendChild(prevW);}root.appendChild(addS);
 const filtered=sortList(filterList(list));if(filtered.length===0){const emptyWrap=h("div","");emptyWrap.appendChild(h("div","empty",`<div class="icn">${icon}</div><p>${list.length===0?`Agrega tu primer ${tab==="manga"?"manga":"anime"}`:"Sin resultados"}</p>`));if(list.length===0){p28RenderOnboardingExamples(emptyWrap,tab);}root.appendChild(emptyWrap);return;}
 // Catalog view
 if(viewMode==="catalog"){const cat=h("div","catalog");filtered.forEach(s=>{const pct=s.total>0?Math.min(100,(s.completed.length/s.total)*100):0;const cc=h("div","catc");cc.onclick=()=>{pinnedId=s.id;viewMode="list";expanded[s.id]=true;render();};const st=SM[s.status];const statusIcon=st?(s.status==="reading"&&tab==="anime"?"👁️":st.icon):"";cc.innerHTML=`<div style="position:relative">${s.cover?`<img class="catcv" src="${s.cover}">`:`<div class="catph">${icon}</div>`}${s.favorite?`<div class="cat-fav">★</div>`:""}${s.score?`<div class="cat-score">${s.score}</div>`:""}${pct>0?`<div class="cat-pct">${Math.round(pct)}%</div>`:""}${statusIcon?`<div class="cat-status-ov">${statusIcon}</div>`:""}</div><div class="cati"><div class="catt">${s.title}</div><div class="catp">${s.completed.length}/${s.total}</div><div class="catb"><div class="catf" style="width:${pct}%;background:${ac}"></div></div></div>`;cat.appendChild(cc);});root.appendChild(cat);return;}
