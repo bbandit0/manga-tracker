@@ -2246,34 +2246,32 @@ const addBody=h("div","add-body");
 addS.appendChild(addBody);
 
 // ── Input de búsqueda ──
-const titleRow=document.createElement("div");
-titleRow.className="add-title-row";
-titleRow.style.cssText="position:relative";
+const titleRow=h("div","add-title-row");
 
 const titleWrap=document.createElement("div");
 titleWrap.className="jikan-wrap";
-titleWrap.style.cssText="position:relative";
+titleWrap.style.cssText="position:relative;display:block;width:100%";
 
 const inputShell=document.createElement("div");
-inputShell.style.cssText="display:flex;align-items:center;background:rgba(127,119,221,.09);border:1px solid rgba(127,119,221,.28);border-radius:14px;overflow:hidden;transition:.2s";
-inputShell.addEventListener("focusin",()=>{inputShell.style.borderColor="rgba(127,119,221,.65)";inputShell.style.background="rgba(127,119,221,.14)";});
-inputShell.addEventListener("focusout",()=>{inputShell.style.borderColor="rgba(127,119,221,.28)";inputShell.style.background="rgba(127,119,221,.09)";});
+inputShell.className="add-search-shell";
+inputShell.style.cssText="display:flex;align-items:center;width:100%;background:rgba(127,119,221,.09);border:1px solid rgba(127,119,221,.28);border-radius:14px;overflow:hidden;box-sizing:border-box";
 
 const searchPrefix=document.createElement("div");
-searchPrefix.style.cssText="display:flex;align-items:center;gap:8px;padding:0 14px 0 16px;border-right:1px solid rgba(127,119,221,.2);height:48px;flex-shrink:0;color:rgba(175,169,236,.75);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;white-space:nowrap";
-searchPrefix.innerHTML=`<i class="ti ti-search" style="font-size:16px;color:#AFA9EC" aria-hidden="true"></i>${tab==="manga"?"Buscar manga":"Buscar anime"}`;
+searchPrefix.className="add-search-prefix";
+searchPrefix.innerHTML=`<i class="ti ti-search" aria-hidden="true"></i><span>${tab==="manga"?"Buscar manga":"Buscar anime"}</span>`;
 
-const sIcon=document.createElement("span");sIcon.style.cssText="display:none";
+const sIcon=document.createElement("span");sIcon.style.display="none";
 
 const ti=document.createElement("input");
-ti.id="add-title";ti.value=newTitle;ti.placeholder="Título, autor...";
-ti.autocomplete="off";ti.autocorrect="off";ti.autocapitalize="off";ti.spellcheck=false;
-ti.style.cssText="flex:1;padding:14px 12px;background:transparent;border:none;outline:none;color:rgba(255,255,255,.88);font-family:'Outfit',sans-serif;font-size:14px;min-width:0";
+ti.id="add-title";ti.type="text";ti.value=newTitle||"";ti.placeholder="Título, autor...";
+ti.setAttribute("autocomplete","off");ti.setAttribute("autocorrect","off");
+ti.setAttribute("autocapitalize","off");ti.setAttribute("spellcheck","false");
+ti.style.cssText="flex:1;width:0;min-width:0;padding:0 12px;height:48px;background:transparent!important;border:none!important;outline:none;color:rgba(255,255,255,.88);font-family:'Outfit',sans-serif;font-size:14px;box-sizing:border-box;border-radius:0";
 ti.oninput=e=>{newTitle=e.target.value;clearTimeout(jikanSearchTimeout);if(e.target.value.length>=2){jikanSearchTimeout=setTimeout(()=>{searchJikan(e.target.value,tab).finally(()=>{});},500);}else{jikanResults=[];removeJikanDrop();}};
 ti.onkeydown=e=>{if(e.key==="Enter"){jikanResults=[];removeJikanDrop();doAdd();}if(e.key==="Escape"){jikanResults=[];removeJikanDrop();}};
 
 const malBadge=document.createElement("span");
-malBadge.style.cssText="margin-right:12px;padding:3px 8px;border-radius:6px;background:rgba(127,119,221,.2);border:1px solid rgba(127,119,221,.3);font-size:10px;font-weight:700;color:#AFA9EC;letter-spacing:.06em;white-space:nowrap;flex-shrink:0";
+malBadge.className="add-search-badge";
 malBadge.textContent="MAL";
 
 inputShell.append(searchPrefix,ti,malBadge);
@@ -2302,21 +2300,16 @@ if(_hasPendingJikan){
 }else{
   // Ingreso manual: campo con prefijo label + hint
   const capShell=document.createElement("div");
-  capShell.style.cssText="flex:1;display:flex;align-items:center;background:rgba(55,138,221,.07);border:1px solid rgba(55,138,221,.2);border-radius:14px;overflow:hidden;transition:.2s;min-width:0";
-  capShell.addEventListener("focusin",()=>{capShell.style.borderColor="rgba(55,138,221,.55)";capShell.style.background="rgba(55,138,221,.12)";});
-  capShell.addEventListener("focusout",()=>{capShell.style.borderColor="rgba(55,138,221,.2)";capShell.style.background="rgba(55,138,221,.07)";});
+  capShell.className="add-cap-shell";
   const capLabel=document.createElement("div");
-  capLabel.style.cssText="display:flex;align-items:center;gap:7px;padding:0 12px 0 14px;border-right:1px solid rgba(55,138,221,.18);height:48px;flex-shrink:0;color:rgba(133,183,235,.7);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;white-space:nowrap";
-  capLabel.innerHTML=`<i class="ti ti-bookmark" style="font-size:15px;color:#85B7EB" aria-hidden="true"></i>${tab==="manga"?"Capítulos":"Episodios"}`;
+  capLabel.className="add-cap-label";
+  capLabel.innerHTML=`<i class="ti ti-bookmark" aria-hidden="true"></i><span>${tab==="manga"?"Capítulos":"Episodios"}</span>`;
   ni=document.createElement("input");
-  ni.id="add-total";ni.type="number";ni.min="1";ni.value=newTotal;ni.placeholder="—";
-  ni.style.cssText="flex:1;padding:13px 10px;background:transparent;border:none;outline:none;color:rgba(255,255,255,.9);font-family:'Space Mono',monospace;font-size:18px;font-weight:700;letter-spacing:-.5px;min-width:0";
-  ni.addEventListener("focus",()=>{if(!ni.value)ni.style.fontFamily="'Outfit',sans-serif";});
-  ni.addEventListener("blur",()=>{ni.style.fontFamily="'Space Mono',monospace";});
+  ni.id="add-total";ni.type="number";ni.min="1";ni.value=newTotal||"";ni.placeholder="—";
   ni.oninput=e=>{newTotal=e.target.value;};
   ni.onkeydown=e=>{if(e.key==="Enter")doAdd();};
   const capHint=document.createElement("span");
-  capHint.style.cssText="font-size:10px;color:rgba(133,183,235,.4);padding-right:12px;white-space:nowrap;flex-shrink:0";
+  capHint.className="add-cap-hint";
   capHint.textContent="total";
   capShell.append(capLabel,ni,capHint);
   row2.append(capShell);

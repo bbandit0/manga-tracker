@@ -183,56 +183,62 @@ html::after{
 .add-body{padding:20px 20px;display:flex;flex-direction:column;gap:10px}
 /* ── Search field ── */
 .add-title-row{position:relative}
-.add-title-row .jikan-wrap{position:relative}
+.add-title-row .jikan-wrap{position:relative;display:block!important;width:100%!important;flex:none!important}
 .add-search-shell{
-  display:flex;align-items:center;
+  display:flex!important;align-items:center;
+  width:100%;
   background:rgba(127,119,221,.09);
   border:1px solid rgba(127,119,221,.28);
   border-radius:14px;
   overflow:hidden;
+  box-sizing:border-box;
   transition:.2s;
 }
 .add-search-shell:focus-within{
-  border-color:rgba(127,119,221,.65);
-  background:rgba(127,119,221,.14);
+  border-color:rgba(127,119,221,.65)!important;
+  background:rgba(127,119,221,.14)!important;
 }
 .add-search-prefix{
   display:flex;align-items:center;gap:8px;
   padding:0 14px 0 16px;
   border-right:1px solid rgba(127,119,221,.2);
   height:48px;flex-shrink:0;
-  color:rgba(175,169,236,.75);
+  color:rgba(175,169,236,.8);
   font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;white-space:nowrap;
+  user-select:none;
 }
-.add-search-prefix i{font-size:16px;color:#AFA9EC}
+.add-search-prefix i{font-size:15px;color:#AFA9EC;flex-shrink:0}
 .add-search-shell input{
-  flex:1;padding:14px 12px;
-  background:transparent;border:none;outline:none;
-  color:rgba(255,255,255,.88);
-  font-family:'Outfit',sans-serif;font-size:14px;
-  min-width:0;
+  flex:1!important;width:0!important;min-width:0!important;
+  padding:0 12px!important;height:48px!important;
+  background:transparent!important;border:none!important;
+  outline:none!important;border-radius:0!important;
+  color:rgba(255,255,255,.88)!important;
+  font-family:'Outfit',sans-serif!important;font-size:14px!important;
+  box-sizing:border-box;
 }
-.add-search-shell input::placeholder{color:rgba(255,255,255,.2)}
+.add-search-shell input::placeholder{color:rgba(255,255,255,.2)!important}
 .add-search-badge{
-  margin-right:12px;padding:3px 8px;
-  border-radius:6px;background:rgba(127,119,221,.2);
+  margin-right:12px;flex-shrink:0;
+  padding:3px 8px;border-radius:6px;
+  background:rgba(127,119,221,.2);
   border:1px solid rgba(127,119,221,.3);
   font-size:10px;font-weight:700;color:#AFA9EC;
-  letter-spacing:.06em;white-space:nowrap;flex-shrink:0;
+  letter-spacing:.06em;white-space:nowrap;
 }
 /* ── Row 2: capítulos + portada + submit ── */
-.add-row2{display:flex;gap:8px;align-items:center}
+.add-row2{display:flex!important;gap:8px;align-items:center}
 .add-cap-shell{
-  flex:1;display:flex;align-items:center;
+  flex:1;display:flex!important;align-items:center;
   background:rgba(55,138,221,.07);
   border:1px solid rgba(55,138,221,.2);
   border-radius:14px;
   overflow:hidden;transition:.2s;
-  min-width:0;
+  min-width:0;box-sizing:border-box;
 }
 .add-cap-shell:focus-within{
-  border-color:rgba(55,138,221,.55);
-  background:rgba(55,138,221,.12);
+  border-color:rgba(55,138,221,.55)!important;
+  background:rgba(55,138,221,.12)!important;
 }
 .add-cap-label{
   display:flex;align-items:center;gap:7px;
@@ -241,18 +247,23 @@ html::after{
   height:48px;flex-shrink:0;
   color:rgba(133,183,235,.7);
   font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;white-space:nowrap;
+  user-select:none;
 }
-.add-cap-label i{font-size:15px;color:#85B7EB}
-.add-cap-input{
-  flex:1;padding:13px 10px;
-  background:transparent;border:none;outline:none;
-  color:rgba(255,255,255,.9);
-  font-family:'Space Mono',monospace;font-size:18px;font-weight:700;letter-spacing:-.5px;
-  min-width:0;
+.add-cap-label i{font-size:15px;color:#85B7EB;flex-shrink:0}
+.add-cap-shell input{
+  flex:1!important;width:0!important;min-width:0!important;
+  padding:0 10px!important;height:48px!important;
+  background:transparent!important;border:none!important;
+  outline:none!important;border-radius:0!important;
+  color:rgba(255,255,255,.9)!important;
+  font-family:'Space Mono',monospace!important;font-size:18px!important;
+  font-weight:700!important;letter-spacing:-.5px!important;
+  box-sizing:border-box;
 }
-.add-cap-input::placeholder{
-  color:rgba(255,255,255,.15);
-  font-family:'Outfit',sans-serif;font-size:13px;font-weight:400;letter-spacing:0;
+.add-cap-shell input::placeholder{
+  color:rgba(255,255,255,.18)!important;
+  font-family:'Outfit',sans-serif!important;
+  font-size:13px!important;font-weight:400!important;letter-spacing:0!important;
 }
 .add-cap-hint{font-size:10px;color:rgba(133,183,235,.4);padding-right:12px;white-space:nowrap;flex-shrink:0}
 .add-cover-btn{
