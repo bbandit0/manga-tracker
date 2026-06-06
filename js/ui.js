@@ -2215,41 +2215,29 @@ const tb=h("div","tb");const tbl=h("div","tb-l");const sbar=h("div","sb");sbar.i
 const fbar=h("div","fbar");fbar.appendChild(h("button",`fchip${animeCls}${showFavsOnly?" on":""}`,`★ Fav`,{onclick:()=>{showFavsOnly=!showFavsOnly;render();}}));fbar.appendChild(h("div","fsep"));[{key:"all",label:"Todos"},...STATUSES].forEach(s=>{const dispLabel=s.key==="reading"&&tab==="anime"?"👁️ Viendo":s.icon?s.icon+" "+s.label:s.label;fbar.appendChild(h("button",`fchip${animeCls}${filterStatus===s.key?" on":""}`,dispLabel,{onclick:()=>{filterStatus=s.key;render();}}));});const usedTags=[...new Set(list.flatMap(s=>s.tags||[]))].sort();if(usedTags.length>0){fbar.appendChild(h("div","fsep"));usedTags.forEach(t=>{fbar.appendChild(h("button",`fchip${animeCls}${filterTag===t?" on":""}`,t,{onclick:()=>{filterTag=filterTag===t?"all":t;render();}}));});}root.appendChild(fbar);
 // Add
 const addS=h("div","add");
+const addAccentBar=h("div","add-accent-bar");
+addAccentBar.innerHTML='<div class="acc1"></div><div class="acc2"></div><div class="acc3"></div>';
+addS.appendChild(addAccentBar);
 
-// ── Header del buscador — visual upgrade ──
+// ── Header ──
 const addHdr=h("div","add-header");
-addHdr.style.cssText=`
-  display:flex;align-items:center;justify-content:space-between;
-  padding:14px 16px 12px;
-  border-bottom:1px solid rgba(255,255,255,.06);
-  background:linear-gradient(135deg,rgba(${tab==="manga"?"99,119,237":"52,211,153"},.08) 0%,transparent 60%);
-`;
 const addHdrL=h("div","add-header-left");
-addHdrL.style.cssText="display:flex;align-items:center;gap:10px";
 
-// Icono con glow
 const addIconWrap=document.createElement("div");
-addIconWrap.style.cssText=`
-  width:36px;height:36px;border-radius:10px;
-  background:linear-gradient(135deg,${tab==="manga"?"rgba(99,119,237,.25)":"rgba(52,211,153,.25)"} 0%,${tab==="manga"?"rgba(99,119,237,.08)":"rgba(52,211,153,.08)"} 100%);
-  border:1px solid ${tab==="manga"?"rgba(99,119,237,.3)":"rgba(52,211,153,.3)"};
-  display:flex;align-items:center;justify-content:center;font-size:18px;
-  box-shadow:0 0 12px ${tab==="manga"?"rgba(99,119,237,.15)":"rgba(52,211,153,.15)"};
-`;
-addIconWrap.textContent=tab==="manga"?"📚":"🎬";
+addIconWrap.className="add-header-icon";
+addIconWrap.innerHTML=tab==="manga"?'<i class="ti ti-books" aria-hidden="true"></i>':'<i class="ti ti-device-tv" aria-hidden="true"></i>';
 
 const addHdrText=document.createElement("div");
 const addHdrTitle=document.createElement("div");
-addHdrTitle.style.cssText="font-size:13px;font-weight:700;color:var(--t1);letter-spacing:.01em";
-addHdrTitle.textContent="➕ Agregar "+(tab==="manga"?"manga":"anime");
+addHdrTitle.className="add-header-title";
+addHdrTitle.textContent="Agregar "+(tab==="manga"?"manga":"anime");
 const addHdrSub=document.createElement("div");
-addHdrSub.style.cssText="font-size:10px;color:var(--t3);margin-top:1px";
+addHdrSub.className="add-header-sub";
 addHdrSub.textContent="Busca directamente en MyAnimeList";
 addHdrText.append(addHdrTitle,addHdrSub);
 addHdrL.append(addIconWrap,addHdrText);
 
 const addResetBtn=h("button","add-reset-btn","Limpiar");
-addResetBtn.style.cssText="font-size:11px;padding:5px 11px;border-radius:8px;opacity:.7";
 addResetBtn.onclick=()=>{newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;jikanResults=[];render();};
 addHdr.append(addHdrL,addResetBtn);
 addS.appendChild(addHdr);
@@ -2262,41 +2250,26 @@ const titleRow=h("div","add-title-row");
 const titleWrap=h("div","jikan-wrap");
 titleWrap.style.cssText="position:relative;";
 
-// Contenedor del input con icono integrado
+// Contenedor del input con prefijo label + badge MAL
 const inputShell=document.createElement("div");
-inputShell.style.cssText=`
-  display:flex;align-items:center;gap:8px;
-  background:rgba(255,255,255,.05);
-  border:1px solid rgba(255,255,255,.1);
-  border-radius:12px;
-  padding:0 14px;
-  transition:border-color .2s,box-shadow .2s;
-`;
-inputShell.addEventListener("focusin",()=>{
-  inputShell.style.borderColor=tab==="manga"?"rgba(99,119,237,.5)":"rgba(52,211,153,.5)";
-  inputShell.style.boxShadow=`0 0 0 3px ${tab==="manga"?"rgba(99,119,237,.1)":"rgba(52,211,153,.1)"}`;
-});
-inputShell.addEventListener("focusout",()=>{
-  inputShell.style.borderColor="rgba(255,255,255,.1)";
-  inputShell.style.boxShadow="none";
-});
+inputShell.className="add-search-shell";
+
+const searchPrefix=document.createElement("div");
+searchPrefix.className="add-search-prefix";
+searchPrefix.innerHTML=`<i class="ti ti-search" aria-hidden="true"></i>${tab==="manga"?"Buscar manga":"Buscar anime"}`;
 
 const sIcon=document.createElement("span");
-// NO usar clase CSS externa — el main.css puede tener position:absolute que rompe el flex layout
-sIcon.style.cssText="font-size:15px;opacity:.5;flex-shrink:0;transition:opacity .2s;pointer-events:none;line-height:1;user-select:none";
-sIcon.textContent="🔍";
+sIcon.style.cssText="display:none";
 
-const ti=h("input","",null,{placeholder:"Buscar en MyAnimeList...",id:"add-title",value:newTitle,autocomplete:"off",autocorrect:"off",autocapitalize:"off",spellcheck:"false"});
-ti.style.cssText=`
-  flex:1;background:none;border:none;outline:none;
-  color:var(--t1);font-size:13px;
-  font-family:'Outfit',sans-serif;
-  padding:12px 0;
-`;
-ti.oninput=e=>{newTitle=e.target.value;clearTimeout(jikanSearchTimeout);if(e.target.value.length>=2){sIcon.textContent="⏳";sIcon.style.opacity="1";jikanSearchTimeout=setTimeout(()=>{searchJikan(e.target.value,tab).finally(()=>{sIcon.textContent="🔍";sIcon.style.opacity=".5";});},500);}else{jikanResults=[];removeJikanDrop();sIcon.textContent="🔍";sIcon.style.opacity=".5";}};
+const ti=h("input","",null,{placeholder:"Título, autor...",id:"add-title",value:newTitle,autocomplete:"off",autocorrect:"off",autocapitalize:"off",spellcheck:"false"});
+ti.oninput=e=>{newTitle=e.target.value;clearTimeout(jikanSearchTimeout);if(e.target.value.length>=2){jikanSearchTimeout=setTimeout(()=>{searchJikan(e.target.value,tab).finally(()=>{});},500);}else{jikanResults=[];removeJikanDrop();}};
 ti.onkeydown=e=>{if(e.key==="Enter"){jikanResults=[];removeJikanDrop();doAdd();}if(e.key==="Escape"){jikanResults=[];removeJikanDrop();}};
 
-inputShell.append(sIcon,ti);
+const malBadge=document.createElement("span");
+malBadge.className="add-search-badge";
+malBadge.textContent="MAL";
+
+inputShell.append(searchPrefix,ti,malBadge);
 titleWrap.appendChild(inputShell);
 titleRow.appendChild(titleWrap);
 addBody.appendChild(titleRow);
@@ -2319,13 +2292,22 @@ if(_hasPendingJikan){
   }
   row2.append(ni,capBadge);
 }else{
-  // Ingreso manual: mostrar input normal
-  ni=h("input","add-cap-input",null,{placeholder:tab==="manga"?"Total de capitulos *":"Total de ep. * (todas las temp.)",type:"number",min:"1",id:"add-total",value:newTotal});
+  // Ingreso manual: mostrar campo con prefijo label + hint
+  const capShell=document.createElement("div");
+  capShell.className="add-cap-shell";
+  const capLabel=document.createElement("div");
+  capLabel.className="add-cap-label";
+  capLabel.innerHTML=`<i class="ti ti-bookmark" aria-hidden="true"></i>${tab==="manga"?"Capítulos":"Episodios"}`;
+  ni=h("input","add-cap-input",null,{placeholder:"—",type:"number",min:"1",id:"add-total",value:newTotal});
   ni.oninput=e=>{newTotal=e.target.value;};
   ni.onkeydown=e=>{if(e.key==="Enter")doAdd();};
-  row2.append(ni);
+  const capHint=document.createElement("span");
+  capHint.className="add-cap-hint";
+  capHint.textContent="total";
+  capShell.append(capLabel,ni,capHint);
+  row2.append(capShell);
 }
-const fi=h("input","hidden",null,{type:"file",accept:"image/*",id:"acf"});fi.onchange=e=>{const f=e.target.files?.[0];if(!f)return;resizeImg(f,b=>{newCover=b;render();});e.target.value="";};const coverBtn=h("button","add-cover-btn",svg.up+" Portada");coverBtn.onclick=()=>document.getElementById("acf").click();const ab=h("button","add-submit-btn",svg.plus);ab.style.background=ac;ab.title="Agregar";ab.onclick=doAdd;row2.append(fi,coverBtn,ab);addBody.appendChild(row2);addBody.appendChild(h("div","add-divider"));const stSec=h("div","add-status-section");stSec.appendChild(h("div","add-status-label","Estado"));const spRow=h("div","add-status-pills");STATUSES.forEach(st=>{const lbl=(st.key==="reading"&&tab==="anime")?"Viendo":getStatusLabel(st.key);const pill=h("button","add-status-pill"+(newStatus===st.key?" sp-"+st.key:""),st.icon+" "+lbl);pill.onclick=()=>{newStatus=st.key;spRow.querySelectorAll(".add-status-pill").forEach(p=>{p.className="add-status-pill";});pill.className="add-status-pill sp-"+st.key;};spRow.appendChild(pill);});stSec.appendChild(spRow);addBody.appendChild(stSec);const genSec=h("div","add-genres-section");genSec.appendChild(h("div","add-genres-label","Generos"));const genGrid=h("div","add-genres-grid");const allTagsList=[...ALL_TAGS,...(theme.customTags||[])];allTagsList.forEach(t=>{const isCustom=!ALL_TAGS.includes(t);const wrapper=isCustom?h("div","tag-custom"):null;const chip=h("button","genre-chip"+(newTags.includes(t)?(animeCls?" anime-on":" on"):""),t);chip.onclick=()=>{if(newTags.includes(t)){newTags=newTags.filter(x=>x!==t);chip.className="genre-chip";}else{newTags.push(t);chip.className="genre-chip"+(animeCls?" anime-on":" on");}};if(isCustom&&wrapper){const dx=h("button","tag-del-x","✕");dx.onclick=e=>{e.stopPropagation();theme.customTags=(theme.customTags||[]).filter(c=>c!==t);newTags=newTags.filter(x=>x!==t);saveLocal();render();};wrapper.append(chip,dx);genGrid.appendChild(wrapper);}else{genGrid.appendChild(chip);}});const addGenChip=h("button","genre-add-chip","+ tag");addGenChip.onclick=()=>{const nm=prompt("Nombre del nuevo tag:");if(!nm||!nm.trim())return;const nt=nm.trim();if(allTagsList.includes(nt)){showToast("Ya existe ese tag");return;}if(!theme.customTags)theme.customTags=[];theme.customTags.push(nt);newTags.push(nt);saveLocal();render();};genGrid.appendChild(addGenChip);genSec.appendChild(genGrid);addBody.appendChild(genSec);if(newCover){const prevW=h("div","add-cover-preview");prevW.append(Object.assign(h("img","cvmn"),{src:newCover}),h("button","bcx","✕ quitar",{onclick:()=>{newCover="";render();}}));addBody.appendChild(prevW);}root.appendChild(addS);
+const fi=h("input","hidden",null,{type:"file",accept:"image/*",id:"acf"});fi.onchange=e=>{const f=e.target.files?.[0];if(!f)return;resizeImg(f,b=>{newCover=b;render();});e.target.value="";};const coverBtn=h("button","add-cover-btn",'<i class="ti ti-upload" style="font-size:13px" aria-hidden="true"></i> Portada');coverBtn.onclick=()=>document.getElementById("acf").click();const ab=h("button","add-submit-btn",'<i class="ti ti-plus" style="font-size:20px" aria-hidden="true"></i>');ab.style.background="#1D9E75";ab.title="Agregar";ab.onclick=doAdd;row2.append(fi,coverBtn,ab);addBody.appendChild(row2);addBody.appendChild(h("div","add-divider"));const stSec=h("div","add-status-section");stSec.appendChild(h("div","add-status-label","Estado"));const spRow=h("div","add-status-pills");STATUSES.forEach(st=>{const lbl=(st.key==="reading"&&tab==="anime")?"Viendo":getStatusLabel(st.key);const pill=h("button","add-status-pill"+(newStatus===st.key?" sp-"+st.key:""),st.icon+" "+lbl);pill.onclick=()=>{newStatus=st.key;spRow.querySelectorAll(".add-status-pill").forEach(p=>{p.className="add-status-pill";});pill.className="add-status-pill sp-"+st.key;};spRow.appendChild(pill);});stSec.appendChild(spRow);addBody.appendChild(stSec);const genSec=h("div","add-genres-section");genSec.appendChild(h("div","add-genres-label","Generos"));const genGrid=h("div","add-genres-grid");const allTagsList=[...ALL_TAGS,...(theme.customTags||[])];allTagsList.forEach(t=>{const isCustom=!ALL_TAGS.includes(t);const wrapper=isCustom?h("div","tag-custom"):null;const chip=h("button","genre-chip"+(newTags.includes(t)?(animeCls?" anime-on":" on"):""),t);chip.onclick=()=>{if(newTags.includes(t)){newTags=newTags.filter(x=>x!==t);chip.className="genre-chip";}else{newTags.push(t);chip.className="genre-chip"+(animeCls?" anime-on":" on");}};if(isCustom&&wrapper){const dx=h("button","tag-del-x","✕");dx.onclick=e=>{e.stopPropagation();theme.customTags=(theme.customTags||[]).filter(c=>c!==t);newTags=newTags.filter(x=>x!==t);saveLocal();render();};wrapper.append(chip,dx);genGrid.appendChild(wrapper);}else{genGrid.appendChild(chip);}});const addGenChip=h("button","genre-add-chip","+ tag");addGenChip.onclick=()=>{const nm=prompt("Nombre del nuevo tag:");if(!nm||!nm.trim())return;const nt=nm.trim();if(allTagsList.includes(nt)){showToast("Ya existe ese tag");return;}if(!theme.customTags)theme.customTags=[];theme.customTags.push(nt);newTags.push(nt);saveLocal();render();};genGrid.appendChild(addGenChip);genSec.appendChild(genGrid);addBody.appendChild(genSec);if(newCover){const prevW=h("div","add-cover-preview");prevW.append(Object.assign(h("img","cvmn"),{src:newCover}),h("button","bcx","✕ quitar",{onclick:()=>{newCover="";render();}}));addBody.appendChild(prevW);}root.appendChild(addS);
 const filtered=sortList(filterList(list));if(filtered.length===0){const emptyWrap=h("div","");emptyWrap.appendChild(h("div","empty",`<div class="icn">${icon}</div><p>${list.length===0?`Agrega tu primer ${tab==="manga"?"manga":"anime"}`:"Sin resultados"}</p>`));if(list.length===0){p28RenderOnboardingExamples(emptyWrap,tab);}root.appendChild(emptyWrap);return;}
 // Catalog view
 if(viewMode==="catalog"){const cat=h("div","catalog");filtered.forEach(s=>{const pct=s.total>0?Math.min(100,(s.completed.length/s.total)*100):0;const cc=h("div","catc");cc.onclick=()=>{pinnedId=s.id;viewMode="list";expanded[s.id]=true;render();};const st=SM[s.status];const statusIcon=st?(s.status==="reading"&&tab==="anime"?"👁️":st.icon):"";cc.innerHTML=`<div style="position:relative">${s.cover?`<img class="catcv" src="${s.cover}">`:`<div class="catph">${icon}</div>`}${s.favorite?`<div class="cat-fav">★</div>`:""}${s.score?`<div class="cat-score">${s.score}</div>`:""}${pct>0?`<div class="cat-pct">${Math.round(pct)}%</div>`:""}${statusIcon?`<div class="cat-status-ov">${statusIcon}</div>`:""}</div><div class="cati"><div class="catt">${s.title}</div><div class="catp">${s.completed.length}/${s.total}</div><div class="catb"><div class="catf" style="width:${pct}%;background:${ac}"></div></div></div>`;cat.appendChild(cc);});root.appendChild(cat);return;}
