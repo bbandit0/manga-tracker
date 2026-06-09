@@ -2213,14 +2213,72 @@ if(list.length>0){
   const ti=timeInvested();
   const pctVal=tAll>0?Math.round(tRead/tAll*100):0;
   const isManga=tab==="manga";
-  const readCls=isManga?"st-read":"st-watched";
   const readIcon=isManga?"✅":"▶";
   const readLbl=isManga?"Leídos":"Vistos";
   const readBarPct=Math.min(100,Math.round(tRead/(tAll||1)*100));
-  const sr=h("div","sr");
-  sr.innerHTML=`<div class="stc ${isManga?"st-series":"st-watched"}"><span class="stc-icon">${isManga?"📚":"🎬"}</span><span class="stv">${list.length}</span><span class="stl">Series</span></div><div class="stc ${readCls}"><span class="stc-icon">${readIcon}</span><span class="stv">${tRead}</span><span class="stl">${readLbl}</span><div class="stc-pbar"><div class="stc-pbar-fill" style="width:${readBarPct}%"></div></div></div><div class="stc st-progress"><span class="stc-icon">📊</span><span class="stv">${pctVal}%</span><span class="stl">Progreso</span><div class="stc-pbar"><div class="stc-pbar-fill" style="width:${pctVal}%"></div></div></div><div class="stc st-time"><span class="stc-icon">⏱</span><span class="stv">${ti.val}</span><span class="stl">Tiempo</span><span class="stc-sub">${ti.sub}</span></div>`;
+  // Inyectar CSS de stats si no existe
+  if(!document.getElementById("mangu-stats-v36-css")){
+    const sty=document.createElement("style");
+    sty.id="mangu-stats-v36-css";
+    sty.textContent=`
+.mgsr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:8px}
+.mgsr-bot{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+.mgstc{position:relative;overflow:hidden;border-radius:14px;padding:18px 10px 14px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:1px solid transparent;min-height:108px;transition:transform .2s,border-color .2s;cursor:default;box-sizing:border-box}
+.mgstc:hover{transform:translateY(-2px)}
+.mgstc-bar{position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}
+.mgstc-ico{font-size:20px;line-height:1;margin-bottom:8px;display:block}
+.mgstc-val{font-family:'Space Mono',monospace;font-size:26px;font-weight:800;line-height:1;letter-spacing:-1px;display:block;margin-bottom:5px}
+.mgstc-lbl{font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;display:block}
+.mgstc-pb{margin-top:8px;width:82%;height:3px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden}
+.mgstc-pbf{height:100%;border-radius:2px}
+.mgstc-sub{font-size:10px;margin-top:6px;font-family:'Space Mono',monospace;display:block}
+.mgstreak{background:linear-gradient(160deg,#1f1506,#1a1205)!important;border:1px solid rgba(251,191,36,.25)!important;border-radius:14px;padding:16px 16px;display:flex!important;align-items:center;gap:14px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s;box-sizing:border-box}
+.mgstreak:hover{border-color:rgba(251,191,36,.45)!important;transform:translateY(-2px)}
+.mgstreak-bar{position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#f59e0b,#ef4444 70%,transparent)}
+.mgstreak-fire{font-size:34px;line-height:1;flex-shrink:0}
+.mgstreak-body{flex:1;min-width:0}
+.mgstreak-num{font-size:30px;font-weight:800;color:#fbbf24;font-family:'Space Mono',monospace;letter-spacing:-1px;line-height:1}
+.mgstreak-unit{font-size:10px;color:rgba(251,191,36,.45);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-top:2px}
+.mgstreak-msg{font-size:11px;color:rgba(251,191,36,.6);margin-top:4px;font-style:italic}
+.mggoal{background:linear-gradient(160deg,#0d1f14,#0b1a11)!important;border:1px solid rgba(29,158,117,.22)!important;border-radius:14px;padding:14px 16px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s;box-sizing:border-box}
+.mggoal:hover{border-color:rgba(29,158,117,.42)!important;transform:translateY(-2px)}
+.mggoal-bar{position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#1D9E75,#86efac 70%,transparent)}
+.mggoal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.mggoal-ttl{font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(74,222,128,.55)}
+.mggoal-frac{font-size:13px;font-family:'Space Mono',monospace;font-weight:700;color:#4ade80;cursor:pointer}
+.mggoal-track{width:100%;height:6px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;margin-bottom:10px}
+.mggoal-fill{height:100%;background:linear-gradient(90deg,#16a34a,#4ade80);border-radius:99px;transition:width .4s ease}
+.mggoal-dots{display:flex;gap:4px}
+.mggoal-dot{flex:1;height:5px;border-radius:3px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.15)}
+.mggoal-dot.hit{background:#22c55e!important;border-color:#22c55e!important}
+.mggoal-sub{font-size:10px;color:rgba(74,222,128,.35);margin-top:7px;font-family:'Space Mono',monospace}
+@media(max-width:540px){.mgsr{grid-template-columns:repeat(2,1fr)!important}.mgstc{min-height:88px;padding:16px 8px 12px}.mgstc-val{font-size:22px}.mgsr-bot{grid-template-columns:1fr!important}}
+    `;
+    document.head.appendChild(sty);
+  }
+  // ── 4 stat cards ──
+  const sr=h("div","mgsr");
+  const _sc=(bg,bc,barC,ico,val,lbl,pbPct,sub)=>{
+    const d=document.createElement("div");
+    d.className="mgstc";
+    d.style.cssText=`background:${bg};border-color:${bc}`;
+    d.innerHTML=`<div class="mgstc-bar" style="background:${barC}"></div><span class="mgstc-ico">${ico}</span><span class="mgstc-val" style="color:${barC}">${val}</span><span class="mgstc-lbl" style="color:${barC}88">${lbl}</span>${pbPct!==null?`<div class="mgstc-pb"><div class="mgstc-pbf" style="width:${pbPct}%;background:${barC}"></div></div>`:""}${sub?`<span class="mgstc-sub" style="color:${barC}55">${sub}</span>`:""}`;
+    return d;
+  };
+  if(isManga){
+    sr.appendChild(_sc("linear-gradient(160deg,#16122b,#120f23)","rgba(127,119,221,.25)","#AFA9EC","📚",list.length,"SERIES",null,null));
+  } else {
+    sr.appendChild(_sc("linear-gradient(160deg,#1f0f17,#190c12)","rgba(212,83,126,.25)","#ED93B1","🎬",list.length,"SERIES",null,null));
+  }
+  sr.appendChild(_sc(
+    isManga?"linear-gradient(160deg,#0d2218,#0a1c14)":"linear-gradient(160deg,#1a0d1a,#150b15)",
+    isManga?"rgba(29,158,117,.25)":"rgba(212,83,126,.25)",
+    isManga?"#5DCAA5":"#ED93B1",
+    readIcon,tRead,readLbl,readBarPct,null));
+  sr.appendChild(_sc("linear-gradient(160deg,#0b1a2a,#081522)","rgba(55,138,221,.25)","#85B7EB","📊",pctVal+"%","PROGRESO",pctVal,null));
+  sr.appendChild(_sc("linear-gradient(160deg,#1e1505,#180f04)","rgba(239,159,39,.25)","#FAC775","⏱",ti.val,"TIEMPO",null,ti.sub));
   root.appendChild(sr);
-  // ── Bottom row: racha + meta diaria ──
+  // ── Bottom row: racha + meta ──
   const streakVal=p28GetStreak();
   const goalRaw=p29GetGoalData();
   const _td=today();
@@ -2229,11 +2287,11 @@ if(list.length>0){
   const goalTotal=goalRaw.goal||5;
   const goalPct=Math.round(goalDone/goalTotal*100);
   const streakMsg=streakVal>=7?"¡Racha épica! No la rompas":streakVal>=3?"¡Sigue así! Lee hoy":streakVal>=2?"¡Buen comienzo! Lee hoy":"Lee hoy para empezar";
-  const dotsHtml=Array.from({length:Math.min(goalTotal,10)},(_,i)=>`<div class="stc-goal-dot${i<goalDone?" hit":""}"></div>`).join("");
-  const srBottom=h("div","sr-bottom");
-  srBottom.innerHTML=`<div class="stc-streak"><div class="stc-streak-fire">🔥</div><div class="stc-streak-body"><div class="stc-streak-num">${streakVal} <span style="font-size:14px;color:rgba(251,191,36,.4)">días</span></div><div class="stc-streak-unit">Racha activa</div><div class="stc-streak-msg">${streakMsg}</div></div></div><div class="stc-goal"><div class="stc-goal-header"><span class="stc-goal-title">🎯 Meta diaria</span><span class="stc-goal-frac" style="cursor:pointer" title="Cambiar meta">${goalDone} / ${goalTotal}</span></div><div class="stc-goal-track"><div class="stc-goal-fill" style="width:${goalPct}%"></div></div><div class="stc-goal-dots">${dotsHtml}</div><div class="stc-goal-sub">${goalDone>=goalTotal?"¡Meta completada hoy!":`${goalTotal-goalDone} cap${goalTotal-goalDone!==1?"s":""} para completar`}</div></div>`;
-  srBottom.querySelector(".stc-goal-frac").onclick=e=>{e.stopPropagation();const v=parseInt(prompt("Meta diaria (caps/eps):",goalTotal));if(v>0&&v<=99){const nd=p29GetGoalData();nd.goal=v;p29SaveGoalData(nd);render();}};
-  root.appendChild(srBottom);
+  const dotsHtml=Array.from({length:Math.min(goalTotal,10)},(_,i)=>`<div class="mggoal-dot${i<goalDone?" hit":""}"></div>`).join("");
+  const srBot=h("div","mgsr-bot");
+  srBot.innerHTML=`<div class="mgstreak"><div class="mgstreak-bar"></div><div class="mgstreak-fire">🔥</div><div class="mgstreak-body"><div class="mgstreak-num">${streakVal}<span style="font-size:13px;color:rgba(251,191,36,.35);margin-left:5px">días</span></div><div class="mgstreak-unit">Racha activa</div><div class="mgstreak-msg">${streakMsg}</div></div></div><div class="mggoal"><div class="mggoal-bar"></div><div class="mggoal-hdr"><span class="mggoal-ttl">🎯 Meta diaria</span><span class="mggoal-frac" title="Cambiar meta">${goalDone} / ${goalTotal}</span></div><div class="mggoal-track"><div class="mggoal-fill" style="width:${goalPct}%"></div></div><div class="mggoal-dots">${dotsHtml}</div><div class="mggoal-sub">${goalDone>=goalTotal?"¡Meta completada hoy!":`${goalTotal-goalDone} cap${goalTotal-goalDone!==1?"s":""} para completar`}</div></div>`;
+  srBot.querySelector(".mggoal-frac").onclick=e=>{e.stopPropagation();const v=parseInt(prompt("Meta diaria (caps/eps):",goalTotal));if(v>0&&v<=99){const nd=p29GetGoalData();nd.goal=v;p29SaveGoalData(nd);render();}};
+  root.appendChild(srBot);
 }
 // Toolbar
 const tb=h("div","tb");const tbl=h("div","tb-l");const sbar=h("div","sb");sbar.innerHTML=svg.search;const sinp=h("input","",null,{placeholder:"Buscar...",value:search});let _localSearchDebounce=null;sinp.oninput=e=>{search=e.target.value;clearTimeout(_localSearchDebounce);_localSearchDebounce=setTimeout(()=>{render();},300);};sinp.onkeydown=e=>{if(e.key==="Enter"){clearTimeout(_localSearchDebounce);render();}if(e.key==="Escape"){search="";sinp.value="";clearTimeout(_localSearchDebounce);render();}};sbar.appendChild(sinp);tbl.appendChild(sbar);const tbr=h("div","tb-r");const sel=h("select","srt");[{key:"recent",l:"Reciente"},{key:"updated",l:"Actualizado"},{key:"name-asc",l:"A→Z"},{key:"name-desc",l:"Z→A"},{key:"progress-desc",l:"Mayor %"},{key:"progress-asc",l:"Menor %"},{key:"score",l:"Puntuación"},{key:"total-desc",l:"Más cap."}].forEach(o=>{const op=h("option","",o.l,{value:o.key});if(o.key===sortKey)op.selected=true;sel.appendChild(op);});sel.onchange=e=>{sortKey=e.target.value;render();};tbr.appendChild(sel);tbr.appendChild(h("button",`ib ${viewMode==="list"?"on":""}`,svg.list,{onclick:()=>{viewMode="list";render();}}));tbr.appendChild(h("button",`ib ${viewMode==="catalog"?"on":""}`,svg.grid,{onclick:()=>{viewMode="catalog";render();}}));tb.append(tbl,tbr);root.appendChild(tb);
