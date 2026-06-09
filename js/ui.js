@@ -2172,13 +2172,20 @@ if(tab==="dashboard"){
 
 // ── Helper de transición: la animación la maneja el CSS en render() ──
 function transitionRender(fn){fn();}
-const tabs=h("div","tabs");tabs.appendChild(h("button",`tab ${tab==="manga"?"am":""}`,`${svg.book} Manga <span class="tab-c">(${data.manga.length})</span>`,{onclick:()=>{tab="manga";filterStatus="all";filterTag="all";showFavsOnly=false;jikanResults=[];newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;transitionRender(render);}}));tabs.appendChild(h("button",`tab ${tab==="anime"?"aa":""}`,`${svg.tv} Anime <span class="tab-c">(${data.anime.length})</span>`,{onclick:()=>{tab="anime";filterStatus="all";filterTag="all";showFavsOnly=false;jikanResults=[];newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;transitionRender(render);}}));
-const profBtn=h("button",`tab ${tab==="profile"?"am":""}`,`👤 Perfil`,{onclick:()=>{tab="profile";showSettings=false;showPatch=false;transitionRender(render);}});
-tabs.appendChild(profBtn);
-const discBtn=h("button",`tab ${tab==="discover"?"am":""}`,`✨ Descubrir`,{onclick:()=>{tab="discover";showSettings=false;showPatch=false;transitionRender(render);}});
-tabs.appendChild(discBtn);
-const histBtn=h("button",`tab ${tab==="history"?"am":""}`,`📋 Historial`,{onclick:()=>{tab="history";showSettings=false;showPatch=false;transitionRender(render);}});
-tabs.appendChild(histBtn);
+const tabs=h("div","tabs");
+function _mkTab(key,icon,label,activeCls,count,onclick){
+  const btn=document.createElement("button");
+  btn.className=`tab ${tab===key?activeCls:""}`;
+  btn.innerHTML=`<span class="tab-icon">${icon}</span><span class="tab-label">${label}</span><div class="tab-dot"></div>${count!==null?`<span class="tab-c">${count}</span>`:""}`;
+  btn.onclick=onclick;
+  return btn;
+}
+tabs.appendChild(_mkTab("manga","📚","Manga","am",data.manga.length,()=>{tab="manga";filterStatus="all";filterTag="all";showFavsOnly=false;jikanResults=[];newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;transitionRender(render);}));
+tabs.appendChild(_mkTab("anime","🎬","Anime","aa",data.anime.length,()=>{tab="anime";filterStatus="all";filterTag="all";showFavsOnly=false;jikanResults=[];newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;transitionRender(render);}));
+tabs.appendChild(_mkTab("profile","👤","Perfil","ap",null,()=>{tab="profile";showSettings=false;showPatch=false;transitionRender(render);}));
+const _discCount=(typeof window._recoNewCount!=="undefined"&&window._recoNewCount>0)?window._recoNewCount:null;
+tabs.appendChild(_mkTab("discover","✦","Descubrir","ad",_discCount,()=>{tab="discover";showSettings=false;showPatch=false;transitionRender(render);}));
+tabs.appendChild(_mkTab("history","🕓","Historial","ah",null,()=>{tab="history";showSettings=false;showPatch=false;transitionRender(render);}));
 root.appendChild(tabs);
 
 // ── P2.8: Tab Descubrir ──
@@ -2202,7 +2209,68 @@ if(tab==="history"){
   return;
 }
 const list=data[tab];const tRead=list.reduce((s,x)=>s+x.completed.length,0);const tAll=list.reduce((s,x)=>s+x.total,0);
-if(list.length>0){const ti=timeInvested();const sr=h("div","sr");const pctVal=tAll>0?Math.round(tRead/tAll*100):0;sr.innerHTML=`<div class="stc"><span class="stc-icon">${tab==="manga"?"📚":"🎬"}</span><span class="stv">${list.length}</span><span class="stl">Series</span></div><div class="stc"><span class="stc-icon">✅</span><span class="stv">${tRead}</span><span class="stl">${tab==="manga"?"Leídos":"Vistos"}</span></div><div class="stc"><span class="stc-icon">▶</span><span class="stv">${pctVal}%</span><span class="stl">Progreso</span><div class="stc-pbar"><div class="stc-pbar-fill" style="width:${pctVal}%"></div></div></div><div class="stc"><span class="stc-icon">⏱</span><span class="stv">${ti.val}</span><span class="stl">Tiempo</span></div>`;root.appendChild(sr);}
+if(list.length>0){
+  const ti=timeInvested();
+  const sr=h("div","sr");
+  const pctVal=tAll>0?Math.round(tRead/tAll*100):0;
+  const isManga=tab==="manga";
+  const readCls=isManga?"st-read":"st-watched";
+  const readIcon=isManga?"✅":"▶";
+  const readLbl=isManga?"Leídos":"Vistos";
+  sr.innerHTML=`
+    <div class="stc st-series">
+      <div class="stc-accent"></div>
+      <span class="stc-icon">${isManga?"📚":"🎬"}</span>
+      <span class="stv">${list.length}</span>
+      <span class="stl">Series</span>
+    </div>
+    <div class="stc ${readCls}">
+      <div class="stc-accent"></div>
+      <span class="stc-icon">${readIcon}</span>
+      <span class="stv">${tRead}</span>
+      <span class="stl">${readLbl}</span>
+      <div class="stc-pbar"><div class="stc-pbar-fill" style="width:${Math.min(100,Math.round(tRead/(tAll||1)*100))}%"></div></div>
+    </div>
+    <div class="stc st-progress">
+      <div class="stc-accent"></div>
+      <span class="stc-icon">📊</span>
+      <span class="stv">${pctVal}%</span>
+      <span class="stl">Progreso</span>
+      <div class="stc-pbar"><div class="stc-pbar-fill" style="width:${pctVal}%"></div></div>
+    </div>
+    <div class="stc st-time">
+      <div class="stc-accent"></div>
+      <span class="stc-icon">⏱</span>
+      <span class="stv">${ti.val}</span>
+      <span class="stl">Tiempo</span>
+      <span class="stc-sub">${ti.sub}</span>
+    </div>`;
+  root.appendChild(sr);
+  // ── Bottom row: racha + meta diaria ──
+  const streakVal=p28GetStreak();
+  const goalRaw=p29GetGoalData();
+  const _td=today();
+  if(goalRaw.lastDate!==_td)goalRaw.todayCount=0;
+  const goalDone=Math.min(goalRaw.todayCount||0,goalRaw.goal||5);
+  const goalTotal=goalRaw.goal||5;
+  const goalPct=Math.round(goalDone/goalTotal*100);
+  const srBottom=h("div","sr-bottom");
+  // streak
+  const streakMsg=streakVal>=7?"¡Racha épica! No la rompas":streakVal>=3?"¡Sigue así! Lee hoy":streakVal>=2?"¡Buen comienzo! Lee hoy":"Lee hoy para empezar";
+  const streakCard=document.createElement("div");
+  streakCard.className="stc-streak";
+  streakCard.innerHTML=`<div class="stc-streak-fire">🔥</div><div class="stc-streak-body"><div class="stc-streak-num">${streakVal} <span style="font-size:14px;color:rgba(251,191,36,.4);letter-spacing:0">días</span></div><div class="stc-streak-unit">Racha activa</div><div class="stc-streak-msg">${streakMsg}</div></div>`;
+  // goal dots
+  const dotsHtml=Array.from({length:goalTotal},(_,i)=>`<div class="stc-goal-dot${i<goalDone?" hit":""}"></div>`).join("");
+  const goalCard=document.createElement("div");
+  goalCard.className="stc-goal";
+  goalCard.innerHTML=`<div class="stc-goal-header"><span class="stc-goal-title">🎯 Meta diaria</span><span class="stc-goal-frac">${goalDone} / ${goalTotal}</span></div><div class="stc-goal-track"><div class="stc-goal-fill" style="width:${goalPct}%"></div></div><div class="stc-goal-dots">${dotsHtml}</div><div class="stc-goal-sub">${goalDone>=goalTotal?"¡Meta completada hoy!":`${goalTotal-goalDone} cap${goalTotal-goalDone!==1?"s":""} para completar`}</div>`;
+  // inline goal edit
+  goalCard.querySelector(".stc-goal-frac").onclick=e=>{e.stopPropagation();const v=parseInt(prompt("Meta diaria (caps/eps):",goalTotal));if(v>0&&v<=99){const nd=p29GetGoalData();nd.goal=v;p29SaveGoalData(nd);render();}};
+  srBottom.appendChild(streakCard);
+  srBottom.appendChild(goalCard);
+  root.appendChild(srBottom);
+}
 // Toolbar
 const tb=h("div","tb");const tbl=h("div","tb-l");const sbar=h("div","sb");sbar.innerHTML=svg.search;const sinp=h("input","",null,{placeholder:"Buscar...",value:search});let _localSearchDebounce=null;sinp.oninput=e=>{search=e.target.value;clearTimeout(_localSearchDebounce);_localSearchDebounce=setTimeout(()=>{render();},300);};sinp.onkeydown=e=>{if(e.key==="Enter"){clearTimeout(_localSearchDebounce);render();}if(e.key==="Escape"){search="";sinp.value="";clearTimeout(_localSearchDebounce);render();}};sbar.appendChild(sinp);tbl.appendChild(sbar);const tbr=h("div","tb-r");const sel=h("select","srt");[{key:"recent",l:"Reciente"},{key:"updated",l:"Actualizado"},{key:"name-asc",l:"A→Z"},{key:"name-desc",l:"Z→A"},{key:"progress-desc",l:"Mayor %"},{key:"progress-asc",l:"Menor %"},{key:"score",l:"Puntuación"},{key:"total-desc",l:"Más cap."}].forEach(o=>{const op=h("option","",o.l,{value:o.key});if(o.key===sortKey)op.selected=true;sel.appendChild(op);});sel.onchange=e=>{sortKey=e.target.value;render();};tbr.appendChild(sel);tbr.appendChild(h("button",`ib ${viewMode==="list"?"on":""}`,svg.list,{onclick:()=>{viewMode="list";render();}}));tbr.appendChild(h("button",`ib ${viewMode==="catalog"?"on":""}`,svg.grid,{onclick:()=>{viewMode="catalog";render();}}));tb.append(tbl,tbr);root.appendChild(tb);
 // Filters
