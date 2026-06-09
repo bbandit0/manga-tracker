@@ -2223,36 +2223,36 @@ if(list.length>0){
     sty.textContent=`
 .mgsr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:8px}
 .mgsr-bot{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
-.mgstc{position:relative;overflow:hidden;border-radius:14px;padding:18px 10px 14px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:1px solid transparent;min-height:108px;transition:transform .2s,border-color .2s;cursor:default;box-sizing:border-box}
+.mgstc{position:relative;overflow:hidden;border-radius:12px;padding:14px 10px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:1px solid transparent;min-height:88px;transition:transform .18s,border-color .18s;cursor:default;box-sizing:border-box}
 .mgstc:hover{transform:translateY(-2px)}
-.mgstc-bar{position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}
-.mgstc-ico{font-size:20px;line-height:1;margin-bottom:8px;display:block}
-.mgstc-val{font-family:'Space Mono',monospace;font-size:26px;font-weight:800;line-height:1;letter-spacing:-1px;display:block;margin-bottom:5px}
-.mgstc-lbl{font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;display:block}
-.mgstc-pb{margin-top:8px;width:82%;height:3px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden}
+.mgstc-bar{position:absolute;top:0;left:0;right:0;height:2.5px;border-radius:12px 12px 0 0}
+.mgstc-ico{font-size:16px;line-height:1;margin-bottom:6px;display:block;opacity:.9}
+.mgstc-val{font-family:'Space Mono',monospace;font-size:24px;font-weight:800;line-height:1;letter-spacing:-1px;display:block;margin-bottom:3px}
+.mgstc-lbl{font-size:8.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;display:block}
+.mgstc-pb{margin-top:7px;width:80%;height:2.5px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden}
 .mgstc-pbf{height:100%;border-radius:2px}
-.mgstc-sub{font-size:10px;margin-top:6px;font-family:'Space Mono',monospace;display:block}
-.mgstreak{background:linear-gradient(160deg,#1f1506,#1a1205)!important;border:1px solid rgba(251,191,36,.25)!important;border-radius:14px;padding:16px 16px;display:flex!important;align-items:center;gap:14px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s;box-sizing:border-box}
-.mgstreak:hover{border-color:rgba(251,191,36,.45)!important;transform:translateY(-2px)}
-.mgstreak-bar{position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#f59e0b,#ef4444 70%,transparent)}
-.mgstreak-fire{font-size:34px;line-height:1;flex-shrink:0}
+.mgstc-sub{font-size:9px;margin-top:5px;font-family:'Space Mono',monospace;display:block}
+.mgstreak{background:linear-gradient(160deg,#1c1205,#181003)!important;border:1px solid rgba(251,191,36,.28)!important;border-radius:12px;padding:12px 14px;display:flex!important;align-items:center;gap:12px;position:relative;overflow:hidden;transition:border-color .18s,transform .18s;box-sizing:border-box}
+.mgstreak:hover{border-color:rgba(251,191,36,.5)!important;transform:translateY(-2px)}
+.mgstreak-bar{position:absolute;top:0;left:0;right:0;height:2.5px;background:linear-gradient(90deg,#f59e0b,#ef4444 70%,transparent)}
+.mgstreak-fire{font-size:30px;line-height:1;flex-shrink:0}
 .mgstreak-body{flex:1;min-width:0}
-.mgstreak-num{font-size:30px;font-weight:800;color:#fbbf24;font-family:'Space Mono',monospace;letter-spacing:-1px;line-height:1}
-.mgstreak-unit{font-size:10px;color:rgba(251,191,36,.45);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-top:2px}
-.mgstreak-msg{font-size:11px;color:rgba(251,191,36,.6);margin-top:4px;font-style:italic}
-.mggoal{background:linear-gradient(160deg,#0d1f14,#0b1a11)!important;border:1px solid rgba(29,158,117,.22)!important;border-radius:14px;padding:14px 16px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s;box-sizing:border-box}
-.mggoal:hover{border-color:rgba(29,158,117,.42)!important;transform:translateY(-2px)}
-.mggoal-bar{position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#1D9E75,#86efac 70%,transparent)}
-.mggoal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.mggoal-ttl{font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(74,222,128,.55)}
+.mgstreak-num{font-size:28px;font-weight:800;color:#fbbf24;font-family:'Space Mono',monospace;letter-spacing:-1px;line-height:1}
+.mgstreak-unit{font-size:9px;color:rgba(251,191,36,.45);font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-top:2px}
+.mgstreak-msg{font-size:10.5px;color:rgba(251,191,36,.65);margin-top:3px;font-style:italic}
+.mggoal{background:linear-gradient(160deg,#0a1c10,#091709)!important;border:1px solid rgba(29,158,117,.25)!important;border-radius:12px;padding:12px 14px;position:relative;overflow:hidden;transition:border-color .18s,transform .18s;box-sizing:border-box}
+.mggoal:hover{border-color:rgba(29,158,117,.45)!important;transform:translateY(-2px)}
+.mggoal-bar{position:absolute;top:0;left:0;right:0;height:2.5px;background:linear-gradient(90deg,#1D9E75,#86efac 70%,transparent)}
+.mggoal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.mggoal-ttl{font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(74,222,128,.55)}
 .mggoal-frac{font-size:13px;font-family:'Space Mono',monospace;font-weight:700;color:#4ade80;cursor:pointer}
-.mggoal-track{width:100%;height:6px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;margin-bottom:10px}
+.mggoal-track{width:100%;height:5px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;margin-bottom:8px}
 .mggoal-fill{height:100%;background:linear-gradient(90deg,#16a34a,#4ade80);border-radius:99px;transition:width .4s ease}
-.mggoal-dots{display:flex;gap:4px}
-.mggoal-dot{flex:1;height:5px;border-radius:3px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.15)}
+.mggoal-dots{display:flex;gap:3px}
+.mggoal-dot{flex:1;height:4px;border-radius:3px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.15)}
 .mggoal-dot.hit{background:#22c55e!important;border-color:#22c55e!important}
-.mggoal-sub{font-size:10px;color:rgba(74,222,128,.35);margin-top:7px;font-family:'Space Mono',monospace}
-@media(max-width:540px){.mgsr{grid-template-columns:repeat(2,1fr)!important}.mgstc{min-height:88px;padding:16px 8px 12px}.mgstc-val{font-size:22px}.mgsr-bot{grid-template-columns:1fr!important}}
+.mggoal-sub{font-size:9.5px;color:rgba(74,222,128,.4);margin-top:6px;font-family:'Space Mono',monospace}
+@media(max-width:540px){.mgsr{grid-template-columns:repeat(2,1fr)!important}.mgstc{min-height:78px;padding:12px 8px 10px}.mgstc-val{font-size:20px}.mgsr-bot{grid-template-columns:1fr!important}}
     `;
     document.head.appendChild(sty);
   }
@@ -2579,27 +2579,16 @@ function p28GetStreakData(){
   catch(e){return{count:0,lastDate:""};}
 }
 function p28SaveStreakData(d){try{localStorage.setItem(p28GetStreakKey(),JSON.stringify(d));}catch(e){}}
+function _localYd(){const d=new Date();d.setDate(d.getDate()-1);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 function p28TouchStreak(){
-  const td=today();
-  const d=p28GetStreakData();
-  const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
-  const yd=yesterday.toISOString().slice(0,10);
-  if(d.lastDate===td)return;// ya marcó hoy
-  if(d.lastDate===yd){d.count=(d.count||0)+1;}
-  else if(d.lastDate!==td){d.count=1;}
-  d.lastDate=td;
-  p28SaveStreakData(d);
+  const td=today();const d=p28GetStreakData();const yd=_localYd();
+  if(d.lastDate===td)return;
+  if(d.lastDate===yd){d.count=(d.count||0)+1;}else{d.count=1;}
+  d.lastDate=td;p28SaveStreakData(d);
 }
 function p28GetStreak(){
-  const d=p28GetStreakData();
-  const td=today();
-  const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
-  const yd=yesterday.toISOString().slice(0,10);
-  // Si la última fecha no es hoy ni ayer, la racha se rompió — resetear
-  if(d.lastDate!==td&&d.lastDate!==yd){
-    if(d.count>0){d.count=0;p28SaveStreakData(d);} // limpiar stale data
-    return 0;
-  }
+  const d=p28GetStreakData();const td=today();const yd=_localYd();
+  if(d.lastDate!==td&&d.lastDate!==yd){if(d.count>0){d.count=0;p28SaveStreakData(d);}return 0;}
   return d.count||0;
 }
 
