@@ -2172,20 +2172,45 @@ if(tab==="dashboard"){
 
 // ── Helper de transición: la animación la maneja el CSS en render() ──
 function transitionRender(fn){fn();}
-const tabs=h("div","tabs");
-function _mkTab(key,icon,label,activeCls,count,onclick){
-  const btn=document.createElement("button");
-  btn.className=`tab ${tab===key?activeCls:""}`;
-  btn.innerHTML=`<span class="tab-icon">${icon}</span><span class="tab-label">${label}</span><div class="tab-dot"></div>${count!==null?`<span class="tab-c">${count}</span>`:""}`;
-  btn.onclick=onclick;
-  return btn;
+// ── NAV v3.7 ──
+if(!document.getElementById("mangu-nav-v37-css")){
+  const _ns=document.createElement("style");_ns.id="mangu-nav-v37-css";
+  _ns.textContent=`
+.mgnav{display:flex;align-items:stretch;gap:0;background:#0b1020;border:1px solid #182035;border-radius:12px;padding:4px;margin-bottom:14px;overflow:hidden;box-sizing:border-box}
+.mgnav-sep{width:1px;background:#182035;margin:8px 0;flex-shrink:0}
+.mgnav-item{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:10px 4px 7px;border-radius:9px;border:1px solid transparent;cursor:pointer;position:relative;transition:all .15s;background:transparent;font-family:'Outfit',sans-serif}
+.mgnav-item:hover{background:rgba(255,255,255,.035)}
+.mgnav-item::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2px;border-radius:99px 99px 0 0;background:transparent;transition:background .15s}
+.mgnav-ico{font-size:17px;line-height:1}
+.mgnav-lbl{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#3a4e66;white-space:nowrap;transition:color .15s}
+.mgnav-cnt{position:absolute;top:4px;right:4px;min-width:15px;height:15px;border-radius:99px;font-size:7.5px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;line-height:1;opacity:0;transition:opacity .15s}
+.mgnav-item.on .mgnav-cnt{opacity:1}
+.mgnav-item.on.mn{background:rgba(59,130,246,.09);border-color:rgba(99,179,237,.22)}.mgnav-item.on.mn .mgnav-lbl{color:#7ec8f4}.mgnav-item.on.mn::after{background:linear-gradient(90deg,#3b82f6,#7ec8f4)}.mgnav-item.mn .mgnav-cnt{background:rgba(59,130,246,.22);color:#93c5fd}
+.mgnav-item.on.ma{background:rgba(16,185,129,.09);border-color:rgba(104,211,145,.22)}.mgnav-item.on.ma .mgnav-lbl{color:#6ee7b7}.mgnav-item.on.ma::after{background:linear-gradient(90deg,#059669,#6ee7b7)}.mgnav-item.ma .mgnav-cnt{background:rgba(16,185,129,.2);color:#6ee7b7}
+.mgnav-item.on.mp{background:rgba(124,58,237,.09);border-color:rgba(167,139,250,.2)}.mgnav-item.on.mp .mgnav-lbl{color:#c4b5fd}.mgnav-item.on.mp::after{background:linear-gradient(90deg,#7c3aed,#c4b5fd)}
+.mgnav-item.on.md{background:rgba(217,119,6,.09);border-color:rgba(251,191,36,.2)}.mgnav-item.on.md .mgnav-lbl{color:#fcd34d}.mgnav-item.on.md::after{background:linear-gradient(90deg,#d97706,#fcd34d)}.mgnav-item.md .mgnav-cnt{background:rgba(217,119,6,.22);color:#fcd34d}
+.mgnav-item.on.mh{background:rgba(220,38,38,.08);border-color:rgba(248,113,113,.2)}.mgnav-item.on.mh .mgnav-lbl{color:#fca5a5}.mgnav-item.on.mh::after{background:linear-gradient(90deg,#dc2626,#fca5a5)}
+  `;
+  document.head.appendChild(_ns);
 }
-tabs.appendChild(_mkTab("manga","📚","Manga","am",data.manga.length,()=>{tab="manga";filterStatus="all";filterTag="all";showFavsOnly=false;jikanResults=[];newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;transitionRender(render);}));
-tabs.appendChild(_mkTab("anime","🎬","Anime","aa",data.anime.length,()=>{tab="anime";filterStatus="all";filterTag="all";showFavsOnly=false;jikanResults=[];newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;transitionRender(render);}));
-tabs.appendChild(_mkTab("profile","👤","Perfil","ap",null,()=>{tab="profile";showSettings=false;showPatch=false;transitionRender(render);}));
 const _discCount=(typeof window._recoNewCount!=="undefined"&&window._recoNewCount>0)?window._recoNewCount:null;
-tabs.appendChild(_mkTab("discover","✦","Descubrir","ad",_discCount,()=>{tab="discover";showSettings=false;showPatch=false;transitionRender(render);}));
-tabs.appendChild(_mkTab("history","🕓","Historial","ah",null,()=>{tab="history";showSettings=false;showPatch=false;transitionRender(render);}));
+const tabs=document.createElement("div");tabs.className="mgnav";
+const _mkNav=(key,ico,lbl,cls,cnt,fn)=>{
+  const d=document.createElement("div");
+  d.className=`mgnav-item ${cls}${tab===key?" on":""}`;
+  d.innerHTML=`${cnt?`<span class="mgnav-cnt">${cnt}</span>`:""}<span class="mgnav-ico">${ico}</span><span class="mgnav-lbl">${lbl}</span>`;
+  d.onclick=fn; return d;
+};
+const _navSep=()=>{const s=document.createElement("div");s.className="mgnav-sep";return s;};
+tabs.appendChild(_mkNav("manga","📚","Manga","mn",data.manga.length,()=>{tab="manga";filterStatus="all";filterTag="all";showFavsOnly=false;jikanResults=[];newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;transitionRender(render);}));
+tabs.appendChild(_navSep());
+tabs.appendChild(_mkNav("anime","🎬","Anime","ma",data.anime.length,()=>{tab="anime";filterStatus="all";filterTag="all";showFavsOnly=false;jikanResults=[];newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;transitionRender(render);}));
+tabs.appendChild(_navSep());
+tabs.appendChild(_mkNav("profile","👤","Perfil","mp",null,()=>{tab="profile";showSettings=false;showPatch=false;transitionRender(render);}));
+tabs.appendChild(_navSep());
+tabs.appendChild(_mkNav("discover","✦","Descubrir","md",_discCount,()=>{tab="discover";showSettings=false;showPatch=false;transitionRender(render);}));
+tabs.appendChild(_navSep());
+tabs.appendChild(_mkNav("history","🕓","Historial","mh",null,()=>{tab="history";showSettings=false;showPatch=false;transitionRender(render);}));
 root.appendChild(tabs);
 
 // ── P2.8: Tab Descubrir ──
@@ -2232,14 +2257,18 @@ if(list.length>0){
 .mgstc-pb{margin-top:7px;width:80%;height:2.5px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden}
 .mgstc-pbf{height:100%;border-radius:2px}
 .mgstc-sub{font-size:9px;margin-top:5px;font-family:'Space Mono',monospace;display:block}
-.mgstreak{background:linear-gradient(160deg,#1c1205,#181003)!important;border:1px solid rgba(251,191,36,.28)!important;border-radius:12px;padding:12px 14px;display:flex!important;align-items:center;gap:12px;position:relative;overflow:hidden;transition:border-color .18s,transform .18s;box-sizing:border-box}
-.mgstreak:hover{border-color:rgba(251,191,36,.5)!important;transform:translateY(-2px)}
-.mgstreak-bar{position:absolute;top:0;left:0;right:0;height:2.5px;background:linear-gradient(90deg,#f59e0b,#ef4444 70%,transparent)}
-.mgstreak-fire{font-size:30px;line-height:1;flex-shrink:0}
+.mgstreak{background:linear-gradient(160deg,#1c1205,#181003)!important;border:1px solid rgba(251,191,36,.22)!important;border-radius:12px;padding:12px 14px;display:flex!important;align-items:center;gap:12px;position:relative;overflow:hidden;transition:border-color .18s,transform .18s;box-sizing:border-box}
+.mgstreak:hover{border-color:rgba(251,191,36,.42)!important;transform:translateY(-2px)}
+.mgstreak-line{position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,rgba(245,158,11,.7),rgba(239,68,68,.5) 50%,transparent)}
+.mgstreak-fire{font-size:28px;line-height:1;flex-shrink:0}
 .mgstreak-body{flex:1;min-width:0}
-.mgstreak-num{font-size:28px;font-weight:800;color:#fbbf24;font-family:'Space Mono',monospace;letter-spacing:-1px;line-height:1}
-.mgstreak-unit{font-size:9px;color:rgba(251,191,36,.45);font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-top:2px}
-.mgstreak-msg{font-size:10.5px;color:rgba(251,191,36,.65);margin-top:3px;font-style:italic}
+.mgstreak-num{font-size:28px;font-weight:800;color:#fbbf24;font-family:'Space Mono',monospace;letter-spacing:-1.5px;line-height:1}
+.mgstreak-dias{font-size:11px;color:rgba(251,191,36,.4);font-family:'Space Mono',monospace;margin-left:4px}
+.mgstreak-unit{font-size:8px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:rgba(251,191,36,.38);margin-top:3px}
+.mgstreak-msg{font-size:10px;color:rgba(251,191,36,.58);margin-top:2px;font-style:italic}
+.mgstreak-segs{display:flex;gap:2px;margin-top:7px}
+.mgstreak-seg{flex:1;height:2.5px;border-radius:99px;background:rgba(251,191,36,.1)}
+.mgstreak-seg.on{background:#f59e0b}
 .mggoal{background:linear-gradient(160deg,#0a1c10,#091709)!important;border:1px solid rgba(29,158,117,.25)!important;border-radius:12px;padding:12px 14px;position:relative;overflow:hidden;transition:border-color .18s,transform .18s;box-sizing:border-box}
 .mggoal:hover{border-color:rgba(29,158,117,.45)!important;transform:translateY(-2px)}
 .mggoal-bar{position:absolute;top:0;left:0;right:0;height:2.5px;background:linear-gradient(90deg,#1D9E75,#86efac 70%,transparent)}
@@ -2289,7 +2318,10 @@ if(list.length>0){
   const streakMsg=streakVal>=7?"¡Racha épica! No la rompas":streakVal>=3?"¡Sigue así! Lee hoy":streakVal>=2?"¡Buen comienzo! Lee hoy":"Lee hoy para empezar";
   const dotsHtml=Array.from({length:Math.min(goalTotal,10)},(_,i)=>`<div class="mggoal-dot${i<goalDone?" hit":""}"></div>`).join("");
   const srBot=h("div","mgsr-bot");
-  srBot.innerHTML=`<div class="mgstreak"><div class="mgstreak-bar"></div><div class="mgstreak-fire">🔥</div><div class="mgstreak-body"><div class="mgstreak-num">${streakVal}<span style="font-size:13px;color:rgba(251,191,36,.35);margin-left:5px">días</span></div><div class="mgstreak-unit">Racha activa</div><div class="mgstreak-msg">${streakMsg}</div></div></div><div class="mggoal"><div class="mggoal-bar"></div><div class="mggoal-hdr"><span class="mggoal-ttl">🎯 Meta diaria</span><span class="mggoal-frac" title="Cambiar meta">${goalDone} / ${goalTotal}</span></div><div class="mggoal-track"><div class="mggoal-fill" style="width:${goalPct}%"></div></div><div class="mggoal-dots">${dotsHtml}</div><div class="mggoal-sub">${goalDone>=goalTotal?"¡Meta completada hoy!":`${goalTotal-goalDone} cap${goalTotal-goalDone!==1?"s":""} para completar`}</div></div>`;
+  // mini barra semanal de racha (7 segmentos)
+  const _streakDays=Math.min(streakVal,7);
+  const _segsHtml=Array.from({length:7},(_,i)=>`<div class="mgstreak-seg${i<_streakDays?" on":""}"></div>`).join("");
+  srBot.innerHTML=`<div class="mgstreak"><div class="mgstreak-line"></div><div class="mgstreak-fire">🔥</div><div class="mgstreak-body"><div><span class="mgstreak-num">${streakVal}</span><span class="mgstreak-dias">días</span></div><div class="mgstreak-unit">Racha activa</div><div class="mgstreak-msg">${streakMsg}</div><div class="mgstreak-segs">${_segsHtml}</div></div></div><div class="mggoal"><div class="mggoal-bar"></div><div class="mggoal-hdr"><span class="mggoal-ttl">🎯 Meta diaria</span><span class="mggoal-frac" title="Cambiar meta">${goalDone} / ${goalTotal}</span></div><div class="mggoal-track"><div class="mggoal-fill" style="width:${goalPct}%"></div></div><div class="mggoal-dots">${dotsHtml}</div><div class="mggoal-sub">${goalDone>=goalTotal?"¡Meta completada hoy!":`${goalTotal-goalDone} cap${goalTotal-goalDone!==1?"s":""} para completar`}</div></div>`;
   srBot.querySelector(".mggoal-frac").onclick=e=>{e.stopPropagation();const v=parseInt(prompt("Meta diaria (caps/eps):",goalTotal));if(v>0&&v<=99){const nd=p29GetGoalData();nd.goal=v;p29SaveGoalData(nd);render();}};
   root.appendChild(srBot);
 }
