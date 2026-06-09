@@ -2211,40 +2211,14 @@ if(tab==="history"){
 const list=data[tab];const tRead=list.reduce((s,x)=>s+x.completed.length,0);const tAll=list.reduce((s,x)=>s+x.total,0);
 if(list.length>0){
   const ti=timeInvested();
-  const sr=h("div","sr");
   const pctVal=tAll>0?Math.round(tRead/tAll*100):0;
   const isManga=tab==="manga";
   const readCls=isManga?"st-read":"st-watched";
   const readIcon=isManga?"✅":"▶";
   const readLbl=isManga?"Leídos":"Vistos";
-  sr.innerHTML=`
-    <div class="stc st-series">
-      <div class="stc-accent"></div>
-      <span class="stc-icon">${isManga?"📚":"🎬"}</span>
-      <span class="stv">${list.length}</span>
-      <span class="stl">Series</span>
-    </div>
-    <div class="stc ${readCls}">
-      <div class="stc-accent"></div>
-      <span class="stc-icon">${readIcon}</span>
-      <span class="stv">${tRead}</span>
-      <span class="stl">${readLbl}</span>
-      <div class="stc-pbar"><div class="stc-pbar-fill" style="width:${Math.min(100,Math.round(tRead/(tAll||1)*100))}%"></div></div>
-    </div>
-    <div class="stc st-progress">
-      <div class="stc-accent"></div>
-      <span class="stc-icon">📊</span>
-      <span class="stv">${pctVal}%</span>
-      <span class="stl">Progreso</span>
-      <div class="stc-pbar"><div class="stc-pbar-fill" style="width:${pctVal}%"></div></div>
-    </div>
-    <div class="stc st-time">
-      <div class="stc-accent"></div>
-      <span class="stc-icon">⏱</span>
-      <span class="stv">${ti.val}</span>
-      <span class="stl">Tiempo</span>
-      <span class="stc-sub">${ti.sub}</span>
-    </div>`;
+  const readBarPct=Math.min(100,Math.round(tRead/(tAll||1)*100));
+  const sr=h("div","sr");
+  sr.innerHTML=`<div class="stc ${isManga?"st-series":"st-watched"}"><span class="stc-icon">${isManga?"📚":"🎬"}</span><span class="stv">${list.length}</span><span class="stl">Series</span></div><div class="stc ${readCls}"><span class="stc-icon">${readIcon}</span><span class="stv">${tRead}</span><span class="stl">${readLbl}</span><div class="stc-pbar"><div class="stc-pbar-fill" style="width:${readBarPct}%"></div></div></div><div class="stc st-progress"><span class="stc-icon">📊</span><span class="stv">${pctVal}%</span><span class="stl">Progreso</span><div class="stc-pbar"><div class="stc-pbar-fill" style="width:${pctVal}%"></div></div></div><div class="stc st-time"><span class="stc-icon">⏱</span><span class="stv">${ti.val}</span><span class="stl">Tiempo</span><span class="stc-sub">${ti.sub}</span></div>`;
   root.appendChild(sr);
   // ── Bottom row: racha + meta diaria ──
   const streakVal=p28GetStreak();
@@ -2254,21 +2228,11 @@ if(list.length>0){
   const goalDone=Math.min(goalRaw.todayCount||0,goalRaw.goal||5);
   const goalTotal=goalRaw.goal||5;
   const goalPct=Math.round(goalDone/goalTotal*100);
-  const srBottom=h("div","sr-bottom");
-  // streak
   const streakMsg=streakVal>=7?"¡Racha épica! No la rompas":streakVal>=3?"¡Sigue así! Lee hoy":streakVal>=2?"¡Buen comienzo! Lee hoy":"Lee hoy para empezar";
-  const streakCard=document.createElement("div");
-  streakCard.className="stc-streak";
-  streakCard.innerHTML=`<div class="stc-streak-fire">🔥</div><div class="stc-streak-body"><div class="stc-streak-num">${streakVal} <span style="font-size:14px;color:rgba(251,191,36,.4);letter-spacing:0">días</span></div><div class="stc-streak-unit">Racha activa</div><div class="stc-streak-msg">${streakMsg}</div></div>`;
-  // goal dots
-  const dotsHtml=Array.from({length:goalTotal},(_,i)=>`<div class="stc-goal-dot${i<goalDone?" hit":""}"></div>`).join("");
-  const goalCard=document.createElement("div");
-  goalCard.className="stc-goal";
-  goalCard.innerHTML=`<div class="stc-goal-header"><span class="stc-goal-title">🎯 Meta diaria</span><span class="stc-goal-frac">${goalDone} / ${goalTotal}</span></div><div class="stc-goal-track"><div class="stc-goal-fill" style="width:${goalPct}%"></div></div><div class="stc-goal-dots">${dotsHtml}</div><div class="stc-goal-sub">${goalDone>=goalTotal?"¡Meta completada hoy!":`${goalTotal-goalDone} cap${goalTotal-goalDone!==1?"s":""} para completar`}</div>`;
-  // inline goal edit
-  goalCard.querySelector(".stc-goal-frac").onclick=e=>{e.stopPropagation();const v=parseInt(prompt("Meta diaria (caps/eps):",goalTotal));if(v>0&&v<=99){const nd=p29GetGoalData();nd.goal=v;p29SaveGoalData(nd);render();}};
-  srBottom.appendChild(streakCard);
-  srBottom.appendChild(goalCard);
+  const dotsHtml=Array.from({length:Math.min(goalTotal,10)},(_,i)=>`<div class="stc-goal-dot${i<goalDone?" hit":""}"></div>`).join("");
+  const srBottom=h("div","sr-bottom");
+  srBottom.innerHTML=`<div class="stc-streak"><div class="stc-streak-fire">🔥</div><div class="stc-streak-body"><div class="stc-streak-num">${streakVal} <span style="font-size:14px;color:rgba(251,191,36,.4)">días</span></div><div class="stc-streak-unit">Racha activa</div><div class="stc-streak-msg">${streakMsg}</div></div></div><div class="stc-goal"><div class="stc-goal-header"><span class="stc-goal-title">🎯 Meta diaria</span><span class="stc-goal-frac" style="cursor:pointer" title="Cambiar meta">${goalDone} / ${goalTotal}</span></div><div class="stc-goal-track"><div class="stc-goal-fill" style="width:${goalPct}%"></div></div><div class="stc-goal-dots">${dotsHtml}</div><div class="stc-goal-sub">${goalDone>=goalTotal?"¡Meta completada hoy!":`${goalTotal-goalDone} cap${goalTotal-goalDone!==1?"s":""} para completar`}</div></div>`;
+  srBottom.querySelector(".stc-goal-frac").onclick=e=>{e.stopPropagation();const v=parseInt(prompt("Meta diaria (caps/eps):",goalTotal));if(v>0&&v<=99){const nd=p29GetGoalData();nd.goal=v;p29SaveGoalData(nd);render();}};
   root.appendChild(srBottom);
 }
 // Toolbar

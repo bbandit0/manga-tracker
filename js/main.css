@@ -138,43 +138,44 @@ html::after{
 /* ── STAT CARDS v3.6 ── */
 .sr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:8px}
 .sr-bottom{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
-.stc{position:relative;overflow:hidden;border-radius:14px;padding:16px 10px 14px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:0;border:1px solid transparent;min-height:108px;transition:transform .2s,border-color .2s;cursor:default}
+.stc{position:relative;overflow:hidden;border-radius:14px;padding:18px 10px 14px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:1px solid transparent;min-height:108px;transition:transform .2s,border-color .2s;cursor:default}
+.stc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
 .stc:hover{transform:translateY(-2px)}
-.stc-accent{position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}
 .stc-icon{font-size:20px;line-height:1;margin-bottom:8px;display:block}
 .stv{font-family:'Space Mono',monospace;font-size:26px;font-weight:800;line-height:1;letter-spacing:-1px;display:block;margin-bottom:4px}
-.stl{font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;display:block;opacity:.5;margin-bottom:0}
-.stc-pbar{margin-top:8px;width:80%;height:3px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;align-self:center}
+.stl{font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;display:block}
+.stc-pbar{margin-top:8px;width:80%;height:3px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden}
 .stc-pbar-fill{height:100%;border-radius:2px}
-.stc-sub{font-size:10px;margin-top:6px;opacity:.4;font-family:'Space Mono',monospace;display:block}
+.stc-sub{font-size:10px;margin-top:6px;font-family:'Space Mono',monospace;display:block}
 /* colores por tipo */
 .stc.st-series{background:linear-gradient(160deg,#16122b,#120f23);border-color:rgba(127,119,221,.22)}
-.stc.st-series .stc-accent{background:#7F77DD}
+.stc.st-series::before{background:#7F77DD}
 .stc.st-series .stc-icon,.stc.st-series .stv{color:#c4c0f5}
-.stc.st-series .stl{color:#c4c0f5}
+.stc.st-series .stl{color:rgba(196,192,245,.5)}
 .stc.st-series:hover{border-color:rgba(127,119,221,.45)}
 .stc.st-read{background:linear-gradient(160deg,#0d2218,#0a1c14);border-color:rgba(29,158,117,.22)}
-.stc.st-read .stc-accent{background:#1D9E75}
+.stc.st-read::before{background:#1D9E75}
 .stc.st-read .stc-icon,.stc.st-read .stv{color:#5DCAA5}
-.stc.st-read .stl{color:#5DCAA5}
+.stc.st-read .stl{color:rgba(93,202,165,.5)}
 .stc.st-read .stc-pbar-fill{background:linear-gradient(90deg,#0f6e56,#5DCAA5)}
 .stc.st-read:hover{border-color:rgba(29,158,117,.45)}
 .stc.st-watched{background:linear-gradient(160deg,#1f0f17,#190c12);border-color:rgba(212,83,126,.22)}
-.stc.st-watched .stc-accent{background:#D4537E}
+.stc.st-watched::before{background:#D4537E}
 .stc.st-watched .stc-icon,.stc.st-watched .stv{color:#ED93B1}
-.stc.st-watched .stl{color:#ED93B1}
+.stc.st-watched .stl{color:rgba(237,147,177,.5)}
 .stc.st-watched .stc-pbar-fill{background:linear-gradient(90deg,#993556,#ED93B1)}
 .stc.st-watched:hover{border-color:rgba(212,83,126,.45)}
 .stc.st-progress{background:linear-gradient(160deg,#0b1a2a,#081522);border-color:rgba(55,138,221,.22)}
-.stc.st-progress .stc-accent{background:#378ADD}
+.stc.st-progress::before{background:#378ADD}
 .stc.st-progress .stc-icon,.stc.st-progress .stv{color:#85B7EB}
-.stc.st-progress .stl{color:#85B7EB}
+.stc.st-progress .stl{color:rgba(133,183,235,.5)}
 .stc.st-progress .stc-pbar-fill{background:linear-gradient(90deg,#185FA5,#85B7EB)}
 .stc.st-progress:hover{border-color:rgba(55,138,221,.45)}
 .stc.st-time{background:linear-gradient(160deg,#1e1505,#180f04);border-color:rgba(239,159,39,.22)}
-.stc.st-time .stc-accent{background:#EF9F27}
+.stc.st-time::before{background:#EF9F27}
 .stc.st-time .stc-icon,.stc.st-time .stv{color:#FAC775}
-.stc.st-time .stl{color:#FAC775}
+.stc.st-time .stl{color:rgba(250,199,117,.5)}
+.stc.st-time .stc-sub{color:rgba(250,199,117,.35)}
 .stc.st-time:hover{border-color:rgba(239,159,39,.45)}
 /* ── Streak card ── */
 .stc-streak{background:linear-gradient(160deg,#1f1506,#1a1205);border:1px solid rgba(251,191,36,.22);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s}
