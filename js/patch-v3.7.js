@@ -128,18 +128,9 @@
     return d; // p28ShowPlusAnim necesita goalData.todayCount
   };
 
-  // ── 7. PATCH p29RenderGoalBar → usa fecha local para el check de "hoy" ─────
-  const _orig_p29Render = window.p29RenderGoalBar;
-  if(typeof _orig_p29Render === "function"){
-    window.p29RenderGoalBar = function(root){
-      const td = _todayLocal();
-      const d  = p29GetGoalData();
-      // Si lastDate es UTC-ayer pero local-hoy, no resetear el contador
-      if(d.lastDate !== td) d.todayCount = 0;
-      // Llamar al render original (que ya leerá localStorage actualizado)
-      _orig_p29Render(root);
-    };
-  }
+  // ── 7. Eliminar barra META pequeña del header ─────────────────────────────
+  // La barra "🎯 META" fina ya no se renderiza — el bloque grande .mggoal la reemplaza.
+  window.p29RenderGoalBar = function(root){ /* eliminada intencionalmente */ };
 
   // ── 8. PULL DESDE FIRESTORE AL HACER LOGIN ─────────────────────────────────
   // Se engancha al onAuthStateChanged de firebase.js, que ya llama loadFromCloud.
@@ -313,6 +304,88 @@
       }
     }
   }, 1500);
+
+  // ── 10. CSS del stepper + presets (inyectado una sola vez) ────────────────
+  if(!document.getElementById("v37-stepper-css")){
+    const st = document.createElement("style");
+    st.id = "v37-stepper-css";
+    st.textContent = `
+.v37-edit-divider{height:1px;background:rgba(29,158,117,.12);margin:8px 0}
+.v37-edit-row{display:flex;align-items:center;gap:6px}
+.v37-edit-lbl{font-size:8.5px;text-transform:uppercase;letter-spacing:.1em;color:rgba(74,222,128,.35);flex:1}
+.v37-stepper{display:flex;align-items:center;background:rgba(0,0,0,.3);border:1px solid rgba(29,158,117,.3);border-radius:7px;overflow:hidden}
+.v37-step-btn{width:24px;height:24px;background:rgba(29,158,117,.1);border:none;color:#4ade80;font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.v37-step-btn:hover{background:rgba(29,158,117,.22)}
+.v37-step-btn:active{background:rgba(29,158,117,.35)}
+.v37-step-val{min-width:32px;text-align:center;color:#4ade80;font-family:'Space Mono',monospace;font-size:12px;font-weight:700;background:rgba(29,158,117,.06);height:24px;line-height:24px;border-left:1px solid rgba(29,158,117,.2);border-right:1px solid rgba(29,158,117,.2)}
+.v37-preset-row{display:flex;gap:3px;margin-top:6px}
+.v37-preset-chip{flex:1;padding:3px 0;background:rgba(29,158,117,.07);border:1px solid rgba(29,158,117,.2);border-radius:5px;color:rgba(74,222,128,.6);font-family:'Space Mono',monospace;font-size:9px;font-weight:700;text-align:center;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+.v37-preset-chip:hover{background:rgba(29,158,117,.18);border-color:rgba(29,158,117,.5);color:#4ade80}
+.v37-preset-chip.v37-active{background:rgba(29,158,117,.25);border-color:#1D9E75;color:#4ade80}
+    `.trim();
+    document.head.appendChild(st);
+  }
+
+  // ── 11. Inyectar stepper en .mggoal tras cada render ───────────────────────
+  const _origRender = window.render;
+  window.render = function(){
+    _origRender.apply(this, arguments);
+    const mggoal = document.querySelector(".mggoal");
+    if(!mggoal || mggoal.querySelector(".v37-edit-divider")) return;
+
+    const d    = (typeof p29GetGoalData === "function") ? p29GetGoalData() : {goal:5};
+    const goal = d.goal || 5;
+
+    const div = document.createElement("div");
+    div.className = "v37-edit-divider";
+
+    const row = document.createElement("div");
+    row.className = "v37-edit-row";
+
+    const lbl = document.createElement("span");
+    lbl.className = "v37-edit-lbl";
+    lbl.textContent = "Meta";
+
+    const stepper = document.createElement("div");
+    stepper.className = "v37-stepper";
+
+    const btnM = document.createElement("button");
+    btnM.className = "v37-step-btn"; btnM.textContent = "−"; btnM.setAttribute("aria-label","Reducir meta");
+
+    const valEl = document.createElement("div");
+    valEl.className = "v37-step-val"; valEl.textContent = goal;
+
+    const btnP = document.createElement("button");
+    btnP.className = "v37-step-btn"; btnP.textContent = "+"; btnP.setAttribute("aria-label","Aumentar meta");
+
+    stepper.append(btnM, valEl, btnP);
+    row.append(lbl, stepper);
+
+    const presets = document.createElement("div");
+    presets.className = "v37-preset-row";
+    [3,5,7,10,15].forEach(function(v){
+      const chip = document.createElement("div");
+      chip.className = "v37-preset-chip" + (v === goal ? " v37-active" : "");
+      chip.textContent = v;
+      chip.onclick = function(){ _applyGoal(v, mggoal); };
+      presets.appendChild(chip);
+    });
+
+    mggoal.appendChild(div);
+    mggoal.appendChild(row);
+    mggoal.appendChild(presets);
+
+    function _applyGoal(v, card){
+      if(v < 1 || v > 99) return;
+      const nd = (typeof p29GetGoalData === "function") ? p29GetGoalData() : {goal:5,todayCount:0,lastDate:""};
+      nd.goal = v;
+      if(typeof p29SaveGoalData === "function") p29SaveGoalData(nd);
+      if(typeof render === "function") render();
+    }
+
+    btnM.onclick = function(e){ e.stopPropagation(); const nd=p29GetGoalData(); if(nd.goal>1){ nd.goal--; p29SaveGoalData(nd); render(); } };
+    btnP.onclick = function(e){ e.stopPropagation(); const nd=p29GetGoalData(); if(nd.goal<99){ nd.goal++; p29SaveGoalData(nd); render(); } };
+  };
 
   console.log("[MANGU v3.7] Streak & Goal cross-device sync activado ✓");
 
