@@ -128,9 +128,18 @@
     return d; // p28ShowPlusAnim necesita goalData.todayCount
   };
 
-  // ── 7. Eliminar barra META pequeña del header ─────────────────────────────
-  // La barra "🎯 META" fina ya no se renderiza — el bloque grande .mggoal la reemplaza.
-  window.p29RenderGoalBar = function(root){ /* eliminada intencionalmente */ };
+  // ── 7. PATCH p29RenderGoalBar → usa fecha local para el check de "hoy" ─────
+  const _orig_p29Render = window.p29RenderGoalBar;
+  if(typeof _orig_p29Render === "function"){
+    window.p29RenderGoalBar = function(root){
+      const td = _todayLocal();
+      const d  = p29GetGoalData();
+      // Si lastDate es UTC-ayer pero local-hoy, no resetear el contador
+      if(d.lastDate !== td) d.todayCount = 0;
+      // Llamar al render original (que ya leerá localStorage actualizado)
+      _orig_p29Render(root);
+    };
+  }
 
   // ── 8. PULL DESDE FIRESTORE AL HACER LOGIN ─────────────────────────────────
   // Se engancha al onAuthStateChanged de firebase.js, que ya llama loadFromCloud.
@@ -305,88 +314,215 @@
     }
   }, 1500);
 
-  // ── 10. CSS del stepper + presets (inyectado una sola vez) ────────────────
-  if(!document.getElementById("v37-stepper-css")){
+  // ── 10. CSS VISUAL — Saira Condensed 900 + stats compactas + nav pill ──────
+  (function _injectVisualCSS(){
+    if(document.getElementById("v37-visual-css")) return;
+    const lnk = document.createElement("link");
+    lnk.rel = "stylesheet";
+    lnk.href = "https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@900&display=swap";
+    document.head.appendChild(lnk);
+
     const st = document.createElement("style");
-    st.id = "v37-stepper-css";
+    st.id = "v37-visual-css";
     st.textContent = `
-.v37-edit-divider{height:1px;background:rgba(29,158,117,.12);margin:8px 0}
+/* ── Stat cards: Saira 900 + tamaño reducido ── */
+.mgstc{min-height:76px!important;padding:10px 10px 9px!important;border-radius:10px!important}
+.mgstc-val{font-family:'Saira Condensed',sans-serif!important;font-size:22px!important;font-weight:900!important;letter-spacing:-.01em!important}
+.mgstc-ico{font-size:15px!important;margin-bottom:4px!important}
+.mgstc-lbl{font-size:7.5px!important}
+.mgsr{gap:7px!important;margin-bottom:7px!important}
+
+/* ── Nav pill redesign ── */
+.mgnav{background:#111827!important;border:1px solid rgba(255,255,255,.06)!important;border-radius:11px!important;padding:3px!important;margin-bottom:8px!important}
+.mgnav-sep{display:none!important}
+.mgnav-item{border-radius:8px!important;padding:7px 4px 6px!important;border:1px solid transparent!important;gap:3px!important}
+.mgnav-item:hover{background:rgba(255,255,255,.04)!important}
+.mgnav-item::after{bottom:3px!important;left:22%!important;right:22%!important;height:2px!important;border-radius:99px!important}
+.mgnav-ico{font-size:14px!important}
+.mgnav-lbl{font-size:7.5px!important;letter-spacing:.09em!important;color:rgba(255,255,255,.28)!important}
+.mgnav-item.on .mgnav-lbl{color:rgba(255,255,255,.88)!important}
+/* colores por tab */
+.mgnav-item.on.mn{background:rgba(127,119,221,.1)!important;border-color:rgba(127,119,221,.2)!important}
+.mgnav-item.on.mn .mgnav-lbl{color:#afa9ec!important}
+.mgnav-item.on.mn::after{background:linear-gradient(90deg,#7f77dd,#afa9ec)!important}
+.mgnav-item.on.ma{background:rgba(212,83,126,.1)!important;border-color:rgba(212,83,126,.2)!important}
+.mgnav-item.on.ma .mgnav-lbl{color:#ed93b1!important}
+.mgnav-item.on.ma::after{background:linear-gradient(90deg,#d4537e,#ed93b1)!important}
+.mgnav-item.on.mp{background:rgba(55,138,221,.1)!important;border-color:rgba(55,138,221,.2)!important}
+.mgnav-item.on.mp .mgnav-lbl{color:#85b7eb!important}
+.mgnav-item.on.mp::after{background:linear-gradient(90deg,#378add,#85b7eb)!important}
+.mgnav-item.on.md{background:rgba(239,159,39,.1)!important;border-color:rgba(239,159,39,.2)!important}
+.mgnav-item.on.md .mgnav-lbl{color:#fac775!important}
+.mgnav-item.on.md::after{background:linear-gradient(90deg,#ef9f27,#fac775)!important}
+.mgnav-item.on.mh{background:rgba(29,158,117,.1)!important;border-color:rgba(29,158,117,.2)!important}
+.mgnav-item.on.mh .mgnav-lbl{color:#5dcaa5!important}
+.mgnav-item.on.mh::after{background:linear-gradient(90deg,#1d9e75,#5dcaa5)!important}
+/* badge */
+.mgnav-cnt{font-family:'Saira Condensed',sans-serif!important;font-weight:900!important}
+
+/* ── Racha + meta: Saira 900 + tamaño reducido ── */
+.mgsr-bot{gap:7px!important;margin-bottom:14px!important}
+.mgstreak{padding:10px 12px!important;border-radius:10px!important}
+.mgstreak-fire{font-size:22px!important}
+.mgstreak-num{font-family:'Saira Condensed',sans-serif!important;font-size:24px!important;font-weight:900!important;letter-spacing:-.01em!important}
+.mgstreak-dias{font-size:9.5px!important}
+.mgstreak-unit{font-size:7px!important;margin-top:2px!important}
+.mgstreak-msg{font-size:9px!important;margin-top:1px!important}
+.mgstreak-segs{margin-top:5px!important}
+.mgstreak-seg{height:2px!important}
+.mggoal{padding:10px 12px!important;border-radius:10px!important}
+.mggoal-hdr{margin-bottom:5px!important}
+.mggoal-ttl{font-size:7.5px!important}
+.mggoal-frac{font-family:'Saira Condensed',sans-serif!important;font-size:14px!important;font-weight:900!important;cursor:default!important}
+.mggoal-track{height:4px!important;margin-bottom:5px!important}
+.mggoal-dot{height:3px!important}
+.mggoal-dots{margin-bottom:4px!important}
+.mggoal-sub{font-size:9px!important;margin-top:4px!important}
+
+/* ── Stepper edición meta ── */
+.v37-edit-divider{height:1px;background:rgba(29,158,117,.12);margin:7px 0}
 .v37-edit-row{display:flex;align-items:center;gap:6px}
-.v37-edit-lbl{font-size:8.5px;text-transform:uppercase;letter-spacing:.1em;color:rgba(74,222,128,.35);flex:1}
-.v37-stepper{display:flex;align-items:center;background:rgba(0,0,0,.3);border:1px solid rgba(29,158,117,.3);border-radius:7px;overflow:hidden}
-.v37-step-btn{width:24px;height:24px;background:rgba(29,158,117,.1);border:none;color:#4ade80;font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.v37-edit-lbl{font-size:7.5px;text-transform:uppercase;letter-spacing:.1em;color:rgba(74,222,128,.35);flex:1;font-family:'Space Mono',monospace}
+.v37-stepper{display:flex;align-items:center;background:rgba(0,0,0,.3);border:1px solid rgba(29,158,117,.3);border-radius:6px;overflow:hidden}
+.v37-step-btn{width:22px;height:22px;background:rgba(29,158,117,.1);border:none;color:#4ade80;font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .v37-step-btn:hover{background:rgba(29,158,117,.22)}
 .v37-step-btn:active{background:rgba(29,158,117,.35)}
-.v37-step-val{min-width:32px;text-align:center;color:#4ade80;font-family:'Space Mono',monospace;font-size:12px;font-weight:700;background:rgba(29,158,117,.06);height:24px;line-height:24px;border-left:1px solid rgba(29,158,117,.2);border-right:1px solid rgba(29,158,117,.2)}
-.v37-preset-row{display:flex;gap:3px;margin-top:6px}
-.v37-preset-chip{flex:1;padding:3px 0;background:rgba(29,158,117,.07);border:1px solid rgba(29,158,117,.2);border-radius:5px;color:rgba(74,222,128,.6);font-family:'Space Mono',monospace;font-size:9px;font-weight:700;text-align:center;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+.v37-step-val{min-width:28px;text-align:center;color:#4ade80;font-family:'Saira Condensed',sans-serif;font-size:14px;font-weight:900;background:rgba(29,158,117,.06);height:22px;line-height:22px;border-left:1px solid rgba(29,158,117,.2);border-right:1px solid rgba(29,158,117,.2)}
+.v37-preset-row{display:flex;gap:3px;margin-top:5px}
+.v37-preset-chip{flex:1;padding:2px 0;background:rgba(29,158,117,.07);border:1px solid rgba(29,158,117,.2);border-radius:4px;color:rgba(74,222,128,.6);font-family:'Saira Condensed',sans-serif;font-size:11px;font-weight:900;text-align:center;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
 .v37-preset-chip:hover{background:rgba(29,158,117,.18);border-color:rgba(29,158,117,.5);color:#4ade80}
-.v37-preset-chip.v37-active{background:rgba(29,158,117,.25);border-color:#1D9E75;color:#4ade80}
+.v37-preset-chip.v37-on{background:rgba(29,158,117,.25);border-color:#1D9E75;color:#4ade80}
     `.trim();
     document.head.appendChild(st);
-  }
+  })();
 
-  // ── 11. Inyectar stepper en .mggoal tras cada render ───────────────────────
-  const _origRender = window.render;
+  // ── 11. Override _sc para iconos kanji + colores unificados manga/anime ─────
+  // Se engancha al render() para reemplazar los 4 stat cards después de que
+  // ui.js los construya, cambiando iconos y colores según tab activo.
+  const _origRenderVisual = window.render;
   window.render = function(){
-    _origRender.apply(this, arguments);
-    const mggoal = document.querySelector(".mggoal");
-    if(!mggoal || mggoal.querySelector(".v37-edit-divider")) return;
+    _origRenderVisual.apply(this, arguments);
 
-    const d    = (typeof p29GetGoalData === "function") ? p29GetGoalData() : {goal:5};
-    const goal = d.goal || 5;
+    // ── Stat cards: iconos kanji + colores anime = manga ──
+    const mgsr = document.querySelector(".mgsr");
+    if(mgsr){
+      const isManga = (typeof tab !== "undefined") ? tab === "manga" : true;
+      const isAnime = (typeof tab !== "undefined") ? tab === "anime" : false;
+      const cards = mgsr.querySelectorAll(".mgstc");
 
-    const div = document.createElement("div");
-    div.className = "v37-edit-divider";
+      if(isManga || isAnime){
+        // Card 0: Series
+        const ico0 = cards[0] ? cards[0].querySelector(".mgstc-ico") : null;
+        if(ico0) ico0.textContent = isManga ? "巻" : "映";
 
-    const row = document.createElement("div");
-    row.className = "v37-edit-row";
-
-    const lbl = document.createElement("span");
-    lbl.className = "v37-edit-lbl";
-    lbl.textContent = "Meta";
-
-    const stepper = document.createElement("div");
-    stepper.className = "v37-stepper";
-
-    const btnM = document.createElement("button");
-    btnM.className = "v37-step-btn"; btnM.textContent = "−"; btnM.setAttribute("aria-label","Reducir meta");
-
-    const valEl = document.createElement("div");
-    valEl.className = "v37-step-val"; valEl.textContent = goal;
-
-    const btnP = document.createElement("button");
-    btnP.className = "v37-step-btn"; btnP.textContent = "+"; btnP.setAttribute("aria-label","Aumentar meta");
-
-    stepper.append(btnM, valEl, btnP);
-    row.append(lbl, stepper);
-
-    const presets = document.createElement("div");
-    presets.className = "v37-preset-row";
-    [3,5,7,10,15].forEach(function(v){
-      const chip = document.createElement("div");
-      chip.className = "v37-preset-chip" + (v === goal ? " v37-active" : "");
-      chip.textContent = v;
-      chip.onclick = function(){ _applyGoal(v, mggoal); };
-      presets.appendChild(chip);
-    });
-
-    mggoal.appendChild(div);
-    mggoal.appendChild(row);
-    mggoal.appendChild(presets);
-
-    function _applyGoal(v, card){
-      if(v < 1 || v > 99) return;
-      const nd = (typeof p29GetGoalData === "function") ? p29GetGoalData() : {goal:5,todayCount:0,lastDate:""};
-      nd.goal = v;
-      if(typeof p29SaveGoalData === "function") p29SaveGoalData(nd);
-      if(typeof render === "function") render();
+        // Card 1: Leídos/Vistos — colores unificados (siempre #AFA9EC series, #5DCAA5 leídos)
+        if(isAnime && cards[0]){
+          cards[0].style.background = "linear-gradient(160deg,#16122b,#120f23)";
+          cards[0].style.borderColor = "rgba(127,119,221,.25)";
+          const bar0 = cards[0].querySelector(".mgstc-bar");
+          const val0 = cards[0].querySelector(".mgstc-val");
+          const lbl0 = cards[0].querySelector(".mgstc-lbl");
+          if(bar0) bar0.style.background = "#AFA9EC";
+          if(val0) val0.style.color = "#AFA9EC";
+          if(lbl0) lbl0.style.color = "#AFA9EC88";
+        }
+        if(isAnime && cards[1]){
+          cards[1].style.background = "linear-gradient(160deg,#0d2218,#0a1c14)";
+          cards[1].style.borderColor = "rgba(29,158,117,.25)";
+          const bar1 = cards[1].querySelector(".mgstc-bar");
+          const val1 = cards[1].querySelector(".mgstc-val");
+          const lbl1 = cards[1].querySelector(".mgstc-lbl");
+          const ico1 = cards[1].querySelector(".mgstc-ico");
+          if(bar1) bar1.style.background = "#5DCAA5";
+          if(val1) val1.style.color = "#5DCAA5";
+          if(lbl1) lbl1.style.color = "#5DCAA588";
+          if(ico1) ico1.textContent = "視";
+        }
+      }
     }
 
-    btnM.onclick = function(e){ e.stopPropagation(); const nd=p29GetGoalData(); if(nd.goal>1){ nd.goal--; p29SaveGoalData(nd); render(); } };
-    btnP.onclick = function(e){ e.stopPropagation(); const nd=p29GetGoalData(); if(nd.goal<99){ nd.goal++; p29SaveGoalData(nd); render(); } };
+    // ── Nav: iconos kanji para manga/anime ──
+    const navItems = document.querySelectorAll(".mgnav-item");
+    navItems.forEach(function(item){
+      const ico = item.querySelector(".mgnav-ico");
+      if(!ico) return;
+      if(item.classList.contains("mn")) ico.textContent = "巻";
+      else if(item.classList.contains("ma")) ico.textContent = "映";
+    });
+
+    // ── Barra META pequeña eliminada ──
+    // p29RenderGoalBar ya es no-op desde el bloque 7 de arriba.
+
+    // ── Stepper en .mggoal ──
+    const mggoal = document.querySelector(".mggoal");
+    if(mggoal && !mggoal.querySelector(".v37-edit-divider")){
+      const d = (typeof p29GetGoalData === "function") ? p29GetGoalData() : {goal:5};
+      const goal = d.goal || 5;
+
+      const divider = document.createElement("div");
+      divider.className = "v37-edit-divider";
+
+      const row = document.createElement("div");
+      row.className = "v37-edit-row";
+
+      const lbl = document.createElement("span");
+      lbl.className = "v37-edit-lbl";
+      lbl.textContent = "Meta";
+
+      const stepper = document.createElement("div");
+      stepper.className = "v37-stepper";
+
+      const btnM = document.createElement("button");
+      btnM.className = "v37-step-btn";
+      btnM.textContent = "−";
+      btnM.setAttribute("aria-label","Reducir meta");
+
+      const valEl = document.createElement("div");
+      valEl.className = "v37-step-val";
+      valEl.textContent = goal;
+
+      const btnP = document.createElement("button");
+      btnP.className = "v37-step-btn";
+      btnP.textContent = "+";
+      btnP.setAttribute("aria-label","Aumentar meta");
+
+      stepper.append(btnM, valEl, btnP);
+      row.append(lbl, stepper);
+
+      const presets = document.createElement("div");
+      presets.className = "v37-preset-row";
+      [3,5,7,10,15].forEach(function(v){
+        const chip = document.createElement("div");
+        chip.className = "v37-preset-chip" + (v === goal ? " v37-on" : "");
+        chip.textContent = v;
+        chip.onclick = function(e){
+          e.stopPropagation();
+          const nd = (typeof p29GetGoalData === "function") ? p29GetGoalData() : {goal:5,todayCount:0,lastDate:""};
+          nd.goal = v;
+          if(typeof p29SaveGoalData === "function") p29SaveGoalData(nd);
+          if(typeof render === "function") render();
+        };
+        presets.appendChild(chip);
+      });
+
+      mggoal.appendChild(divider);
+      mggoal.appendChild(row);
+      mggoal.appendChild(presets);
+
+      btnM.onclick = function(e){
+        e.stopPropagation();
+        const nd = (typeof p29GetGoalData === "function") ? p29GetGoalData() : {goal:5,todayCount:0,lastDate:""};
+        if(nd.goal > 1){ nd.goal--; if(typeof p29SaveGoalData === "function") p29SaveGoalData(nd); if(typeof render === "function") render(); }
+      };
+      btnP.onclick = function(e){
+        e.stopPropagation();
+        const nd = (typeof p29GetGoalData === "function") ? p29GetGoalData() : {goal:5,todayCount:0,lastDate:""};
+        if(nd.goal < 99){ nd.goal++; if(typeof p29SaveGoalData === "function") p29SaveGoalData(nd); if(typeof render === "function") render(); }
+      };
+    }
   };
 
   console.log("[MANGU v3.7] Streak & Goal cross-device sync activado ✓");
+  console.log("[MANGU v3.7] Visual patch: Saira Condensed · kanji icons · unified colors · nav pill ✓");
 
 })();
