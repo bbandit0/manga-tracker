@@ -52,9 +52,23 @@ const FIREBASE_CONFIG = {
 const FIREBASE_ENABLED = FIREBASE_CONFIG.apiKey !== "";
 let fb=null,fbAuth=null,fbDb=null,fbUser=null,fbUnsub=null,fbUnsubFriends=null,pendingRequestsCount=0;
 
+// ── FLAG: indica que el próximo evento onSnapshot fue generado por este mismo
+// dispositivo (via saveToCloud). Cuando está activo, el onSnapshot omite la
+// guardia de score y acepta el snapshot tal cual, porque refleja el estado
+// local que ya fue aplicado (incluyendo deletes y edits legítimos).
+let _localWritePending = false;
+let _localWriteTimer = null;
+function _markLocalWrite() {
+  _localWritePending = true;
+  // Ventana de 5s: si Firestore no dispara el onSnapshot en ese tiempo, resetear
+  if(_localWriteTimer) clearTimeout(_localWriteTimer);
+  _localWriteTimer = setTimeout(function(){ _localWritePending = false; }, 5000);
+}
+
 // ── GUARDIA: compara dos snapshots de data y decide si el incoming es "más rico"
-// Criterio: suma de completed[] de todos los items. Un save() con data vacía
-// tiene score=0 y nunca pisará un estado local con progreso real.
+// Criterio: suma de completed[] de todos los items. Un save() accidental con
+// data vacía tiene score=0 y nunca pisará un estado local con progreso real.
+// NOTA: este score NO se usa para bloquear writes propios (ver _localWritePending).
 function _cloudScoreOf(d) {
   if(!d) return -1;
   var score = 0;
@@ -161,12 +175,18 @@ async function saveToCloud(){
     }catch(e){}
   }
   try{
+    // Marcar ANTES del set() para que el onSnapshot que esto dispara
+    // sea reconocido como write propio y no active la guardia de score
+    _markLocalWrite();
     await fbDb.collection("users").doc(fbUser.uid).set({
       data: JSON.parse(JSON.stringify(data)),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, {merge:true});
     fnSaveMyPublicProfile().catch(function(){});
-  }catch(e){ console.warn("Cloud save:", e); }
+  }catch(e){
+    _localWritePending = false; // reset en caso de error
+    console.warn("Cloud save:", e);
+  }
 }
 
 async function loadFromCloud(){
@@ -205,13 +225,24 @@ async function loadFromCloud(){
       var d = snap.data().data;
       if(!_isValidData(d)) return;
 
-      // GUARDIA onSnapshot: no pisar estado local si el evento de nube trae menos progreso
-      // Esto protege contra el caso donde otro dispositivo hizo save() con data parcial/vacía
+      // Si este evento fue generado por un write propio (saveToCloud de este dispositivo),
+      // aceptarlo sin guardia: refleja el estado local que ya aplicamos, incluyendo
+      // deletes, edits y cualquier reducción legítima de score.
+      if(_localWritePending){
+        _localWritePending = false;
+        if(_localWriteTimer){ clearTimeout(_localWriteTimer); _localWriteTimer = null; }
+        return; // no re-aplicar: data local ya está correcto
+      }
+
+      // Evento externo (otro dispositivo): aplicar guardia de score.
+      // Solo rechazar si el score entrante es SIGNIFICATIVAMENTE menor (>20%),
+      // para evitar falsos positivos por diferencias pequeñas.
       var incomingScore = _cloudScoreOf(d);
       var currentScore  = _cloudScoreOf(data);
+      var threshold = currentScore * 0.8; // tolerar hasta 20% menos
 
-      if(incomingScore < currentScore){
-        console.warn("[MANGU] onSnapshot bloqueado: nube (" + incomingScore + ") < local (" + currentScore + "), re-subiendo local...");
+      if(incomingScore < threshold){
+        console.warn("[MANGU] onSnapshot externo bloqueado: nube (" + incomingScore + ") << local (" + currentScore + "), re-subiendo local...");
         saveToCloud();
         return;
       }
