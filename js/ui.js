@@ -2336,7 +2336,8 @@ if(!document.getElementById("mng-add-v38-style")){
   const _s38=document.createElement("style");
   _s38.id="mng-add-v38-style";
   _s38.textContent=`
-.mng-add-shell{background:#080c14;border-radius:16px;overflow:hidden;border:1px solid #141e30;margin-bottom:14px}
+.mng-add-shell{background:#080c14;border-radius:16px;overflow:visible;border:1px solid #141e30;margin-bottom:14px}
+.mng-add-shell *{pointer-events:auto}
 .mng38-hdr{display:flex;align-items:center;justify-content:space-between;padding:13px 16px 11px;border-bottom:1px solid #0f1826;background:#060a11}
 .mng38-hdr-l{display:flex;align-items:center;gap:10px}
 .mng38-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
@@ -2532,12 +2533,17 @@ const spRow=h("div","mng38-spills");
 STATUSES.forEach(st=>{
   const lbl=(st.key==="reading"&&tab==="anime")?"👁️ Viendo":getStatusLabel(st.key);
   const pill=h("button","mng38-sp"+(newStatus===st.key?" on "+_acc38:""),st.icon+" "+lbl);
-  pill.onclick=()=>{
-    newStatus=st.key;
-    spRow.querySelectorAll(".mng38-sp").forEach(p=>{p.className="mng38-sp";});
-    pill.className="mng38-sp on "+_acc38;
-  };
+  pill.setAttribute("data-status",st.key);
   spRow.appendChild(pill);
+});
+spRow.addEventListener("click",function(e){
+  const btn=e.target.closest(".mng38-sp");
+  if(!btn)return;
+  const k=btn.getAttribute("data-status");
+  if(!k)return;
+  newStatus=k;
+  spRow.querySelectorAll(".mng38-sp").forEach(function(p){p.className="mng38-sp";p.removeAttribute("data-active");});
+  btn.className="mng38-sp on "+_acc38;
 });
 stSec.append(_slbl38,spRow);
 addBody.appendChild(stSec);
@@ -2551,15 +2557,7 @@ allTagsList.forEach(t=>{
   const isCustom=!ALL_TAGS.includes(t);
   const wrapper=isCustom?h("div","tag-custom"):null;
   const chip=h("button","mng38-gc"+(newTags.includes(t)?" on "+_acc38:""),t);
-  chip.onclick=()=>{
-    if(newTags.includes(t)){
-      newTags=newTags.filter(x=>x!==t);
-      chip.className="mng38-gc";
-    }else{
-      newTags.push(t);
-      chip.className="mng38-gc on "+_acc38;
-    }
-  };
+  chip.setAttribute("data-tag",t);
   if(isCustom&&wrapper){
     const dx=h("button","tag-del-x","✕");
     dx.onclick=e=>{
@@ -2572,6 +2570,20 @@ allTagsList.forEach(t=>{
     genGrid.appendChild(wrapper);
   }else{
     genGrid.appendChild(chip);
+  }
+});
+genGrid.addEventListener("click",function(e){
+  const chip=e.target.closest(".mng38-gc[data-tag]");
+  if(!chip)return;
+  const t=chip.getAttribute("data-tag");
+  if(!t)return;
+  if(newTags.includes(t)){
+    newTags=newTags.filter(function(x){return x!==t;});
+    chip.className="mng38-gc";
+    chip.removeAttribute("data-tag-active");
+  }else{
+    newTags.push(t);
+    chip.className="mng38-gc on "+_acc38;
   }
 });
 const addGenChip=h("button","mng38-gc add","+ tag");
@@ -3883,11 +3895,10 @@ if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(
    Mejoras al buscador: jikan-drop, genre chips, status pills
    ═══════════════════════════════════════════════════════ */
 
-/* Sección add — bordes y fondo coherentes con el resto de la app */
-.add {
+/* Sección add legacy — solo afecta la clase .add original, no el nuevo panel */
+.add:not(.mng-add-shell) {
   border-radius: 16px !important;
   border: 1px solid rgba(255,255,255,.08) !important;
-  background: linear-gradient(160deg, rgba(255,255,255,.03) 0%, rgba(255,255,255,.01) 100%) !important;
   overflow: hidden !important;
   margin-bottom: 16px !important;
 }
