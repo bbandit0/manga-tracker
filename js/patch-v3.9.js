@@ -25,7 +25,7 @@ if(document.getElementById('mng-p39-style')){
 }
 
 // ── Constantes ───────────────────────────────────────────────────────
-const PANEL_W     = 240;
+const PANEL_W     = 300;
 const GAP         = 14;
 const CACHE_KEY   = 'p39-news-cache';
 const CACHE_TTL   = 30 * 60 * 1000;
