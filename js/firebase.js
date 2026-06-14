@@ -34,9 +34,9 @@
 // Una vez configurado: la app detecta cambios en tiempo real
 // (onSnapshot) — cualquier edición en el cel se ve en el PC
 // instantáneamente sin hacer nada manual.
-// ── SEGURIDAD: la apiKey de Firebase es pública por diseño (se envía al browser),
-// pero DEBES restringirla en Google Cloud Console → APIs & Services → Credentials
-// → Application restrictions: HTTP referrers → agregar solo bbandit0.github.io/*
+// SEGURIDAD: la apiKey de Firebase es pública por diseño (se envía al browser),
+// pero DEBES restringirla en Google Cloud Console > APIs & Services > Credentials
+// > Application restrictions: HTTP referrers > agregar solo bbandit0.github.io/*
 // Y configurar Firestore Security Rules para que solo usuarios autenticados lean/escriban.
 // Más info: https://firebase.google.com/docs/projects/api-keys
 
@@ -52,37 +52,39 @@ const FIREBASE_CONFIG = {
 const FIREBASE_ENABLED = FIREBASE_CONFIG.apiKey !== "";
 let fb=null,fbAuth=null,fbDb=null,fbUser=null,fbUnsub=null,fbUnsubFriends=null,pendingRequestsCount=0;
 
-// ── FLAG: indica que el próximo evento onSnapshot fue generado por este mismo
-// dispositivo (via saveToCloud). Cuando está activo, el onSnapshot omite la
-// guardia de score y acepta el snapshot tal cual, porque refleja el estado
-// local que ya fue aplicado (incluyendo deletes y edits legítimos).
-let _localWritePending = false;
+// ── CONTADOR de writes propios pendientes de ser consumidos por onSnapshot.
+// Firestore puede emitir HASTA 2 eventos por write en PC:
+//   1) Evento de cache local (inmediato, metadata.hasPendingWrites === true)
+//   2) Confirmacion del servidor (tardio, metadata.hasPendingWrites === false)
+// Usamos contador en vez de booleano para absorber ambos sin bloquear
+// eventos externos que lleguen despues.
+let _localWriteCount = 0;
 let _localWriteTimer = null;
 function _markLocalWrite() {
-  _localWritePending = true;
-  // Ventana de 5s: si Firestore no dispara el onSnapshot en ese tiempo, resetear
+  _localWriteCount += 2; // +2 cubre cache local + confirmacion servidor
   if(_localWriteTimer) clearTimeout(_localWriteTimer);
-  _localWriteTimer = setTimeout(function(){ _localWritePending = false; }, 5000);
+  // Ventana de 10s: margen para conexiones lentas o alta latencia en PC
+  _localWriteTimer = setTimeout(function(){ _localWriteCount = 0; }, 10000);
 }
 
-// ── GUARDIA: compara dos snapshots de data y decide si el incoming es "más rico"
-// Criterio: suma de completed[] de todos los items. Un save() accidental con
-// data vacía tiene score=0 y nunca pisará un estado local con progreso real.
-// NOTA: este score NO se usa para bloquear writes propios (ver _localWritePending).
+// ── GUARDIA DE SCORE: suma de completed[] + 1 por item existente.
+// Un save() accidental con data vacia produce score=0 y nunca pisa datos reales.
+// Esta guardia SOLO se aplica a eventos externos (otro dispositivo).
 function _cloudScoreOf(d) {
   if(!d) return -1;
   var score = 0;
   ["manga","anime"].forEach(function(t) {
     if(Array.isArray(d[t])) {
       d[t].forEach(function(s) {
-        score += (s.completed ? s.completed.length : 0) + 1; // +1 por existir
+        score += (s.completed ? s.completed.length : 0) + 1;
       });
     }
   });
   return score;
 }
 
-// ── GUARDIA: valida que un objeto data tenga estructura mínima usable
+// ── GUARDIA DE ESTRUCTURA: valida que el objeto tenga forma usable antes
+// de cualquier lectura/escritura. Evita que un documento malformado se propague.
 function _isValidData(d) {
   return d && typeof d === "object" && Array.isArray(d.manga) && Array.isArray(d.anime);
 }
@@ -93,7 +95,7 @@ if(FIREBASE_ENABLED){
     fbAuth = firebase.auth();
     fbDb = firebase.firestore();
 
-    // Handle redirect result for Safari (popup blocked → redirect fallback)
+    // Handle redirect result for Safari (popup blocked, redirect fallback)
     fbAuth.getRedirectResult().then(function(result){
       if(result && result.user){ fbUser = result.user; loadFromCloud(); }
     }).catch(function(){});
@@ -129,13 +131,13 @@ async function signIn(){
     var result = await fbAuth.signInWithPopup(provider);
     if(result && result.user){ fbUser = result.user; loadFromCloud(); }
   }catch(e){
-    // Safari bloquea popups — usar redirect como fallback
+    // Safari bloquea popups, usar redirect como fallback
     if(e.code==="auth/popup-blocked" || e.code==="auth/cancelled-popup-request" || e.code==="auth/popup-closed-by-user"){
       try{
         await fbAuth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
-      }catch(re){ showToast("Error al iniciar sesión: " + (re.code || re.message)); }
+      }catch(re){ showToast("Error al iniciar sesion: " + (re.code || re.message)); }
     } else {
-      showToast("Error al iniciar sesión: " + (e.code || e.message));
+      showToast("Error al iniciar sesion: " + (e.code || e.message));
     }
   }
 }
@@ -158,25 +160,31 @@ async function signOut(){
 
 async function saveToCloud(){
   if(!fbUser || !fbDb) return;
-  // GUARDIA: nunca subir data vacía o inválida a la nube
+
+  // GUARDIA 1: estructura invalida
   if(!_isValidData(data)){
-    console.warn("[MANGU] saveToCloud bloqueado: data inválida", data);
+    console.warn("[MANGU] saveToCloud bloqueado: data invalida", data);
     return;
   }
+
+  // GUARDIA 2: no subir vacio si la nube tiene datos reales
+  // Cubre el race condition de inicializacion donde data={manga:[],anime:[]}
+  // todavia no fue reemplazado por los datos del usuario.
   var totalItems = (data.manga ? data.manga.length : 0) + (data.anime ? data.anime.length : 0);
   if(totalItems === 0){
-    // Si local está vacío, verificar primero si la nube tiene datos antes de sobreescribir
     try{
       var check = await fbDb.collection("users").doc(fbUser.uid).get();
       if(check.exists && _isValidData(check.data().data) && _cloudScoreOf(check.data().data) > 0){
-        console.warn("[MANGU] saveToCloud bloqueado: intento de subir vacío cuando nube tiene datos");
+        console.warn("[MANGU] saveToCloud bloqueado: intento de subir vacio cuando nube tiene datos");
         return;
       }
     }catch(e){}
   }
+
   try{
-    // Marcar ANTES del set() para que el onSnapshot que esto dispara
-    // sea reconocido como write propio y no active la guardia de score
+    // Marcar ANTES del set() para que el onSnapshot resultante sea reconocido
+    // como write propio y no active la guardia de score externa.
+    // +2 porque Firestore emite hasta 2 eventos: cache local + confirmacion servidor.
     _markLocalWrite();
     await fbDb.collection("users").doc(fbUser.uid).set({
       data: JSON.parse(JSON.stringify(data)),
@@ -184,7 +192,7 @@ async function saveToCloud(){
     }, {merge:true});
     fnSaveMyPublicProfile().catch(function(){});
   }catch(e){
-    _localWritePending = false; // reset en caso de error
+    _localWriteCount = 0; // reset en caso de error de red
     console.warn("Cloud save:", e);
   }
 }
@@ -199,21 +207,22 @@ async function loadFromCloud(){
       var localScore = _cloudScoreOf(data);
 
       if(cloudScore >= localScore){
-        // La nube tiene igual o más progreso: usar nube (caso normal)
+        // La nube tiene igual o mas progreso: usar nube (caso normal al iniciar sesion)
         ["manga","anime"].forEach(function(t){ if(c[t]) c[t] = c[t].map(migrate); });
         data = c;
         saveLocal();
         render();
-        showToast("✓ Sincronizado");
+        showToast("Sincronizado");
         setTimeout(function(){ checkUpToDateNewChapters(); }, 4000);
       } else {
-        // Local tiene más progreso: re-subir local a la nube en lugar de pisar
-        console.warn("[MANGU] loadFromCloud: local más completo (local=" + localScore + " nube=" + cloudScore + "), re-subiendo local...");
-        showToast("✓ Datos locales más recientes, sincronizando...");
+        // Local tiene mas progreso que la nube: re-subir local en lugar de pisar
+        // Ocurre cuando se editó offline o la nube tiene una version antigua.
+        console.warn("[MANGU] loadFromCloud: local mas completo (local=" + localScore + " nube=" + cloudScore + "), re-subiendo local...");
+        showToast("Datos locales mas recientes, sincronizando...");
         await saveToCloud();
       }
     } else {
-      // No hay datos en la nube: subir lo que hay localmente
+      // No hay datos validos en la nube: subir lo que hay localmente
       await saveToCloud();
       showToast("Datos subidos a la nube");
     }
@@ -225,21 +234,27 @@ async function loadFromCloud(){
       var d = snap.data().data;
       if(!_isValidData(d)) return;
 
-      // Si este evento fue generado por un write propio (saveToCloud de este dispositivo),
-      // aceptarlo sin guardia: refleja el estado local que ya aplicamos, incluyendo
-      // deletes, edits y cualquier reducción legítima de score.
-      if(_localWritePending){
-        _localWritePending = false;
-        if(_localWriteTimer){ clearTimeout(_localWriteTimer); _localWriteTimer = null; }
-        return; // no re-aplicar: data local ya está correcto
+      // Si este evento fue generado por un write propio de este dispositivo,
+      // consumir el contador y salir SIN re-aplicar data desde Firestore.
+      // El estado local ya es correcto (incluye deletes, edits, +1 cap, etc.).
+      // Razon: si re-aplicaramos, migrate() podria borrar activityLog u otros
+      // campos que solo existen localmente.
+      if(_localWriteCount > 0){
+        _localWriteCount--;
+        if(_localWriteCount === 0 && _localWriteTimer){
+          clearTimeout(_localWriteTimer);
+          _localWriteTimer = null;
+        }
+        return;
       }
 
-      // Evento externo (otro dispositivo): aplicar guardia de score.
-      // Solo rechazar si el score entrante es SIGNIFICATIVAMENTE menor (>20%),
-      // para evitar falsos positivos por diferencias pequeñas.
+      // Evento externo (otro dispositivo o sesion diferente):
+      // Aplicar guardia de score con umbral del 20% para tolerar diferencias
+      // pequeñas (ej: otro dispositivo que no tenia un cap marcado).
+      // Solo rechazar si la diferencia es SIGNIFICATIVA (vaciado accidental).
       var incomingScore = _cloudScoreOf(d);
       var currentScore  = _cloudScoreOf(data);
-      var threshold = currentScore * 0.8; // tolerar hasta 20% menos
+      var threshold = currentScore * 0.8;
 
       if(incomingScore < threshold){
         console.warn("[MANGU] onSnapshot externo bloqueado: nube (" + incomingScore + ") << local (" + currentScore + "), re-subiendo local...");
@@ -247,13 +262,14 @@ async function loadFromCloud(){
         return;
       }
 
+      // Aplicar snapshot externo: reemplazar data local con la version de la nube
       ["manga","anime"].forEach(function(t){ if(d[t]) d[t] = d[t].map(migrate); });
       data = d;
       saveLocal();
       render();
     });
 
-    // Listener solicitudes de amistad
+    // Listener de solicitudes de amistad pendientes
     if(fbUnsubFriends) fbUnsubFriends();
     fbUnsubFriends = fbDb.collection("users").doc(fbUser.uid)
       .collection("friends_received").onSnapshot(function(snap){
@@ -268,7 +284,7 @@ async function loadFromCloud(){
           renderFriendsPanel();
         }
         if(pendingRequestsCount > prev && document.readyState === "complete"){
-          showToast("📨 Nueva solicitud de amistad");
+          showToast("Nueva solicitud de amistad");
         }
       }, function(err){ console.warn("friends_received listener:", err.message); });
 

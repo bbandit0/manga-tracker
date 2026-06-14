@@ -13,14 +13,14 @@ const CHAR_ST=["Vivo","Muerto","Desconocido"];
 let data,theme,tab="manga",search="",expanded={},viewMode="catalog",sortKey="recent",showSettings=false,showPatch=false,editTotal=null,editTotalVal="",newCover="",newCoverIsUrl=false,newTags=[],newStatus="reading",newTitle="",newTotal="",pinnedId=null,filterStatus="all",filterTag="all",showFavsOnly=false,jikanResults=[],jikanSearchTimeout=null;
 function today(){return new Date().toISOString().slice(0,10);}
 
-function migrate(s){return{id:s.id,title:s.title,total:s.total??0,completed:s.completed||[],cover:s.cover||"",coverIsUrl:s.coverIsUrl||false,status:s.status||(s.completed?.length===s.total&&s.total>0?"completed":"reading"),tags:s.tags||[],notes:s.notes||"",score:s.score||0,favorite:s.favorite||false,rewatch:s.rewatch||false,lastUpdated:s.lastUpdated||parseInt(s.id)||Date.now(),createdAt:s.createdAt||parseInt(s.id)||Date.now(),startDate:s.startDate||"",endDate:s.endDate||"",seasons:s.seasons||[],characters:s.characters||[],jikanId:s.jikanId||null,jikanPublishing:s.jikanPublishing||false};}
+function migrate(s){return{id:s.id,title:s.title,total:s.total??0,completed:s.completed||[],cover:s.cover||"",coverIsUrl:s.coverIsUrl||false,status:s.status||(s.completed?.length===s.total&&s.total>0?"completed":"reading"),tags:s.tags||[],notes:s.notes||"",score:s.score||0,favorite:s.favorite||false,rewatch:s.rewatch||false,lastUpdated:s.lastUpdated||parseInt(s.id)||Date.now(),createdAt:s.createdAt||parseInt(s.id)||Date.now(),startDate:s.startDate||"",endDate:s.endDate||"",seasons:s.seasons||[],characters:s.characters||[],jikanId:s.jikanId||null,jikanPublishing:s.jikanPublishing||false,activityLog:s.activityLog||[]};}
 function initData(){
   // Cargar siempre con la clave del usuario actual (uid-based) para aislar datos por cuenta
   const skey=getSKEY();
   let raw=loadJ(skey);
   // Solo migrar claves antiguas si NO hay usuario autenticado (guest session)
   // Si hay usuario, NUNCA leer claves antiguas para evitar mezcla de cuentas
-  if(!raw && !fbUser){
+  if(!raw){
     for(const k of OLD_KEYS){raw=loadJ(k);if(raw){localStorage.setItem(skey,JSON.stringify(raw));break;}}
   }
   if(raw){["manga","anime"].forEach(t=>{if(!raw[t])raw[t]=[];raw[t]=raw[t].map(migrate);});data=raw;}
