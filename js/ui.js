@@ -2326,122 +2326,285 @@ if(list.length>0){
   root.appendChild(srBot);
 }
 // Toolbar
-const tb=h("div","tb");const tbl=h("div","tb-l");const sbar=h("div","sb");sbar.innerHTML=svg.search;const sinp=h("input","",null,{placeholder:"Buscar...",value:search});let _localSearchDebounce=null;sinp.oninput=e=>{search=e.target.value;clearTimeout(_localSearchDebounce);_localSearchDebounce=setTimeout(()=>{render();},300);};sinp.onkeydown=e=>{if(e.key==="Enter"){clearTimeout(_localSearchDebounce);render();}if(e.key==="Escape"){search="";sinp.value="";clearTimeout(_localSearchDebounce);render();}};sbar.appendChild(sinp);tbl.appendChild(sbar);const tbr=h("div","tb-r");const sel=h("select","srt");[{key:"recent",l:"Reciente"},{key:"updated",l:"Actualizado"},{key:"name-asc",l:"A→Z"},{key:"name-desc",l:"Z→A"},{key:"progress-desc",l:"Mayor %"},{key:"progress-asc",l:"Menor %"},{key:"score",l:"Puntuación"},{key:"total-desc",l:"Más cap."}].forEach(o=>{const op=h("option","",o.l,{value:o.key});if(o.key===sortKey)op.selected=true;sel.appendChild(op);});sel.onchange=e=>{sortKey=e.target.value;render();};tbr.appendChild(sel);tbr.appendChild(h("button",`ib ${viewMode==="list"?"on":""}`,svg.list,{onclick:()=>{viewMode="list";render();}}));tbr.appendChild(h("button",`ib ${viewMode==="catalog"?"on":""}`,svg.grid,{onclick:()=>{viewMode="catalog";render();}}));tb.append(tbl,tbr);root.appendChild(tb);
-// Filters
-const fbar=h("div","fbar");fbar.appendChild(h("button",`fchip${animeCls}${showFavsOnly?" on":""}`,`★ Fav`,{onclick:()=>{showFavsOnly=!showFavsOnly;render();}}));fbar.appendChild(h("div","fsep"));[{key:"all",label:"Todos"},...STATUSES].forEach(s=>{const dispLabel=s.key==="reading"&&tab==="anime"?"👁️ Viendo":s.icon?s.icon+" "+s.label:s.label;fbar.appendChild(h("button",`fchip${animeCls}${filterStatus===s.key?" on":""}`,dispLabel,{onclick:()=>{filterStatus=s.key;render();}}));});const usedTags=[...new Set(list.flatMap(s=>s.tags||[]))].sort();if(usedTags.length>0){fbar.appendChild(h("div","fsep"));usedTags.forEach(t=>{fbar.appendChild(h("button",`fchip${animeCls}${filterTag===t?" on":""}`,t,{onclick:()=>{filterTag=filterTag===t?"all":t;render();}}));});}root.appendChild(fbar);
-// Add
-const addS=h("div","add");
 
-// ── Header del buscador — visual upgrade ──
-const addHdr=h("div","add-header");
-addHdr.style.cssText=`
-  display:flex;align-items:center;justify-content:space-between;
-  padding:14px 16px 12px;
-  border-bottom:1px solid rgba(255,255,255,.06);
-  background:linear-gradient(135deg,rgba(${tab==="manga"?"99,119,237":"52,211,153"},.08) 0%,transparent 60%);
+
+// Add — Parche v3.8: panel rediseñado, tb y fbar eliminados
+const addS=h("div","mng-add-shell");
+
+// ── Inyectar estilos v3.8 una sola vez ──
+if(!document.getElementById("mng-add-v38-style")){
+  const _s38=document.createElement("style");
+  _s38.id="mng-add-v38-style";
+  _s38.textContent=`
+.mng-add-shell{background:#080c14;border-radius:16px;overflow:hidden;border:1px solid #141e30;margin-bottom:14px}
+.mng38-hdr{display:flex;align-items:center;justify-content:space-between;padding:13px 16px 11px;border-bottom:1px solid #0f1826;background:#060a11}
+.mng38-hdr-l{display:flex;align-items:center;gap:10px}
+.mng38-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.mng38-icon.manga{background:rgba(0,229,160,.1);border:1px solid rgba(0,229,160,.2)}
+.mng38-icon.anime{background:rgba(192,132,252,.1);border:1px solid rgba(192,132,252,.2)}
+.mng38-title{font-size:13px;font-weight:700;color:#c8dae8;letter-spacing:.01em}
+.mng38-sub{font-size:10px;color:#1e3045;margin-top:1px}
+.mng38-limpiar{font-size:11px;font-weight:600;color:#1e3045;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:6px;transition:color .15s}
+.mng38-limpiar:hover{color:#4a6070}
+.mng38-search-wrap{padding:14px 16px 10px}
+.mng38-sbox{display:flex;align-items:center;gap:10px;background:#0d1520;border:1.5px solid #141e30;border-radius:11px;padding:11px 14px;transition:border-color .2s,background .2s}
+.mng38-sbox:focus-within{background:#081a13}
+.mng38-sbox.manga:focus-within{border-color:#00e5a0}
+.mng38-sbox.anime:focus-within{border-color:#c084fc;background:#110820}
+.mng38-sico{font-size:16px;color:#1e3045;flex-shrink:0;transition:color .18s;pointer-events:none}
+.mng38-sbox.manga:focus-within .mng38-sico{color:#00e5a0}
+.mng38-sbox.anime:focus-within .mng38-sico{color:#c084fc}
+.mng38-sinp{flex:1;background:none;border:none;outline:none;font-size:14px;font-family:'Outfit',sans-serif;color:#e8f0f8;caret-color:#00e5a0}
+.mng38-sinp::placeholder{color:rgba(232,240,248,.35)}
+.mng38-sinp.anime{caret-color:#c084fc}
+.mng38-src{font-size:10px;font-weight:700;letter-spacing:.05em;padding:3px 8px;border-radius:6px;flex-shrink:0}
+.mng38-src.manga{background:rgba(0,229,160,.08);color:#00e5a0;border:1px solid rgba(0,229,160,.18)}
+.mng38-src.anime{background:rgba(192,132,252,.08);color:#c084fc;border:1px solid rgba(192,132,252,.18)}
+.mng38-selcard{margin:0 16px 10px;border-radius:10px;overflow:hidden;border:1px solid #141e30;background:#0a1020;display:flex;position:relative}
+.mng38-selbar{width:3px;flex-shrink:0}
+.mng38-selbar.manga{background:#00e5a0}
+.mng38-selbar.anime{background:#c084fc}
+.mng38-selimg{width:54px;object-fit:cover;flex-shrink:0;background:#0d1825}
+.mng38-seliph{width:54px;background:#0d1825;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px}
+.mng38-selbody{padding:10px 12px;flex:1;min-width:0}
+.mng38-selname{font-size:13px;font-weight:700;color:#c8dae8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mng38-selrow{display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap}
+.mng38-selcap{font-size:12px;font-weight:700}
+.mng38-selcap.manga{color:#00e5a0}
+.mng38-selcap.anime{color:#c084fc}
+.mng38-selsc{font-size:11px;color:#fbbf24;font-weight:600}
+.mng38-selgens{font-size:11px;color:#1e3045;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mng38-selx{position:absolute;top:8px;right:10px;font-size:14px;color:#1e3045;cursor:pointer;background:none;border:none;line-height:1;padding:2px}
+.mng38-selx:hover{color:#c8dae8}
+.mng38-body{padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.mng38-row{display:flex;gap:8px;align-items:center}
+.mng38-inp{background:#0d1520;border:1.5px solid #141e30;border-radius:9px;padding:9px 13px;font-size:13px;font-family:'Outfit',sans-serif;color:#e8f0f8;outline:none;transition:border-color .17s}
+.mng38-inp::placeholder{color:rgba(232,240,248,.35)}
+.mng38-inp.manga:focus{border-color:#00e5a0}
+.mng38-inp.anime:focus{border-color:#c084fc}
+.mng38-inp.total{width:190px}
+.mng38-coverbtn{display:flex;align-items:center;gap:6px;padding:9px 12px;background:#0d1520;border:1.5px solid #141e30;border-radius:9px;color:#2a3a50;font-size:12px;font-weight:600;cursor:pointer;transition:all .16s;white-space:nowrap;font-family:'Outfit',sans-serif}
+.mng38-coverbtn:hover{border-color:#00e5a0;color:#00e5a0}
+.mng38-coverbtn.anime:hover{border-color:#c084fc;color:#c084fc}
+.mng38-addbtn{width:42px;height:42px;border-radius:9px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:19px;transition:all .16s}
+.mng38-addbtn.manga{background:#00e5a0;color:#001a0e}
+.mng38-addbtn.anime{background:#c084fc;color:#0d0020}
+.mng38-addbtn:hover{filter:brightness(1.1)}
+.mng38-addbtn:active{transform:scale(.94)}
+.mng38-slbl{font-size:10px;font-weight:700;letter-spacing:.1em;color:#1a2a3a;text-transform:uppercase;margin-bottom:8px}
+.mng38-spills{display:flex;gap:5px;flex-wrap:wrap}
+.mng38-sp{padding:5px 11px;border-radius:7px;font-size:12px;font-weight:600;border:1px solid #0f1826;color:#2a3a50;cursor:pointer;transition:all .14s;background:transparent;font-family:'Outfit',sans-serif;display:flex;align-items:center;gap:4px}
+.mng38-sp:hover{border-color:#1e3045;color:#4a6070}
+.mng38-sp.on.manga{background:#001a0e;color:#00e5a0;border-color:#003020}
+.mng38-sp.on.anime{background:#140020;color:#c084fc;border-color:#250040}
+.mng38-gchips{display:flex;gap:5px;flex-wrap:wrap}
+.mng38-gc{padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid #0f1826;color:#1e3045;cursor:pointer;transition:all .13s;user-select:none;font-family:'Outfit',sans-serif}
+.mng38-gc:hover{border-color:#1e3045;color:#3a5060}
+.mng38-gc.on.manga{background:#001a0e;color:#00e5a0;border-color:#003020}
+.mng38-gc.on.anime{background:#140020;color:#c084fc;border-color:#250040}
+.mng38-gc.add{border-style:dashed}
+.mng38-gc.add:hover{color:#00e5a0;border-color:rgba(0,229,160,.4)}
+.mng38-foot{border-top:1px solid #0f1826;padding:8px 16px;background:#060a11;display:flex;align-items:center;gap:6px}
+.mng38-foot-txt{font-size:11px;color:#1a2a3a;flex:1}
+.mng38-foot-badge{font-size:10px;font-weight:700;letter-spacing:.05em;padding:3px 8px;border-radius:6px}
+.mng38-foot-badge.manga{background:rgba(0,229,160,.07);color:#00e5a0;border:1px solid rgba(0,229,160,.14)}
+.mng38-foot-badge.anime{background:rgba(192,132,252,.07);color:#c084fc;border:1px solid rgba(192,132,252,.14)}
+.mng38-capbadge{flex:1;padding:9px 13px;background:#0a1520;border:1.5px solid rgba(0,229,160,.2);border-radius:9px;color:#7ec8f4;font-size:12px;display:flex;align-items:center;gap:6px;min-width:0;font-family:'Outfit',sans-serif}
+.mng38-capbadge.anime{border-color:rgba(192,132,252,.2)}
+.mng38-covpreview{display:flex;align-items:center;gap:8px;padding:6px 0}
 `;
-const addHdrL=h("div","add-header-left");
-addHdrL.style.cssText="display:flex;align-items:center;gap:10px";
+  document.head.appendChild(_s38);
+}
 
-// Icono con glow
-const addIconWrap=document.createElement("div");
-addIconWrap.style.cssText=`
-  width:36px;height:36px;border-radius:10px;
-  background:linear-gradient(135deg,${tab==="manga"?"rgba(99,119,237,.25)":"rgba(52,211,153,.25)"} 0%,${tab==="manga"?"rgba(99,119,237,.08)":"rgba(52,211,153,.08)"} 100%);
-  border:1px solid ${tab==="manga"?"rgba(99,119,237,.3)":"rgba(52,211,153,.3)"};
-  display:flex;align-items:center;justify-content:center;font-size:18px;
-  box-shadow:0 0 12px ${tab==="manga"?"rgba(99,119,237,.15)":"rgba(52,211,153,.15)"};
-`;
-addIconWrap.textContent=tab==="manga"?"📚":"🎬";
+const _isAnime38 = tab==="anime";
+const _acc38 = _isAnime38?"anime":"manga";
 
-const addHdrText=document.createElement("div");
-const addHdrTitle=document.createElement("div");
-addHdrTitle.style.cssText="font-size:13px;font-weight:700;color:var(--t1);letter-spacing:.01em";
-addHdrTitle.textContent="➕ Agregar "+(tab==="manga"?"manga":"anime");
-const addHdrSub=document.createElement("div");
-addHdrSub.style.cssText="font-size:10px;color:var(--t3);margin-top:1px";
-addHdrSub.textContent="Busca directamente en MyAnimeList";
-addHdrText.append(addHdrTitle,addHdrSub);
-addHdrL.append(addIconWrap,addHdrText);
+// Header
+const _hdr38=h("div","mng38-hdr");
+const _hdrl38=h("div","mng38-hdr-l");
+const _ico38=h("div","mng38-icon "+_acc38);
+_ico38.textContent=_isAnime38?"🎬":"📚";
+const _htxt38=document.createElement("div");
+const _htitle38=h("div","mng38-title","Agregar "+(_isAnime38?"anime":"manga"));
+const _hsub38=h("div","mng38-sub",_isAnime38?"Busca en AniList · MyAnimeList":"Busca en MyAnimeList · AniList");
+_htxt38.append(_htitle38,_hsub38);
+_hdrl38.append(_ico38,_htxt38);
+const _hlimpiar38=h("button","mng38-limpiar","Limpiar");
+_hlimpiar38.onclick=()=>{newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;jikanResults=[];render();};
+_hdr38.append(_hdrl38,_hlimpiar38);
+addS.appendChild(_hdr38);
 
-const addResetBtn=h("button","add-reset-btn","Limpiar");
-addResetBtn.style.cssText="font-size:11px;padding:5px 11px;border-radius:8px;opacity:.7";
-addResetBtn.onclick=()=>{newTitle="";newTotal="";newCover="";newCoverIsUrl=false;newTags=[];newStatus="reading";window._pendingJikanId=null;window._pendingJikanPublishing=false;jikanResults=[];render();};
-addHdr.append(addHdrL,addResetBtn);
-addS.appendChild(addHdr);
+// Search box
+const _sw38=h("div","mng38-search-wrap");
+const _sbox38=h("div","mng38-sbox "+_acc38);
+const _sico38=document.createElement("span");
+_sico38.className="mng38-sico";
+_sico38.innerHTML="🔍";
+const _ti38=h("input","mng38-sinp"+(_isAnime38?" anime":""),null,{
+  placeholder:_isAnime38?"Busca tu Anime...":"Busca tu Manga...",
+  id:"add-title",value:newTitle,
+  autocomplete:"off",autocorrect:"off",autocapitalize:"off",spellcheck:"false"
+});
+_ti38.oninput=e=>{
+  newTitle=e.target.value;
+  clearTimeout(jikanSearchTimeout);
+  if(e.target.value.length>=2){
+    _sico38.textContent="⏳";
+    jikanSearchTimeout=setTimeout(()=>{
+      searchJikan(e.target.value,tab).finally(()=>{_sico38.textContent="🔍";});
+    },500);
+  }else{jikanResults=[];removeJikanDrop();_sico38.textContent="🔍";}
+};
+_ti38.onkeydown=e=>{
+  if(e.key==="Enter"){jikanResults=[];removeJikanDrop();doAdd();}
+  if(e.key==="Escape"){jikanResults=[];removeJikanDrop();}
+};
+const _stag38=h("span","mng38-src "+_acc38,_isAnime38?"AniList · MAL":"MAL · AniList");
+const _jwrap38=h("div","jikan-wrap");
+_jwrap38.style.cssText="position:relative;";
+_sbox38.append(_sico38,_ti38,_stag38);
+_jwrap38.appendChild(_sbox38);
+_sw38.appendChild(_jwrap38);
+addS.appendChild(_sw38);
 
-const addBody=h("div","add-body");
+// Selected card area (se llena en selectJikanResult via render)
+const _selarea38=h("div","mng38-selarea");
+if(newCover&&newCoverIsUrl&&window._pendingJikanId){
+  const _sc38=h("div","mng38-selcard");
+  const _sbar38=h("div","mng38-selbar "+_acc38);
+  const _simg38=h("img","mng38-selimg");
+  _simg38.src=newCover;
+  const _sbody38=h("div","mng38-selbody");
+  const _sname38=h("div","mng38-selname",newTitle);
+  const _srow38=h("div","mng38-selrow");
+  const _scap38=h("span","mng38-selcap "+_acc38,
+    (parseInt(newTotal)>0?((_isAnime38?"Eps. ":"Cap. ")+newTotal):(_isAnime38?"En emisión":"En publicación")));
+  _srow38.appendChild(_scap38);
+  _sbody38.append(_sname38,_srow38);
+  const _sx38=h("button","mng38-selx","✕");
+  _sx38.title="Quitar selección";
+  _sx38.onclick=()=>{newTitle="";newTotal="";newCover="";newCoverIsUrl=false;window._pendingJikanId=null;window._pendingJikanPublishing=false;jikanResults=[];render();};
+  _sc38.append(_sbar38,_simg38,_sbody38,_sx38);
+  _selarea38.appendChild(_sc38);
+}
+addS.appendChild(_selarea38);
+
+// Body
+const addBody=h("div","mng38-body");
 addS.appendChild(addBody);
 
-// ── Input de búsqueda — visual upgrade ──
-const titleRow=h("div","add-title-row");
-const titleWrap=h("div","jikan-wrap");
-titleWrap.style.cssText="position:relative;";
-
-// Contenedor del input con icono integrado
-const inputShell=document.createElement("div");
-inputShell.style.cssText=`
-  display:flex;align-items:center;gap:8px;
-  background:rgba(255,255,255,.05);
-  border:1px solid rgba(255,255,255,.1);
-  border-radius:12px;
-  padding:0 14px;
-  transition:border-color .2s,box-shadow .2s;
-`;
-inputShell.addEventListener("focusin",()=>{
-  inputShell.style.borderColor=tab==="manga"?"rgba(99,119,237,.5)":"rgba(52,211,153,.5)";
-  inputShell.style.boxShadow=`0 0 0 3px ${tab==="manga"?"rgba(99,119,237,.1)":"rgba(52,211,153,.1)"}`;
-});
-inputShell.addEventListener("focusout",()=>{
-  inputShell.style.borderColor="rgba(255,255,255,.1)";
-  inputShell.style.boxShadow="none";
-});
-
-const sIcon=document.createElement("span");
-// NO usar clase CSS externa — el main.css puede tener position:absolute que rompe el flex layout
-sIcon.style.cssText="font-size:15px;opacity:.5;flex-shrink:0;transition:opacity .2s;pointer-events:none;line-height:1;user-select:none";
-sIcon.textContent="🔍";
-
-const ti=h("input","",null,{placeholder:"Buscar en MyAnimeList...",id:"add-title",value:newTitle,autocomplete:"off",autocorrect:"off",autocapitalize:"off",spellcheck:"false"});
-ti.style.cssText=`
-  flex:1;background:none;border:none;outline:none;
-  color:var(--t1);font-size:13px;
-  font-family:'Outfit',sans-serif;
-  padding:12px 0;
-`;
-ti.oninput=e=>{newTitle=e.target.value;clearTimeout(jikanSearchTimeout);if(e.target.value.length>=2){sIcon.textContent="⏳";sIcon.style.opacity="1";jikanSearchTimeout=setTimeout(()=>{searchJikan(e.target.value,tab).finally(()=>{sIcon.textContent="🔍";sIcon.style.opacity=".5";});},500);}else{jikanResults=[];removeJikanDrop();sIcon.textContent="🔍";sIcon.style.opacity=".5";}};
-ti.onkeydown=e=>{if(e.key==="Enter"){jikanResults=[];removeJikanDrop();doAdd();}if(e.key==="Escape"){jikanResults=[];removeJikanDrop();}};
-
-inputShell.append(sIcon,ti);
-titleWrap.appendChild(inputShell);
-titleRow.appendChild(titleWrap);
-addBody.appendChild(titleRow);
-const row2=h("div","add-row2");
-// FIX BUG #1: Si ya hay un jikanId seleccionado, el usuario NO debe ingresar caps manualmente.
-// Mostrar un badge informativo en lugar del input. Si aún no hay jikanId (ingreso manual),
-// mostrar el input solo para series finalizadas (publicación = polling lo maneja).
+// Row: total + portada + agregar
+const row2=h("div","mng38-row");
 const _hasPendingJikan=!!window._pendingJikanId;
 const _isPendingPub=window._pendingJikanPublishing||false;
 let ni;
 if(_hasPendingJikan){
-  // Serie seleccionada desde MAL: ocultar input y mostrar badge de estado
-  ni=h("input","add-cap-input",null,{type:"hidden",id:"add-total",value:newTotal||"1"});
-  const capBadge=h("div","add-cap-badge","");
-  capBadge.style.cssText="flex:1;padding:10px 14px;background:var(--bg3);border:1px solid rgba(99,179,237,.3);border-radius:9px;color:#7ec8f4;font-family:'Outfit',sans-serif;font-size:12px;display:flex;align-items:center;gap:6px;min-width:0";
+  ni=h("input","",null,{type:"hidden",id:"add-total",value:newTotal||"1"});
+  const capBadge=h("div","mng38-capbadge"+(_isAnime38?" anime":""));
   if(newTotal&&parseInt(newTotal)>0){
-    capBadge.innerHTML=`<span style="font-size:15px">📖</span><span><b style="font-size:13px">${newTotal}</b> ${tab==="manga"?"caps":"eps"}${_isPendingPub?" <span style='opacity:.5;font-size:10px'>· en emisión</span>":""}</span>`;
+    capBadge.innerHTML=`<span>📖</span><span><b style="font-size:13px">${newTotal}</b> ${_isAnime38?"eps":"caps"}${_isPendingPub?" <span style='opacity:.5;font-size:10px'>· en emisión</span>":""}</span>`;
   }else{
-    capBadge.innerHTML=`<span style="font-size:13px">⏳</span><span style="opacity:.7">Buscando caps...</span>`;
+    capBadge.innerHTML=`<span>⏳</span><span style="opacity:.7">Buscando...</span>`;
   }
   row2.append(ni,capBadge);
 }else{
-  // Ingreso manual: mostrar input normal
-  ni=h("input","add-cap-input",null,{placeholder:tab==="manga"?"Total de capitulos *":"Total de ep. * (todas las temp.)",type:"number",min:"1",id:"add-total",value:newTotal});
+  ni=h("input","mng38-inp total "+_acc38,null,{
+    placeholder:_isAnime38?"Número de episodios":"Número de capítulos",
+    type:"number",min:"1",id:"add-total",value:newTotal
+  });
   ni.oninput=e=>{newTotal=e.target.value;};
   ni.onkeydown=e=>{if(e.key==="Enter")doAdd();};
   row2.append(ni);
 }
-const fi=h("input","hidden",null,{type:"file",accept:"image/*",id:"acf"});fi.onchange=e=>{const f=e.target.files?.[0];if(!f)return;resizeImg(f,b=>{newCover=b;render();});e.target.value="";};const coverBtn=h("button","add-cover-btn",svg.up+" Portada");coverBtn.onclick=()=>document.getElementById("acf").click();const ab=h("button","add-submit-btn",svg.plus);ab.style.background=ac;ab.title="Agregar";ab.onclick=doAdd;row2.append(fi,coverBtn,ab);addBody.appendChild(row2);addBody.appendChild(h("div","add-divider"));const stSec=h("div","add-status-section");stSec.appendChild(h("div","add-status-label","Estado"));const spRow=h("div","add-status-pills");STATUSES.forEach(st=>{const lbl=(st.key==="reading"&&tab==="anime")?"Viendo":getStatusLabel(st.key);const pill=h("button","add-status-pill"+(newStatus===st.key?" sp-"+st.key:""),st.icon+" "+lbl);pill.onclick=()=>{newStatus=st.key;spRow.querySelectorAll(".add-status-pill").forEach(p=>{p.className="add-status-pill";});pill.className="add-status-pill sp-"+st.key;};spRow.appendChild(pill);});stSec.appendChild(spRow);addBody.appendChild(stSec);const genSec=h("div","add-genres-section");genSec.appendChild(h("div","add-genres-label","Generos"));const genGrid=h("div","add-genres-grid");const allTagsList=[...ALL_TAGS,...(theme.customTags||[])];allTagsList.forEach(t=>{const isCustom=!ALL_TAGS.includes(t);const wrapper=isCustom?h("div","tag-custom"):null;const chip=h("button","genre-chip"+(newTags.includes(t)?(animeCls?" anime-on":" on"):""),t);chip.onclick=()=>{if(newTags.includes(t)){newTags=newTags.filter(x=>x!==t);chip.className="genre-chip";}else{newTags.push(t);chip.className="genre-chip"+(animeCls?" anime-on":" on");}};if(isCustom&&wrapper){const dx=h("button","tag-del-x","✕");dx.onclick=e=>{e.stopPropagation();theme.customTags=(theme.customTags||[]).filter(c=>c!==t);newTags=newTags.filter(x=>x!==t);saveLocal();render();};wrapper.append(chip,dx);genGrid.appendChild(wrapper);}else{genGrid.appendChild(chip);}});const addGenChip=h("button","genre-add-chip","+ tag");addGenChip.onclick=()=>{const nm=prompt("Nombre del nuevo tag:");if(!nm||!nm.trim())return;const nt=nm.trim();if(allTagsList.includes(nt)){showToast("Ya existe ese tag");return;}if(!theme.customTags)theme.customTags=[];theme.customTags.push(nt);newTags.push(nt);saveLocal();render();};genGrid.appendChild(addGenChip);genSec.appendChild(genGrid);addBody.appendChild(genSec);if(newCover){const prevW=h("div","add-cover-preview");prevW.append(Object.assign(h("img","cvmn"),{src:newCover}),h("button","bcx","✕ quitar",{onclick:()=>{newCover="";render();}}));addBody.appendChild(prevW);}root.appendChild(addS);
+const fi=h("input","hidden",null,{type:"file",accept:"image/*",id:"acf"});
+fi.onchange=e=>{const f=e.target.files?.[0];if(!f)return;resizeImg(f,b=>{newCover=b;render();});e.target.value="";};
+const coverBtn=h("button","mng38-coverbtn"+(_isAnime38?" anime":""),"📷 Portada");
+coverBtn.onclick=()=>document.getElementById("acf").click();
+const ab=h("button","mng38-addbtn "+_acc38,"➕");
+ab.title="Agregar";ab.onclick=doAdd;
+row2.append(fi,coverBtn,ab);
+addBody.appendChild(row2);
+
+// Status pills
+const stSec=document.createElement("div");
+const _slbl38=h("div","mng38-slbl","Estado");
+const spRow=h("div","mng38-spills");
+STATUSES.forEach(st=>{
+  const lbl=(st.key==="reading"&&tab==="anime")?"👁️ Viendo":getStatusLabel(st.key);
+  const pill=h("button","mng38-sp"+(newStatus===st.key?" on "+_acc38:""),st.icon+" "+lbl);
+  pill.onclick=()=>{
+    newStatus=st.key;
+    spRow.querySelectorAll(".mng38-sp").forEach(p=>{p.className="mng38-sp";});
+    pill.className="mng38-sp on "+_acc38;
+  };
+  spRow.appendChild(pill);
+});
+stSec.append(_slbl38,spRow);
+addBody.appendChild(stSec);
+
+// Géneros
+const genSec=document.createElement("div");
+const _glbl38=h("div","mng38-slbl","Géneros");
+const genGrid=h("div","mng38-gchips");
+const allTagsList=[...ALL_TAGS,...(theme.customTags||[])];
+allTagsList.forEach(t=>{
+  const isCustom=!ALL_TAGS.includes(t);
+  const wrapper=isCustom?h("div","tag-custom"):null;
+  const chip=h("button","mng38-gc"+(newTags.includes(t)?" on "+_acc38:""),t);
+  chip.onclick=()=>{
+    if(newTags.includes(t)){
+      newTags=newTags.filter(x=>x!==t);
+      chip.className="mng38-gc";
+    }else{
+      newTags.push(t);
+      chip.className="mng38-gc on "+_acc38;
+    }
+  };
+  if(isCustom&&wrapper){
+    const dx=h("button","tag-del-x","✕");
+    dx.onclick=e=>{
+      e.stopPropagation();
+      theme.customTags=(theme.customTags||[]).filter(c=>c!==t);
+      newTags=newTags.filter(x=>x!==t);
+      saveLocal();render();
+    };
+    wrapper.append(chip,dx);
+    genGrid.appendChild(wrapper);
+  }else{
+    genGrid.appendChild(chip);
+  }
+});
+const addGenChip=h("button","mng38-gc add","+ tag");
+addGenChip.onclick=()=>{
+  const nm=prompt("Nombre del nuevo tag:");
+  if(!nm||!nm.trim())return;
+  const nt=nm.trim();
+  if(allTagsList.includes(nt)){showToast("Ya existe ese tag");return;}
+  if(!theme.customTags)theme.customTags=[];
+  theme.customTags.push(nt);
+  newTags.push(nt);
+  saveLocal();render();
+};
+genGrid.appendChild(addGenChip);
+genSec.append(_glbl38,genGrid);
+addBody.appendChild(genSec);
+
+// Preview portada manual
+if(newCover&&!newCoverIsUrl){
+  const prevW=h("div","mng38-covpreview");
+  prevW.append(
+    Object.assign(h("img","cvmn"),{src:newCover}),
+    h("button","bcx","✕ quitar",{onclick:()=>{newCover="";render();}})
+  );
+  addBody.appendChild(prevW);
+}
+
+// Footer
+const _foot38=h("div","mng38-foot");
+_foot38.innerHTML=`<span class="mng38-foot-txt">Elige desde MAL para importar portada, ${_isAnime38?"eps":"caps"} y géneros al instante</span><span class="mng38-foot-badge ${_acc38}">${_isAnime38?"AniList · MAL":"MAL · AniList"}</span>`;
+addS.appendChild(_foot38);
+
+root.appendChild(addS);
 const filtered=sortList(filterList(list));if(filtered.length===0){const emptyWrap=h("div","");emptyWrap.appendChild(h("div","empty",`<div class="icn">${icon}</div><p>${list.length===0?`Agrega tu primer ${tab==="manga"?"manga":"anime"}`:"Sin resultados"}</p>`));if(list.length===0){p28RenderOnboardingExamples(emptyWrap,tab);}root.appendChild(emptyWrap);return;}
 // Catalog view
 if(viewMode==="catalog"){const cat=h("div","catalog");filtered.forEach(s=>{const pct=s.total>0?Math.min(100,(s.completed.length/s.total)*100):0;const cc=h("div","catc");cc.onclick=()=>{pinnedId=s.id;viewMode="list";expanded[s.id]=true;render();};const st=SM[s.status];const statusIcon=st?(s.status==="reading"&&tab==="anime"?"👁️":st.icon):"";cc.innerHTML=`<div style="position:relative">${s.cover?`<img class="catcv" src="${s.cover}">`:`<div class="catph">${icon}</div>`}${s.favorite?`<div class="cat-fav">★</div>`:""}${s.score?`<div class="cat-score">${s.score}</div>`:""}${pct>0?`<div class="cat-pct">${Math.round(pct)}%</div>`:""}${statusIcon?`<div class="cat-status-ov">${statusIcon}</div>`:""}</div><div class="cati"><div class="catt">${s.title}</div><div class="catp">${s.completed.length}/${s.total}</div><div class="catb"><div class="catf" style="width:${pct}%;background:${ac}"></div></div></div>`;cat.appendChild(cc);});root.appendChild(cat);return;}
