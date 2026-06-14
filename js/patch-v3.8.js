@@ -1,10 +1,14 @@
 // ═══════════════════════════════════════════════════════════════════
-// MANGU — Parche v3.8
-// Features:
-//   1. Predictor de finalización (tarjetas + dashboard)
-//   2. Recomendaciones cruzadas con amigos (tab Descubrir)
-//   3. Desafíos entre amigos (panel Comunidad)
-//   4. Perfil público con URL (?user=username)
+// MANGU — Parche v3.8 (CORREGIDO)
+// Fixes vs versión anterior:
+//   - Dashboard: selector .dash-wrap → .dash (clase real en ui.js)
+//   - scard expandida: selector .cp → .cpnl (clase real en ui.js)
+//   - Chip desafío activo: .daily-goal-bar → .mgsr-bot (contenedor racha+meta)
+//   - Discover tab: selector .reco-wrap → discRoot es div sin clase, 
+//       se inyecta via hook sobre p28RenderRecoSection
+//   - Panel amigos: .com-panel → #friends-panel-container (id real)
+//   - window._p38PublicMode: bandera anti race-condition para perfil público
+//   - Hook duplicado en renderFriendsPanel: eliminado _origRFP sin usar
 // ═══════════════════════════════════════════════════════════════════
 
 (function(){
@@ -66,7 +70,7 @@ if(!document.getElementById('mng-p38-style')){
 .p38-ch-create{background:#080c14;border:1px solid #141e30;border-radius:10px;padding:12px 14px;margin-bottom:10px}
 .p38-ch-create-hdr{font-size:12px;font-weight:600;color:#c8dae8;margin-bottom:10px;display:flex;align-items:center;gap:6px}
 .p38-ch-form{display:flex;flex-direction:column;gap:8px}
-.p38-ch-inp{background:#0d1520;border:1.5px solid #141e30;border-radius:8px;padding:8px 12px;font-size:13px;color:#e8f0f8;outline:none;transition:border-color .17s;font-family:inherit;width:100%}
+.p38-ch-inp{background:#0d1520;border:1.5px solid #141e30;border-radius:8px;padding:8px 12px;font-size:13px;color:#e8f0f8;outline:none;transition:border-color .17s;font-family:inherit;width:100%;box-sizing:border-box}
 .p38-ch-inp::placeholder{color:rgba(232,240,248,.3)}
 .p38-ch-inp:focus{border-color:#00e5a0}
 .p38-ch-row{display:flex;gap:8px}
@@ -115,13 +119,11 @@ if(!document.getElementById('mng-p38-style')){
 // 1. PREDICTOR DE FINALIZACIÓN
 // ═══════════════════════════════════════════
 
-// Calcula días/fecha estimada de finalización para una serie
 function p38PredictFinish(series){
   if(!series||series.status==='completed')return null;
   const remaining=(series.total||0)-series.completed.length;
   if(remaining<=0)return null;
 
-  // Calcular ritmo usando activityLog de los últimos 30 días
   const log=series.activityLog||[];
   const cutoff=Date.now()-30*24*3600*1000;
   const recentDays=new Set();
@@ -130,17 +132,14 @@ function p38PredictFinish(series){
     if((e.ts||0)>=cutoff){recentCaps+=(e.delta||1);recentDays.add((e.date||''));}
   });
 
-  // Fallback: usar lastUpdated para estimar ritmo si no hay activityLog
   if(recentCaps===0){
     const daysSinceUpdate=series.lastUpdated?(Date.now()-series.lastUpdated)/(24*3600*1000):999;
     if(daysSinceUpdate>14)return{type:'inactive'};
-    // Asumir 1 cap/día si actualizó recientemente
     recentCaps=Math.max(1,series.completed.length>0?1:0);
     recentDays.add('est');
   }
 
-  const activeDays=Math.max(recentDays.size,1);
-  const capsPerDay=recentCaps/30; // caps por día calendario
+  const capsPerDay=recentCaps/30;
   if(capsPerDay<0.01)return{type:'inactive'};
 
   const daysLeft=Math.ceil(remaining/capsPerDay);
@@ -153,7 +152,6 @@ function p38PredictFinish(series){
   return{type:'ok',days:daysLeft,date:dateStr,capsPerDay:capsPerDay.toFixed(1)};
 }
 
-// Renderizar chip predictor para tarjeta expandida
 function p38RenderPredChip(series,isAnime){
   const pred=p38PredictFinish(series);
   const cls=isAnime?'p38-pred anime':'p38-pred';
@@ -162,36 +160,45 @@ function p38RenderPredChip(series,isAnime){
   return`<div class="${cls}"><span class="p38-pred-ico">⏱</span><span class="p38-pred-txt">A tu ritmo (~${pred.capsPerDay} ${isAnime?'eps':'caps'}/día) terminas en <b>${pred.days} días</b></span><span class="p38-pred-date">est. ${pred.date}</span></div>`;
 }
 
-// Inyectar predictor en tarjetas expandidas — parchea el render existente
+// ── Inyectar predictor en tarjetas expandidas
+// FIX: panel expandido usa clase "cpnl", NO ".cp"
+function p38InjectPredictors(){
+  document.querySelectorAll('.scard').forEach(function(card){
+    const sid=card.getAttribute('data-id');
+    if(!sid)return;
+    // FIX: clase correcta del panel expandido es "cpnl"
+    const cpnl=card.querySelector('.cpnl');
+    if(!cpnl)return; // tarjeta no está expandida
+    if(cpnl.querySelector('.p38-pred'))return; // ya inyectado
+
+    const allSeries=[...(data.manga||[]),...(data.anime||[])];
+    const series=allSeries.find(function(s){return s.id===sid;});
+    if(!series)return;
+    if(series.status==='completed'||series.status==='plan')return;
+
+    // Detectar si es anime buscando la serie en data.anime
+    const isAnime=(data.anime||[]).some(function(s){return s.id===sid;});
+    const chipHtml=p38RenderPredChip(series,isAnime);
+    if(!chipHtml)return;
+
+    const tmp=document.createElement('div');
+    tmp.innerHTML=chipHtml;
+    // Insertar como primer hijo del cpnl (antes de las secciones dsec)
+    const firstDsec=cpnl.querySelector('.dsec');
+    if(firstDsec)cpnl.insertBefore(tmp.firstChild,firstDsec);
+    else cpnl.appendChild(tmp.firstChild);
+  });
+}
+
+// Hook de render — inyectar predictores con delay
 const _origRender=window.render;
 window.render=function(){
   _origRender.apply(this,arguments);
-  // Buscar tarjetas expandidas y agregar predictor si no existe
-  setTimeout(function(){
-    document.querySelectorAll('.scard').forEach(function(card){
-      const sid=card.getAttribute('data-id');
-      if(!sid)return;
-      const isAnime=card.closest('#app')&&(typeof tab!=='undefined'&&tab==='anime');
-      const series=[...(data.manga||[]),...(data.anime||[])].find(function(s){return s.id===sid;});
-      if(!series)return;
-      if(series.status==='completed'||series.status==='plan')return;
-      // Solo en tarjetas expandidas (tienen .cp o .dsec)
-      const cp=card.querySelector('.cp');
-      if(!cp)return;
-      if(cp.querySelector('.p38-pred'))return;
-      const chipHtml=p38RenderPredChip(series,series._isAnime||(tab==='anime'));
-      if(!chipHtml)return;
-      const tmp=document.createElement('div');
-      tmp.innerHTML=chipHtml;
-      // Insertar antes de los capítulos (después de stat-row si existe, o al inicio de cp)
-      const statRow=cp.querySelector('.stat-row')||cp.querySelector('.strow')||cp.firstChild;
-      if(statRow){cp.insertBefore(tmp.firstChild,statRow.nextSibling||null);}
-      else{cp.appendChild(tmp.firstChild);}
-    });
-  },50);
+  setTimeout(p38InjectPredictors,80);
 };
 
-// Sección de finalizaciones estimadas en el Dashboard
+// ── Dashboard predictor
+// FIX: clase correcta del dashboard es "dash", NO ".dash-wrap"
 function p38RenderDashPredictor(root){
   const allSeries=[...data.manga.map(function(s){return{...s,_t:'M'};}),
                    ...data.anime.map(function(s){return{...s,_t:'A'};})];
@@ -211,6 +218,7 @@ function p38RenderDashPredictor(root){
 
   const sec=document.createElement('div');
   sec.className='p38-dash-section';
+  sec.id='p38-dash-pred';
   sec.innerHTML='<div class="p38-dash-title">⏱ Finalizaciones estimadas</div>';
 
   predictions.forEach(function(x){
@@ -229,27 +237,24 @@ function p38RenderDashPredictor(root){
     sec.appendChild(row);
   });
 
-  // Insertar al inicio del dashboard, después del primer hijo
+  // Insertar al inicio del .dash, antes del primer hijo
   const firstChild=root.firstChild;
-  if(firstChild)root.insertBefore(sec,firstChild.nextSibling||null);
+  if(firstChild)root.insertBefore(sec,firstChild);
   else root.appendChild(sec);
 }
 
-// Hook al dashboard
-const _origDash=window.p28RenderDashboard||null;
-// Esperar a que el DOM del dashboard esté listo
-document.addEventListener('p38-dashboard-ready',function(e){
-  if(e.detail&&e.detail.root)p38RenderDashPredictor(e.detail.root);
-});
-
-// Parche alternativo: observar cuando aparece el dashboard
+// FIX: Observar cambios en #app y detectar .dash (no .dash-wrap)
 const _dashObserver=new MutationObserver(function(){
-  const dashWrap=document.querySelector('.dash-wrap,.dashboard-wrap,[class*="dash"]');
-  if(dashWrap&&!dashWrap.querySelector('.p38-dash-section')&&typeof tab!=='undefined'&&tab==='dashboard'){
-    p38RenderDashPredictor(dashWrap);
-  }
+  // Solo actuar cuando estamos en tab dashboard
+  if(typeof tab==='undefined'||tab!=='dashboard')return;
+  // FIX: clase real es "dash"
+  const dashWrap=document.querySelector('.dash');
+  if(!dashWrap)return;
+  if(dashWrap.querySelector('#p38-dash-pred'))return; // ya inyectado
+  p38RenderDashPredictor(dashWrap);
 });
-_dashObserver.observe(document.getElementById('app')||document.body,{childList:true,subtree:false});
+const _appEl=document.getElementById('app')||document.body;
+_dashObserver.observe(_appEl,{childList:true,subtree:false});
 
 
 // ═══════════════════════════════════════════
@@ -266,19 +271,16 @@ async function p38LoadCrossReco(){
   _p38CrossLoading=true;
 
   try{
-    // Cargar amigos aceptados
     const fSnap=await withTimeout(fbDb.collection('users').doc(fbUser.uid).collection('friends_accepted').get());
     const friends=fSnap.docs.map(function(d){return{id:d.id,...d.data()};});
     if(!friends.length){_p38CrossLoading=false;return[];}
 
-    // Mi lista de títulos (normalizada)
     const myTitles=new Set([
       ...data.manga.map(function(s){return s.title.toLowerCase().trim();}),
       ...data.anime.map(function(s){return s.title.toLowerCase().trim();})
     ]);
 
-    // Acumular series de amigos que yo no tengo
-    const crossMap=new Map(); // title → {series, friends:[username], count, type}
+    const crossMap=new Map();
 
     for(const f of friends){
       try{
@@ -293,8 +295,8 @@ async function p38LoadCrossReco(){
         allFriend.forEach(function(s){
           if(!s.title)return;
           const key=s.title.toLowerCase().trim();
-          if(myTitles.has(key))return; // ya la tengo
-          if(s.status==='dropped')return; // no recomendar dropped
+          if(myTitles.has(key))return;
+          if(s.status==='dropped')return;
           if(!crossMap.has(key)){
             crossMap.set(key,{series:s,friends:[],count:0,type:s._t});
           }
@@ -307,7 +309,6 @@ async function p38LoadCrossReco(){
       }catch(e){}
     }
 
-    // Ordenar por popularidad entre amigos, luego por status (reading > completed)
     const result=[...crossMap.values()]
       .sort(function(a,b){
         if(b.count!==a.count)return b.count-a.count;
@@ -327,9 +328,7 @@ async function p38LoadCrossReco(){
 
 async function p38RenderCrossReco(container){
   if(!container)return;
-
-  // Limpiar cache cuando cambia la lista de amigos
-  _p38CrossCache=null;
+  if(container.querySelector('#p38-cross-sec'))return; // ya existe
 
   const sec=document.createElement('div');
   sec.className='p38-cross-section';
@@ -341,7 +340,10 @@ async function p38RenderCrossReco(container){
   sec.appendChild(titleDiv);
 
   if(!fbUser){
-    sec.innerHTML+='<div class="p38-cross-nologin">Inicia sesión para ver qué leen tus amigos</div>';
+    const nl=document.createElement('div');
+    nl.className='p38-cross-nologin';
+    nl.textContent='Inicia sesión para ver qué leen tus amigos';
+    sec.appendChild(nl);
     container.appendChild(sec);
     return;
   }
@@ -384,19 +386,16 @@ async function p38RenderCrossReco(container){
     grid.appendChild(card);
   });
 
-  // Handler para agregar desde recomendación cruzada
   grid.addEventListener('click',function(e){
     const btn=e.target.closest('.p38-cross-add');
     if(!btn)return;
     const title=btn.getAttribute('data-title');
     const type=btn.getAttribute('data-type');
     if(!title)return;
-    // Cambiar a la tab correcta y pre-rellenar el título
     tab=type;
     newTitle=title;
     render();
     showToast('Busca "'+title+'" en MAL para importar automáticamente');
-    // Scroll al panel agregar
     setTimeout(function(){
       const addEl=document.querySelector('.mng-add-shell');
       if(addEl)addEl.scrollIntoView({behavior:'smooth',block:'start'});
@@ -408,26 +407,17 @@ async function p38RenderCrossReco(container){
   sec.appendChild(grid);
 }
 
-// Hook en el tab Descubrir: agregar sección cross reco después del contenido existente
-const _origRenderDiscover=window.p28RenderRecoSection||null;
-// MutationObserver para detectar cuando aparece el tab Descubrir
-const _discoverObserver=new MutationObserver(function(mutations){
-  if(typeof tab==='undefined'||tab!=='discover')return;
-  const app=document.getElementById('app');
-  if(!app)return;
-  if(app.querySelector('#p38-cross-sec'))return; // ya existe
-  // Buscar el contenedor del tab discover
-  const discoverWrap=app.querySelector('.reco-wrap,.discover-wrap,[id*="reco"]');
-  if(discoverWrap){
-    p38RenderCrossReco(discoverWrap);
-  } else {
-    // Fallback: agregar al final del app si estamos en discover
-    if(tab==='discover'&&!app.querySelector('#p38-cross-sec')){
-      p38RenderCrossReco(app);
-    }
+// FIX: Hook sobre p28RenderRecoSection para inyectar cross-reco en el tab Descubrir.
+// discRoot es el div pasado como argumento a p28RenderRecoSection — sin clase propia.
+// No usamos MutationObserver buscando .reco-wrap porque ese selector no existe.
+const _origP28Reco=window.p28RenderRecoSection;
+window.p28RenderRecoSection=async function(root){
+  if(_origP28Reco)await _origP28Reco.apply(this,arguments);
+  // root es el discRoot creado en ui.js — inyectar cross-reco al final
+  if(root&&!root.querySelector('#p38-cross-sec')){
+    p38RenderCrossReco(root);
   }
-});
-_discoverObserver.observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
+};
 
 
 // ═══════════════════════════════════════════
@@ -450,7 +440,6 @@ async function p38LoadChallenges(){
     _p38Challenges=snap.docs.map(function(d){return{id:d.id,...d.data()};});
     return _p38Challenges;
   }catch(e){
-    // Si falla por índice/permisos, retornar vacío
     console.warn('p38 challenges:',e.code||e.message);
     return[];
   }
@@ -461,7 +450,6 @@ async function p38CreateChallenge(seriesTitle,type,targetCaps,deadline,friendUid
   if(!seriesTitle.trim())return{ok:false,msg:'Ingresa el título de la serie'};
   if(!friendUids.length)return{ok:false,msg:'Selecciona al menos un amigo'};
 
-  // Obtener caps actuales de cada participante como baseline
   const myList=type==='anime'?data.anime:data.manga;
   const mySeries=myList.find(function(s){return s.title.toLowerCase().includes(seriesTitle.toLowerCase());});
   const myBaseline=mySeries?mySeries.completed.length:0;
@@ -469,7 +457,6 @@ async function p38CreateChallenge(seriesTitle,type,targetCaps,deadline,friendUid
   const participants=[fbUser.uid,...friendUids];
   const baselines={};
   baselines[fbUser.uid]=myBaseline;
-  // Baselines de amigos se calcularán cuando acepten (0 por defecto)
   friendUids.forEach(function(uid){baselines[uid]=0;});
 
   try{
@@ -484,7 +471,7 @@ async function p38CreateChallenge(seriesTitle,type,targetCaps,deadline,friendUid
       baselines:baselines,
       status:'active'
     });
-    _p38Challenges=null; // invalidar cache
+    _p38Challenges=null;
     showToast('⚔ Desafío creado');
     return{ok:true};
   }catch(e){
@@ -494,6 +481,7 @@ async function p38CreateChallenge(seriesTitle,type,targetCaps,deadline,friendUid
 
 function p38RenderChallengeSection(container,friends,friendProfiles){
   if(!container)return;
+  if(container.querySelector('.p38-ch-section'))return; // ya inyectado
 
   const sec=document.createElement('div');
   sec.className='p38-ch-section';
@@ -504,18 +492,23 @@ function p38RenderChallengeSection(container,friends,friendProfiles){
   sec.appendChild(titleDiv);
 
   if(!fbUser){
-    sec.innerHTML+='<div class="p38-ch-nologin">Inicia sesión para crear desafíos</div>';
+    const nl=document.createElement('div');
+    nl.className='p38-ch-nologin';
+    nl.textContent='Inicia sesión para crear desafíos';
+    sec.appendChild(nl);
     container.appendChild(sec);
     return;
   }
 
   if(!friends||!friends.length){
-    sec.innerHTML+='<div class="p38-ch-empty">Agrega amigos para crear desafíos con ellos</div>';
+    const empty=document.createElement('div');
+    empty.className='p38-ch-empty';
+    empty.textContent='Agrega amigos para crear desafíos con ellos';
+    sec.appendChild(empty);
     container.appendChild(sec);
     return;
   }
 
-  // Botón crear nuevo desafío
   const createBtn=document.createElement('button');
   createBtn.className='p38-ch-btn sec';
   createBtn.textContent='+ Nuevo desafío';
@@ -541,8 +534,7 @@ function p38RenderChallengeSection(container,friends,friendProfiles){
         <div style="font-size:10px;color:#1e3045;margin:-4px 0 4px">Amigos a invitar:</div>
         <div id="p38-ch-friends-list" style="display:flex;flex-direction:column;gap:6px">
           ${friends.map(function(f){
-            const fp=friendProfiles&&friendProfiles.get?friendProfiles.get(f.uid):null;
-            const un=f.username||f.id;
+            const un=f.username||f.uid||f.id||'?';
             return`<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#a8c0d0;cursor:pointer">
               <input type="checkbox" data-uid="${f.uid||f.id}" style="width:14px;height:14px;accent-color:#00e5a0">
               @${un}
@@ -580,8 +572,7 @@ function p38RenderChallengeSection(container,friends,friendProfiles){
       _p38ChFormOpen=false;
       formWrap.style.display='none';
       createBtn.textContent='+ Nuevo desafío';
-      // Recargar desafíos
-      await p38LoadChallenges();
+      _p38Challenges=null;
       p38RenderActiveChallenges(sec,friends);
     }else{
       showToast('⚠ '+result.msg);
@@ -591,13 +582,11 @@ function p38RenderChallengeSection(container,friends,friendProfiles){
   sec.appendChild(createBtn);
   sec.appendChild(formWrap);
 
-  // Render desafíos activos
   p38RenderActiveChallenges(sec,friends);
   container.appendChild(sec);
 }
 
 function p38RenderActiveChallenges(sec,friends){
-  // Limpiar cards anteriores
   sec.querySelectorAll('.p38-ch-card').forEach(function(el){el.remove();});
   const existing=sec.querySelector('.p38-ch-empty-active');
   if(existing)existing.remove();
@@ -621,24 +610,18 @@ function p38RenderActiveChallenges(sec,friends){
       const badgeClass=isExpired?'expired':ch.status==='active'?'':'done';
       const badgeTxt=isExpired?'Expirado':ch.status==='active'?'Activo':'Completado';
 
-      // Calcular progreso de cada participante usando su public_profile
-      // (lo que tenemos disponible en cache de friendProfiles o data local)
       const myList=(ch.type==='anime'?data.anime:data.manga);
       const mySeries=myList.find(function(s){return s.title.toLowerCase().includes((ch.seriesTitle||'').toLowerCase());});
       const myProgress=mySeries?(mySeries.completed.length-(ch.baselines&&ch.baselines[fbUser.uid]?ch.baselines[fbUser.uid]:0)):0;
       const myUsername=friendsState.cachedUsername||'Tú';
-
       const target=ch.targetCaps>0?ch.targetCaps:(mySeries?mySeries.total:100);
 
-      // Construir leaderboard con datos disponibles
       const lbData=[{uid:fbUser.uid,username:myUsername,progress:Math.max(0,myProgress)}];
 
-      // Amigos en el desafío
       ch.participants.forEach(function(uid){
         if(uid===fbUser.uid)return;
         const f=friends&&friends.find(function(x){return (x.uid||x.id)===uid;});
-        const un=f?(f.username||f.id):'@?';
-        // Progreso de amigo: no disponible en tiempo real aquí, mostrar N/A
+        const un=f?(f.username||f.uid||f.id):'?';
         lbData.push({uid:uid,username:un,progress:null});
       });
 
@@ -673,7 +656,7 @@ function p38RenderActiveChallenges(sec,friends){
   });
 }
 
-// Chip de desafío activo en la pantalla principal
+// FIX: Chip desafío activo — insertar DESPUÉS de .mgsr-bot (racha+meta), no en .daily-goal-bar
 function p38RenderActiveChip(){
   if(!fbUser)return;
   const existingChip=document.getElementById('p38-active-ch-chip');
@@ -687,9 +670,9 @@ function p38RenderActiveChip(){
     const mySeries=myList.find(function(s){return s.title.toLowerCase().includes((ch.seriesTitle||'').toLowerCase());});
     const myProgress=mySeries?(mySeries.completed.length-(ch.baselines&&ch.baselines[fbUser.uid]||0)):0;
 
-    // Insertar entre META y Continuar leyendo
-    const metaBar=document.querySelector('.daily-goal-bar,.meta-bar,[class*="goal"]');
-    if(!metaBar)return;
+    // FIX: el contenedor real es .mgsr-bot (racha + meta diaria)
+    const srBot=document.querySelector('.mgsr-bot');
+    if(!srBot)return;
     const chip=document.createElement('div');
     chip.className='p38-active-ch';
     chip.id='p38-active-ch-chip';
@@ -699,60 +682,79 @@ function p38RenderActiveChip(){
       <span class="p38-active-ch-arr">›</span>
     `;
     chip.onclick=function(){
-      // Abrir panel de amigos en la sección de desafíos
+      // Abrir panel de comunidad
       const comBtn=document.querySelector('.com-btn');
       if(comBtn)comBtn.click();
     };
-    metaBar.parentNode.insertBefore(chip,metaBar.nextSibling||null);
+    // Insertar DESPUÉS del .mgsr-bot
+    srBot.parentNode.insertBefore(chip,srBot.nextSibling||null);
   });
 }
 
-// Hook en renderFriendsPanel para inyectar sección de desafíos
+// FIX: Hook en renderFriendsPanel.
+// El panel de amigos se renderiza en #friends-panel-container (no ".com-panel").
+// Leer amigos de friendsState._lastFriendsList inyectado por community.js.
 const _origRenderFriends=window.renderFriendsPanel;
 window.renderFriendsPanel=async function(){
-  await _origRenderFriends.apply(this,arguments);
-  setTimeout(function(){
-    const comPanel=document.querySelector('.com-panel');
-    if(!comPanel)return;
-    if(comPanel.querySelector('.p38-ch-section'))return;
+  if(_origRenderFriends)await _origRenderFriends.apply(this,arguments);
 
-    // Obtener amigos del panel ya renderizado
-    const friendCards=comPanel.querySelectorAll('[data-uid]');
-    const friends=[];
-    friendCards.forEach(function(fc){
-      const uid=fc.getAttribute('data-uid');
-      if(uid)friends.push({uid:uid,username:fc.getAttribute('data-username')||uid});
-    });
+  setTimeout(async function(){
+    // FIX: id real del contenedor del panel de amigos
+    const fpContainer=document.getElementById('friends-panel-container');
+    if(!fpContainer)return;
 
-    // Fallback: leer de friendsState si existe
-    const friendsList=friendsState._lastFriendsList||friends;
-    p38RenderChallengeSection(comPanel,friendsList,null);
-    p38RenderCrossReco(comPanel);
-  },200);
+    // No duplicar secciones
+    if(fpContainer.querySelector('.p38-ch-section')&&fpContainer.querySelector('#p38-cross-sec'))return;
+
+    // Obtener lista de amigos desde friendsState._lastFriendsList (si community.js lo expone)
+    // o leerlos directamente desde Firestore como fallback
+    let friendsList=[];
+    if(friendsState&&friendsState._lastFriendsList&&friendsState._lastFriendsList.length){
+      friendsList=friendsState._lastFriendsList;
+    } else if(fbUser&&fbDb){
+      try{
+        const fSnap=await withTimeout(fbDb.collection('users').doc(fbUser.uid).collection('friends_accepted').get());
+        friendsList=fSnap.docs.map(function(d){
+          const dd=d.data();
+          return{uid:d.id,username:dd.username||d.id,...dd};
+        });
+        // Guardar para uso posterior
+        if(friendsState)friendsState._lastFriendsList=friendsList;
+      }catch(e){}
+    }
+
+    if(!fpContainer.querySelector('.p38-ch-section')){
+      p38RenderChallengeSection(fpContainer,friendsList,null);
+    }
+    if(!fpContainer.querySelector('#p38-cross-sec')){
+      p38RenderCrossReco(fpContainer);
+    }
+  },250);
 };
-
-// Guardar lista de amigos en friendsState para usarla en el parche
-const _origRFP=window.renderFriendsPanel;
 
 
 // ═══════════════════════════════════════════
 // 4. PERFIL PÚBLICO CON URL (?user=username)
 // ═══════════════════════════════════════════
 
+// Bandera global anti race-condition: si estamos mostrando un perfil público,
+// render() en ui.js/firebase.js no debe sobreescribir la página.
+window._p38PublicMode=false;
+
 async function p38HandlePublicProfile(){
   const params=new URLSearchParams(window.location.search);
   const userParam=params.get('user');
   if(!userParam)return false;
 
+  window._p38PublicMode=true;
+
   const app=document.getElementById('app');
   if(!app)return false;
 
-  // Mostrar loading inmediatamente
   app.innerHTML=`<div class="p38-pub-shell"><div class="p38-pub-loading">Cargando perfil @${userParam}...</div></div>`;
 
   try{
     if(!fbDb){
-      // Esperar a que Firebase esté listo (máx 5s)
       await new Promise(function(resolve){
         let attempts=0;
         const check=setInterval(function(){
@@ -767,7 +769,6 @@ async function p38HandlePublicProfile(){
       return true;
     }
 
-    // Resolver username → uid
     const unDoc=await fbDb.collection('usernames').doc(userParam.toLowerCase()).get();
     if(!unDoc.exists){
       app.innerHTML=`<div class="p38-pub-shell"><div class="p38-pub-error">Usuario @${userParam} no encontrado. <a href="?" style="color:#00e5a0">Volver a MANGU</a></div></div>`;
@@ -815,7 +816,7 @@ function p38RenderPublicProfilePage(app,pd,username){
         </div>
         <div style="padding:36px 16px 16px">
           <div style="font-size:18px;font-weight:700;color:#e2e8f0">@${username}</div>
-          <div style="font-size:11px;color:#2d4460;margin-top:2px">mangu.app/@${username}</div>
+          <div style="font-size:11px;color:#2d4460;margin-top:2px">mangu · @${username}</div>
           <div style="display:flex;gap:16px;margin-top:12px">
             <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#00e5a0">${mangaCount}</div><div style="font-size:10px;color:#2d4460">manga</div></div>
             <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#c084fc">${animeCount}</div><div style="font-size:10px;color:#2d4460">anime</div></div>
@@ -859,42 +860,45 @@ function p38RenderPublicProfilePage(app,pd,username){
   `;
 }
 
+
 // ═══════════════════════════════════════════
 // INICIALIZACIÓN
 // ═══════════════════════════════════════════
 
-// Verificar URL params al cargar — si hay ?user= tomar control de la app
 (async function(){
   const params=new URLSearchParams(window.location.search);
   if(params.get('user')){
-    // Esperar a que el DOM esté listo y Firebase inicializado
-    const waitForFirebase=function(){
-      return new Promise(function(resolve){
-        let attempts=0;
-        const check=setInterval(function(){
-          attempts++;
-          if((fbDb||attempts>80)){clearInterval(check);resolve();}
-        },100);
-      });
-    };
-    await waitForFirebase();
+    await new Promise(function(resolve){
+      if(document.readyState==='loading'){
+        document.addEventListener('DOMContentLoaded',resolve,{once:true});
+      }else{resolve();}
+    });
+
     const handled=await p38HandlePublicProfile();
     if(handled){
-      // Interceptar render() para que no sobreescriba la página de perfil público
-      window.render=function(){};
+      // FIX: interceptar render() DESPUÉS de que p38HandlePublicProfile tomó control
+      // Esto cubre el race condition donde Firebase ya tenía sesión activa y
+      // onAuthStateChanged disparó render() antes de que el parche cargara.
+      const _safeRender=function(){
+        if(window._p38PublicMode)return; // no sobreescribir perfil público
+        if(typeof _origRender==='function')_origRender.apply(this,arguments);
+      };
+      window.render=_safeRender;
+      // Restaurar el wrapper de render que ya pusimos arriba para que también tenga la guardia
       return;
     }
   }
 
-  // Hook de render para el chip de desafío activo
+  // Hook de render para chip de desafío activo (solo si NO estamos en modo perfil público)
   const _r=window.render;
   window.render=function(){
+    if(window._p38PublicMode)return;
     _r.apply(this,arguments);
-    setTimeout(p38RenderActiveChip,100);
+    setTimeout(p38RenderActiveChip,150);
   };
 })();
 
-// Limpiar cache de recomendaciones cuando se actualiza la lista de amigos
+// Limpiar cache al hacer sign-in
 const _origSignIn=window.signIn;
 if(_origSignIn){
   window.signIn=async function(){
