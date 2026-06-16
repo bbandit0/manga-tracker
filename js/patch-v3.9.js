@@ -67,6 +67,22 @@ styleEl.textContent = `
   margin: 0 18px 20px;
   font-family: 'Outfit', sans-serif;
 }
+@media(max-width:768px){
+  #p39-inline {
+    max-height: 340px;
+    display: flex;
+    flex-direction: column;
+  }
+  #p39-inline .p39-fc {
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    flex: 1;
+    min-height: 0;
+  }
+  #p39-inline .p39-fc::-webkit-scrollbar { display: none; }
+  #p39-inline .p39-footer { flex-shrink: 0; }
+}
 @media(max-width:540px){
   #p39-inline { margin:0 0 20px; border-radius:0; border-left:none; border-right:none; }
 }
@@ -347,7 +363,8 @@ function _position(){
   }else{
     // Sin espacio — ocultar fixed, mostrar inline
     _fixedPanel.style.display='none';
-    _inlinePanel.style.display='block';
+    _inlinePanel.style.display='flex';
+    _inlinePanel.style.flexDirection='column';
   }
 }
 
