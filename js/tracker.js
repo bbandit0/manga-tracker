@@ -28,6 +28,19 @@ function initData(){
   saveLocal();
 }
 function loadJ(k){try{const r=localStorage.getItem(k);return r?JSON.parse(r):null;}catch(e){return null;}}
+
+// ── FIX v3.10: tombstones de borrado, para que el merge item-por-item sepa
+// distinguir "esta serie nunca existio en este dispositivo" de "esta serie
+// existio y se borro a proposito" — sin esto, un merge ingenuo resucitaria
+// series borradas cada vez que llega una version vieja desde otro dispositivo/nube.
+function markDeleted(type,id){
+  if(!data.deletedIds)data.deletedIds=[];
+  data.deletedIds.push({id:String(id),type,deletedAt:Date.now()});
+  // Poda tombstones de mas de 90 dias: para entonces todo dispositivo activo
+  // ya deberia haber convergido, no hace falta seguir cargandolos para siempre.
+  const cutoff=Date.now()-90*24*3600*1000;
+  data.deletedIds=data.deletedIds.filter(t=>t.deletedAt>=cutoff);
+}
 function saveLocal(){localStorage.setItem(getSKEY(),JSON.stringify(data));localStorage.setItem(TKEY,JSON.stringify(theme));}
 function save(){saveLocal();if(fbUser)saveToCloud();}
 
@@ -47,15 +60,16 @@ function reloadLocalForCurrentUser(){
   const guestScore = _cloudScoreOf(guestData);
   const skey = getSKEY(); // ahora SI devuelve "mat-v4-"+uid porque fbUser ya esta seteado
   let raw = loadJ(skey);
-  let uidData = {manga:[], anime:[]};
+  let uidData = {manga:[], anime:[], deletedIds:[]};
   if(raw){
     ["manga","anime"].forEach(t=>{ if(!raw[t]) raw[t] = []; raw[t] = raw[t].map(migrate); });
     uidData = raw;
   }
   if(guestScore > 0){
-    const uidScore = _cloudScoreOf(uidData);
-    console.warn("[MANGU] reloadLocalForCurrentUser: guest_score=" + guestScore + " uid_score=" + uidScore + " -> usando " + (guestScore >= uidScore ? "guest (ventana de carrera)" : "uid (cache previa)"));
-    data = guestScore >= uidScore ? guestData : uidData;
+    // FIX v3.10: fusionar item-por-item (mergeMangu, definido en firebase.js)
+    // en vez de quedarse con el array completo de mayor score. Nunca se descarta nada.
+    console.warn("[MANGU] reloadLocalForCurrentUser: fusionando ventana de carrera (guest_score=" + guestScore + ") con cache del uid");
+    data = mergeMangu(guestData, uidData);
   } else {
     data = uidData;
   }

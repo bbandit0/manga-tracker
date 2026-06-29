@@ -90,6 +90,68 @@ function _isValidData(d) {
   return d && typeof d === "object" && Array.isArray(d.manga) && Array.isArray(d.anime);
 }
 
+// ── FIX v3.10 — CAMBIO ESTRUCTURAL: merge item-por-item en vez de reemplazo
+// de array completo basado en score agregado.
+//
+// Motivo: comparar "que array completo tiene mayor score" y reemplazar TODO
+// en base a eso es inherentemente fragil — un solo bug, en cualquier punto
+// de la cadena (boot, onSnapshot, una sesion vieja con cache stale), puede
+// hacer que se pise la coleccion ENTERA de un dispositivo. Esa ha sido la
+// causa raiz comun de los incidentes de perdida de datos.
+//
+// Con merge item-por-item, el peor caso posible deja de ser "perder todo" y
+// pasa a ser, como mucho, "un item no se actualizo a tiempo" — que se
+// autocorrige en el siguiente sync. Cada serie se resuelve independientemente
+// por su propio `lastUpdated` (o `createdAt` como respaldo), no por el score
+// total de la coleccion.
+//
+// Tombstones (`deletedIds`): como el merge nunca borra nada por iniciativa
+// propia, necesitamos una forma explicita de decirle "esta serie SI se borro
+// a proposito, no la repongas". markDeleted() (en tracker.js) registra eso
+// cada vez que el usuario elimina una serie o hace un reset total.
+function mergeMangu(local, cloud){
+  local = (local && typeof local === "object") ? local : {manga:[],anime:[],deletedIds:[]};
+  cloud = (cloud && typeof cloud === "object") ? cloud : {manga:[],anime:[],deletedIds:[]};
+
+  // Combinar tombstones de ambos lados: si un id se borro en cualquier lugar,
+  // se respeta el borrado MAS RECIENTE que se conozca para ese id.
+  var tombById = new Map();
+  [].concat(local.deletedIds||[], cloud.deletedIds||[]).forEach(function(t){
+    if(!t || !t.id) return;
+    var prev = tombById.get(t.id);
+    if(!prev || t.deletedAt > prev.deletedAt) tombById.set(t.id, t);
+  });
+
+  var merged = {manga:[], anime:[], deletedIds: Array.from(tombById.values())};
+
+  ["manga","anime"].forEach(function(type){
+    var byId = new Map();
+    (local[type]||[]).forEach(function(item){ byId.set(String(item.id), item); });
+    (cloud[type]||[]).forEach(function(item){
+      var id = String(item.id);
+      var existing = byId.get(id);
+      if(!existing){ byId.set(id, item); return; }
+      var eUp = existing.lastUpdated || existing.createdAt || 0;
+      var iUp = item.lastUpdated || item.createdAt || 0;
+      // Gana la version mas reciente; en empate exacto, la de mayor progreso.
+      if(iUp > eUp || (iUp === eUp && (item.completed?.length||0) > (existing.completed?.length||0))){
+        byId.set(id, item);
+      }
+    });
+    // Aplicar tombstones: descartar items borrados, A MENOS que se hayan
+    // vuelto a editar DESPUES de su propio borrado (recupera ediciones
+    // legitimas que llegaron tarde desde un dispositivo que no sabia del delete).
+    merged[type] = Array.from(byId.values()).filter(function(item){
+      var t = tombById.get(String(item.id));
+      if(!t) return true;
+      var itemUp = item.lastUpdated || item.createdAt || 0;
+      return itemUp > t.deletedAt;
+    });
+  });
+
+  return merged;
+}
+
 if(FIREBASE_ENABLED){
   try{
     fb = firebase.initializeApp(FIREBASE_CONFIG);
@@ -180,15 +242,19 @@ async function saveToCloud(){
     return;
   }
 
-  // GUARDIA 2: no subir vacio si la nube tiene datos reales
-  // Cubre el race condition de inicializacion donde data={manga:[],anime:[]}
-  // todavia no fue reemplazado por los datos del usuario.
+  // GUARDIA 2: no subir vacio SIN EXPLICACION si la nube tiene datos reales.
+  // FIX v3.10: antes esto bloqueaba TAMBIEN un vaciado intencional (boton
+  // "Reset todos los datos"), porque no habia forma de distinguir "se rompio
+  // algo y data quedo vacio por accidente" de "el usuario borro todo a proposito".
+  // Ahora usamos los tombstones (deletedIds) como esa señal: si hay tombstones
+  // recientes que explican por que esta vacio, se permite subir.
   var totalItems = (data.manga ? data.manga.length : 0) + (data.anime ? data.anime.length : 0);
-  if(totalItems === 0){
+  var hasIntentionalTombstones = Array.isArray(data.deletedIds) && data.deletedIds.length > 0;
+  if(totalItems === 0 && !hasIntentionalTombstones){
     try{
       var check = await fbDb.collection("users").doc(fbUser.uid).get();
       if(check.exists && _isValidData(check.data().data) && _cloudScoreOf(check.data().data) > 0){
-        console.warn("[MANGU] saveToCloud bloqueado: intento de subir vacio cuando nube tiene datos");
+        console.warn("[MANGU] saveToCloud bloqueado: intento de subir vacio sin explicacion cuando nube tiene datos");
         return;
       }
     }catch(e){}
@@ -210,35 +276,88 @@ async function saveToCloud(){
   }
 }
 
+// ── FIX v3.10 — RED DE SEGURIDAD: respaldo automatico versionado.
+// Independiente de que el merge item-por-item ya elimina la causa raiz de
+// fondo, esto da una via de recuperacion real para CUALQUIER escenario futuro
+// que no hayamos previsto — sin tener que hacer arqueologia manual de
+// localStorage como tuvimos que hacer esta vez.
+// Maximo 1 respaldo nuevo por dia real por usuario (no por sesion), y se
+// mantienen como maximo 20 versiones rotando (~20 dias de historial).
+// Corre dentro del tier gratuito de Firestore (no requiere plan Blaze).
+async function _maybeBackup(){
+  if(!fbUser || !fbDb) return;
+  try{
+    var backupsRef = fbDb.collection("users").doc(fbUser.uid).collection("backups");
+    var last = await backupsRef.orderBy("savedAt","desc").limit(1).get();
+    var lastSavedAt = last.empty ? 0 : (last.docs[0].data().savedAt?.toMillis?.() || 0);
+    if(Date.now() - lastSavedAt < 24*60*60*1000) return; // ya hay un respaldo de hoy
+
+    await backupsRef.add({
+      data: JSON.parse(JSON.stringify(data)),
+      savedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    var snap = await backupsRef.orderBy("savedAt","desc").get();
+    var MAX_BACKUPS = 20;
+    if(snap.docs.length > MAX_BACKUPS){
+      var toDelete = snap.docs.slice(MAX_BACKUPS);
+      await Promise.all(toDelete.map(function(d2){ return d2.ref.delete(); }));
+    }
+  }catch(e){ console.warn("[MANGU] backup automatico fallido:", e); }
+}
+
+// ── Herramientas de recuperacion manual, invocables desde la consola:
+//   await listBackups()              -> lista los respaldos disponibles con fecha y score
+//   await restoreBackup("xxxxx")     -> restaura uno especifico (usa el id que muestra listBackups)
+async function listBackups(){
+  if(!fbUser || !fbDb) return [];
+  var snap = await fbDb.collection("users").doc(fbUser.uid).collection("backups").orderBy("savedAt","desc").get();
+  var out = snap.docs.map(function(d){
+    return {id: d.id, savedAt: d.data().savedAt?.toDate?.(), score: _cloudScoreOf(d.data().data)};
+  });
+  console.log("[MANGU] Backups disponibles:", out);
+  return out;
+}
+async function restoreBackup(backupId){
+  if(!fbUser || !fbDb) return;
+  var doc = await fbDb.collection("users").doc(fbUser.uid).collection("backups").doc(backupId).get();
+  if(!doc.exists){ console.warn("[MANGU] Backup no encontrado:", backupId); return; }
+  var restored = doc.data().data;
+  ["manga","anime"].forEach(function(t){ if(restored[t]) restored[t] = restored[t].map(migrate); });
+  data = restored;
+  saveLocal();
+  await saveToCloud();
+  render();
+  console.log("[MANGU] ✓ Restaurado backup", backupId);
+}
+
 async function loadFromCloud(){
   if(!fbUser || !fbDb) return;
   try{
     var doc = await fbDb.collection("users").doc(fbUser.uid).get();
     if(doc.exists && _isValidData(doc.data().data)){
+      // FIX v3.10: merge item-por-item en vez de "el que tenga mayor score gana todo".
       var c = doc.data().data;
-      var cloudScore = _cloudScoreOf(c);
-      var localScore = _cloudScoreOf(data);
-
-      if(cloudScore >= localScore){
-        // La nube tiene igual o mas progreso: usar nube (caso normal al iniciar sesion)
-        ["manga","anime"].forEach(function(t){ if(c[t]) c[t] = c[t].map(migrate); });
-        data = c;
-        saveLocal();
-        render();
-        showToast("Sincronizado");
-        setTimeout(function(){ checkUpToDateNewChapters(); }, 4000);
-      } else {
-        // Local tiene mas progreso que la nube: re-subir local en lugar de pisar
-        // Ocurre cuando se editó offline o la nube tiene una version antigua.
-        console.warn("[MANGU] loadFromCloud: local mas completo (local=" + localScore + " nube=" + cloudScore + "), re-subiendo local...");
-        showToast("Datos locales mas recientes, sincronizando...");
+      ["manga","anime"].forEach(function(t){ if(c[t]) c[t] = c[t].map(migrate); });
+      var merged = mergeMangu(data, c);
+      var localHadExtra = _cloudScoreOf(merged) > _cloudScoreOf(c);
+      data = merged;
+      saveLocal();
+      render();
+      showToast("Sincronizado");
+      if(localHadExtra){
+        // El local tenia algo que la nube no tenia (ej: la ventana de carrera
+        // de boot, o ediciones offline) — re-publicar para que converjan.
         await saveToCloud();
       }
+      setTimeout(function(){ checkUpToDateNewChapters(); }, 4000);
     } else {
       // No hay datos validos en la nube: subir lo que hay localmente
       await saveToCloud();
       showToast("Datos subidos a la nube");
     }
+
+    _maybeBackup(); // fire-and-forget, no bloquea el render
 
     // Activar listener en tiempo real
     if(fbUnsub) fbUnsub();
@@ -249,9 +368,6 @@ async function loadFromCloud(){
 
       // Si este evento fue generado por un write propio de este dispositivo,
       // consumir el contador y salir SIN re-aplicar data desde Firestore.
-      // El estado local ya es correcto (incluye deletes, edits, +1 cap, etc.).
-      // Razon: si re-aplicaramos, migrate() podria borrar activityLog u otros
-      // campos que solo existen localmente.
       if(_localWriteCount > 0){
         _localWriteCount--;
         if(_localWriteCount === 0 && _localWriteTimer){
@@ -261,23 +377,12 @@ async function loadFromCloud(){
         return;
       }
 
-      // Evento externo (otro dispositivo o sesion diferente):
-      // Aplicar guardia de score con umbral del 20% para tolerar diferencias
-      // pequeñas (ej: otro dispositivo que no tenia un cap marcado).
-      // Solo rechazar si la diferencia es SIGNIFICATIVA (vaciado accidental).
-      var incomingScore = _cloudScoreOf(d);
-      var currentScore  = _cloudScoreOf(data);
-      var threshold = currentScore * 0.8;
-
-      if(incomingScore < threshold){
-        console.warn("[MANGU] onSnapshot externo bloqueado: nube (" + incomingScore + ") << local (" + currentScore + "), re-subiendo local...");
-        saveToCloud();
-        return;
-      }
-
-      // Aplicar snapshot externo: reemplazar data local con la version de la nube
+      // FIX v3.10: evento externo real (otro dispositivo) -> fusionar item por
+      // item en vez de reemplazar el array completo. Esto es lo que elimina la
+      // clase de bug que causaba que un dispositivo con estado parcial/viejo
+      // pudiera borrar de un plumazo el resto de la coleccion.
       ["manga","anime"].forEach(function(t){ if(d[t]) d[t] = d[t].map(migrate); });
-      data = d;
+      data = mergeMangu(data, d);
       saveLocal();
       render();
     });
