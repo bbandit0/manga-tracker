@@ -30,6 +30,37 @@ function initData(){
 function loadJ(k){try{const r=localStorage.getItem(k);return r?JSON.parse(r):null;}catch(e){return null;}}
 function saveLocal(){localStorage.setItem(getSKEY(),JSON.stringify(data));localStorage.setItem(TKEY,JSON.stringify(theme));}
 function save(){saveLocal();if(fbUser)saveToCloud();}
+
+// ── FIX v3.9.1: carrera de arranque entre initData() (sincrono) y onAuthStateChanged (asincrono) ──
+// initData() corre ANTES de que Firebase resuelva la sesion, por lo que getSKEY()
+// siempre lee "mat-v4-guest" al boot, sin importar si el usuario ya tenia sesion.
+// Si el usuario edita algo en esa ventana (ej: agrega una serie justo al abrir la app),
+// ese cambio queda guardado bajo la clave de invitado y, si despues la nube "gana"
+// la comparacion de scores en loadFromCloud(), se pierde sin dejar rastro.
+//
+// Esta funcion se llama UNA SOLA VEZ, justo cuando Firebase confirma el uid real
+// (dentro de onAuthStateChanged), ANTES de loadFromCloud(). Relee la clave local
+// correcta del uid y, si en el medio hubo actividad como invitado (score > 0),
+// conserva la version con MAYOR score en vez de descartarla.
+function reloadLocalForCurrentUser(){
+  const guestData = data; // lo cargado al boot bajo "mat-v4-guest" (+ ediciones en la ventana de carrera)
+  const guestScore = _cloudScoreOf(guestData);
+  const skey = getSKEY(); // ahora SI devuelve "mat-v4-"+uid porque fbUser ya esta seteado
+  let raw = loadJ(skey);
+  let uidData = {manga:[], anime:[]};
+  if(raw){
+    ["manga","anime"].forEach(t=>{ if(!raw[t]) raw[t] = []; raw[t] = raw[t].map(migrate); });
+    uidData = raw;
+  }
+  if(guestScore > 0){
+    const uidScore = _cloudScoreOf(uidData);
+    console.warn("[MANGU] reloadLocalForCurrentUser: guest_score=" + guestScore + " uid_score=" + uidScore + " -> usando " + (guestScore >= uidScore ? "guest (ventana de carrera)" : "uid (cache previa)"));
+    data = guestScore >= uidScore ? guestData : uidData;
+  } else {
+    data = uidData;
+  }
+  saveLocal(); // persistir de inmediato bajo la clave correcta del uid
+}
 function applyTheme(){const bg=BGS[theme.bgMode]||BGS.midnight;const root=document.documentElement;Object.entries(bg).forEach(([k,v])=>root.style.setProperty("--"+k,v));root.style.setProperty("--am",theme.accentManga);root.style.setProperty("--amd",hexAlpha(theme.accentManga,.13));root.style.setProperty("--aa",theme.accentAnime);root.style.setProperty("--aad",hexAlpha(theme.accentAnime,.13));const fs=theme.fontSize||15;root.style.setProperty("--fsz",fs+"px");
 // Usar font-size en body en vez de zoom (zoom no soportado en Safari/WebKit - Parche 2.5)
 const appEl=document.getElementById("app");

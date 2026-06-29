@@ -51,6 +51,7 @@ const FIREBASE_CONFIG = {
 
 const FIREBASE_ENABLED = FIREBASE_CONFIG.apiKey !== "";
 let fb=null,fbAuth=null,fbDb=null,fbUser=null,fbUnsub=null,fbUnsubFriends=null,pendingRequestsCount=0;
+let _authResolved=false; // true tras la primera resolucion de Firebase Auth (login confirmado o invitado confirmado) — Fix v3.9.1
 
 // ── CONTADOR de writes propios pendientes de ser consumidos por onSnapshot.
 // Firestore puede emitir HASTA 2 eventos por write en PC:
@@ -97,17 +98,29 @@ if(FIREBASE_ENABLED){
 
     // Handle redirect result for Safari (popup blocked, redirect fallback)
     fbAuth.getRedirectResult().then(function(result){
-      if(result && result.user){ fbUser = result.user; loadFromCloud(); }
+      if(result && result.user){
+        fbUser = result.user;
+        if(!_authResolved) reloadLocalForCurrentUser(); // Fix v3.9.1: misma carrera aplica al flujo de redirect (Safari)
+        loadFromCloud();
+      }
     }).catch(function(){});
 
     fbAuth.onAuthStateChanged(async function(u){
       var prevUid = fbUser ? fbUser.uid : null;
+      var firstResolution = !_authResolved; // capturar ANTES de marcar resuelto
+      _authResolved = true;
       fbUser = u;
       if(u){
         if(prevUid && prevUid !== u.uid){
           // Usuario distinto: limpiar estado anterior SIN tocar localStorage del nuevo uid
           data = {manga:[], anime:[]};
           localStorage.removeItem("mat-v4-" + prevUid);
+        } else if(firstResolution){
+          // FIX v3.9.1: esta es la PRIMERA resolucion de auth tras el boot.
+          // "data" fue cargada por initData() bajo la clave de invitado, porque
+          // en ese momento Firebase todavia no sabia el uid real. Releer/fusionar ahora,
+          // ANTES de comparar contra la nube en loadFromCloud().
+          reloadLocalForCurrentUser();
         }
         // FIX: Cargar username ANTES del primer render para evitar "Sin @username"
         try{
